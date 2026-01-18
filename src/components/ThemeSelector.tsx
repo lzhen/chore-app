@@ -60,7 +60,7 @@ export function ThemeSelector() {
   }, []);
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className={`relative ${isOpen ? 'z-[100]' : ''}`} ref={dropdownRef}>
       {/* Trigger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
@@ -82,7 +82,7 @@ export function ThemeSelector() {
 
       {/* Dropdown Panel */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-72 glass-card p-4 animate-slide-up z-50">
+        <div className="absolute right-0 mt-2 w-72 glass-card p-4 animate-slide-up z-[100]">
           <h3 className="text-sm font-medium text-content-primary mb-3">Choose Theme</h3>
           <div className="grid grid-cols-2 gap-2">
             {themes.map((t) => (
