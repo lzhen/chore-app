@@ -135,7 +135,7 @@ export function ChatAssistant({ onClose }: ChatAssistantProps) {
   };
 
   return (
-    <div className="fixed bottom-24 right-6 w-96 h-[500px] bg-white dark:bg-gray-800 rounded-lg shadow-xl z-50 flex flex-col overflow-hidden">
+    <div className="fixed bottom-24 right-6 w-96 h-[500px] glass-card z-50 flex flex-col overflow-hidden animate-slide-up">
       {/* Header */}
       <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2">
@@ -166,8 +166,8 @@ export function ChatAssistant({ onClose }: ChatAssistantProps) {
             <div
               className={`max-w-[80%] px-4 py-2 rounded-lg ${
                 message.role === 'user'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+                  ? 'bg-accent text-white'
+                  : 'bg-surface-tertiary text-content-primary'
               }`}
             >
               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
@@ -176,15 +176,15 @@ export function ChatAssistant({ onClose }: ChatAssistantProps) {
         ))}
         {isProcessing && (
           <div className="flex justify-start">
-            <div className="bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-lg">
+            <div className="bg-surface-tertiary px-4 py-2 rounded-lg">
               <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-content-secondary rounded-full animate-bounce"></div>
                 <div
-                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                  className="w-2 h-2 bg-content-secondary rounded-full animate-bounce"
                   style={{ animationDelay: '0.1s' }}
                 ></div>
                 <div
-                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                  className="w-2 h-2 bg-content-secondary rounded-full animate-bounce"
                   style={{ animationDelay: '0.2s' }}
                 ></div>
               </div>
@@ -195,7 +195,7 @@ export function ChatAssistant({ onClose }: ChatAssistantProps) {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="p-4 border-t dark:border-gray-700 flex-shrink-0">
+      <form onSubmit={handleSubmit} className="p-4 border-t border-border flex-shrink-0">
         <div className="flex gap-2">
           <input
             ref={inputRef}
@@ -203,13 +203,13 @@ export function ChatAssistant({ onClose }: ChatAssistantProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type a message..."
-            className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-full bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 px-4 py-2 border border-border rounded-full bg-surface-primary text-content-primary placeholder-content-secondary focus:outline-none focus:ring-2 focus:ring-accent"
             disabled={isProcessing}
           />
           <button
             type="submit"
             disabled={!input.trim() || isProcessing}
-            className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-10 h-10 bg-accent text-white rounded-full flex items-center justify-center hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path

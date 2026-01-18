@@ -106,7 +106,7 @@ export function AgentPanel() {
       {/* Floating Agent Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center z-40 transition-transform hover:scale-105"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-accent hover:bg-accent-hover text-white rounded-full shadow-lg flex items-center justify-center z-40 transition-transform hover:scale-105"
         title="Calendar Agent"
       >
         <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -126,8 +126,8 @@ export function AgentPanel() {
 
       {/* Agent Panel */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl z-40 overflow-hidden">
-          <div className="bg-blue-500 text-white px-4 py-3 flex items-center justify-between">
+        <div className="fixed bottom-24 right-6 w-80 glass-card overflow-hidden animate-slide-up z-40">
+          <div className="bg-accent text-white px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -171,11 +171,11 @@ export function AgentPanel() {
 
             {/* Notifications Toggle */}
             <div>
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <h4 className="text-sm font-medium text-content-primary mb-2">
                 Notifications
               </h4>
               {notificationsEnabled ? (
-                <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/30 rounded-md text-green-700 dark:text-green-400">
+                <div className="flex items-center gap-2 p-3 bg-green-500/10 rounded-md text-green-600 dark:text-green-400">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                   </svg>
@@ -184,7 +184,7 @@ export function AgentPanel() {
               ) : (
                 <button
                   onClick={handleEnableNotifications}
-                  className="w-full py-2 px-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md text-sm hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center gap-2"
+                  className="w-full py-2 px-4 bg-surface-tertiary text-content-primary rounded-md text-sm hover:bg-surface-secondary flex items-center justify-center gap-2 transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -197,12 +197,12 @@ export function AgentPanel() {
             {/* Google Calendar Integration */}
             {googleConfigured && (
               <div>
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <h4 className="text-sm font-medium text-content-primary mb-2">
                   Google Calendar
                 </h4>
                 {googleSignedIn ? (
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-900/30 rounded-md text-green-700 dark:text-green-400 text-sm">
+                    <div className="flex items-center gap-2 p-2 bg-green-500/10 rounded-md text-green-600 dark:text-green-400 text-sm">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
@@ -211,7 +211,7 @@ export function AgentPanel() {
                     <button
                       onClick={handleSyncToGoogle}
                       disabled={isSyncing || state.chores.length === 0}
-                      className="w-full py-2 px-4 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600 disabled:opacity-50 flex items-center justify-center gap-2"
+                      className="w-full py-2 px-4 bg-accent text-white rounded-md text-sm hover:bg-accent-hover disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
                     >
                       {isSyncing ? (
                         <>
@@ -228,14 +228,14 @@ export function AgentPanel() {
                       )}
                     </button>
                     {syncResult && (
-                      <p className="text-xs text-center text-gray-600 dark:text-gray-400">
+                      <p className="text-xs text-center text-content-secondary">
                         Synced {syncResult.success} chore{syncResult.success !== 1 ? 's' : ''}
                         {syncResult.failed > 0 && `, ${syncResult.failed} failed`}
                       </p>
                     )}
                     <button
                       onClick={handleGoogleSignOut}
-                      className="w-full py-1 px-2 text-gray-500 dark:text-gray-400 text-xs hover:text-gray-700 dark:hover:text-gray-300"
+                      className="w-full py-1 px-2 text-content-secondary text-xs hover:text-content-primary transition-colors"
                     >
                       Disconnect
                     </button>
@@ -243,7 +243,7 @@ export function AgentPanel() {
                 ) : (
                   <button
                     onClick={handleGoogleSignIn}
-                    className="w-full py-2 px-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md text-sm hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center gap-2"
+                    className="w-full py-2 px-4 bg-surface-tertiary text-content-primary rounded-md text-sm hover:bg-surface-secondary flex items-center justify-center gap-2 transition-colors"
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24">
                       <path
@@ -259,7 +259,7 @@ export function AgentPanel() {
 
             {/* Workload Status */}
             <div>
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <h4 className="text-sm font-medium text-content-primary mb-2">
                 Workload Balance
               </h4>
               <div
@@ -289,7 +289,7 @@ export function AgentPanel() {
             {/* Team Stats */}
             {analysis.stats.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <h4 className="text-sm font-medium text-content-primary mb-2">
                   Team Stats (Last 7 Days)
                 </h4>
                 <div className="space-y-2">
@@ -298,8 +298,8 @@ export function AgentPanel() {
                       key={stat.memberId}
                       className="flex items-center justify-between text-sm"
                     >
-                      <span className="text-gray-600 dark:text-gray-400">{stat.memberName}</span>
-                      <span className="text-gray-800 dark:text-gray-200 font-medium">
+                      <span className="text-content-secondary">{stat.memberName}</span>
+                      <span className="text-content-primary font-medium">
                         {stat.recentAssignments} chores
                       </span>
                     </div>
@@ -311,21 +311,21 @@ export function AgentPanel() {
             {/* Upcoming Chores */}
             {upcomingChores.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <h4 className="text-sm font-medium text-content-primary mb-2">
                   Due Today/Tomorrow
                 </h4>
                 <div className="space-y-1">
                   {upcomingChores.slice(0, 5).map((chore) => (
                     <div
                       key={chore.id}
-                      className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2"
+                      className="text-sm text-content-secondary flex items-center gap-2"
                     >
-                      <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                      <span className="w-2 h-2 rounded-full bg-accent"></span>
                       {chore.title}
                     </div>
                   ))}
                   {upcomingChores.length > 5 && (
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-content-secondary">
                       +{upcomingChores.length - 5} more
                     </p>
                   )}
@@ -335,8 +335,8 @@ export function AgentPanel() {
 
             {/* Suggested Assignee */}
             {suggestedMember && (
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md">
-                <p className="text-sm text-blue-700 dark:text-blue-400">
+              <div className="p-3 bg-accent/10 rounded-md">
+                <p className="text-sm text-content-accent">
                   <strong>Suggestion:</strong> Assign next chore to{' '}
                   <strong>{suggestedMember.name}</strong> (least busy)
                 </p>
@@ -348,7 +348,7 @@ export function AgentPanel() {
               <button
                 onClick={handleAutoAssign}
                 disabled={isAutoAssigning}
-                className="w-full py-2 px-4 bg-blue-500 text-white rounded-md font-medium hover:bg-blue-600 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full py-2 px-4 bg-accent text-white rounded-md font-medium hover:bg-accent-hover disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
               >
                 {isAutoAssigning ? (
                   <>

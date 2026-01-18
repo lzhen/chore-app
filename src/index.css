@@ -2,6 +2,189 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   Theme CSS Variables
+   ============================================ */
+
+/* Light Theme (default) */
+:root,
+[data-theme="light"] {
+  --glass-bg: rgba(255, 255, 255, 1);
+  --glass-bg-secondary: rgba(249, 250, 251, 1);
+  --glass-blur: 0px;
+  --glass-border: rgba(229, 231, 235, 1);
+  --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --glass-glow: none;
+
+  --surface-primary: #ffffff;
+  --surface-secondary: #f9fafb;
+  --surface-tertiary: #f3f4f6;
+
+  --text-primary: #1f2937;
+  --text-secondary: #6b7280;
+  --text-accent: #3b82f6;
+
+  --accent-primary: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-subtle: rgba(59, 130, 246, 0.1);
+
+  --border-default: #e5e7eb;
+  --border-subtle: #f3f4f6;
+
+  --overlay-bg: rgba(0, 0, 0, 0.5);
+
+  --theme-bg: #f3f4f6;
+}
+
+/* Dark Theme */
+[data-theme="dark"] {
+  --glass-bg: rgba(31, 41, 55, 1);
+  --glass-bg-secondary: rgba(17, 24, 39, 1);
+  --glass-blur: 0px;
+  --glass-border: rgba(55, 65, 81, 1);
+  --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --glass-glow: none;
+
+  --surface-primary: #1f2937;
+  --surface-secondary: #111827;
+  --surface-tertiary: #374151;
+
+  --text-primary: #f9fafb;
+  --text-secondary: #9ca3af;
+  --text-accent: #60a5fa;
+
+  --accent-primary: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-subtle: rgba(59, 130, 246, 0.2);
+
+  --border-default: #374151;
+  --border-subtle: #4b5563;
+
+  --overlay-bg: rgba(0, 0, 0, 0.7);
+
+  --theme-bg: #111827;
+}
+
+/* Crystal Light Theme */
+[data-theme="crystal-light"] {
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-bg-secondary: rgba(255, 255, 255, 0.55);
+  --glass-blur: 20px;
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+  --glass-glow: none;
+
+  --surface-primary: rgba(255, 255, 255, 0.8);
+  --surface-secondary: rgba(249, 250, 251, 0.75);
+  --surface-tertiary: rgba(243, 244, 246, 0.7);
+
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --text-accent: #3b82f6;
+
+  --accent-primary: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-subtle: rgba(59, 130, 246, 0.15);
+
+  --border-default: rgba(255, 255, 255, 0.6);
+  --border-subtle: rgba(255, 255, 255, 0.4);
+
+  --overlay-bg: rgba(0, 0, 0, 0.25);
+
+  --theme-bg: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+}
+
+/* Crystal Dark Theme */
+[data-theme="crystal-dark"] {
+  --glass-bg: rgba(17, 24, 39, 0.75);
+  --glass-bg-secondary: rgba(31, 41, 55, 0.65);
+  --glass-blur: 24px;
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --glass-glow: 0 0 40px rgba(59, 130, 246, 0.15);
+
+  --surface-primary: rgba(31, 41, 55, 0.8);
+  --surface-secondary: rgba(17, 24, 39, 0.85);
+  --surface-tertiary: rgba(55, 65, 81, 0.7);
+
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-accent: #60a5fa;
+
+  --accent-primary: #60a5fa;
+  --accent-hover: #3b82f6;
+  --accent-subtle: rgba(96, 165, 250, 0.2);
+
+  --border-default: rgba(75, 85, 99, 0.5);
+  --border-subtle: rgba(107, 114, 128, 0.3);
+
+  --overlay-bg: rgba(0, 0, 0, 0.5);
+
+  --theme-bg: linear-gradient(135deg, #0c1445 0%, #1a1a2e 50%, #16213e 100%);
+}
+
+/* Aurora Theme */
+[data-theme="aurora"] {
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-bg-secondary: rgba(255, 255, 255, 0.5);
+  --glass-blur: 28px;
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-shadow: 0 8px 32px rgba(139, 92, 246, 0.2);
+  --glass-glow: 0 0 30px rgba(139, 92, 246, 0.1);
+
+  --surface-primary: rgba(255, 255, 255, 0.7);
+  --surface-secondary: rgba(249, 250, 251, 0.6);
+  --surface-tertiary: rgba(243, 244, 246, 0.55);
+
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --text-accent: #8b5cf6;
+
+  --accent-primary: #8b5cf6;
+  --accent-hover: #7c3aed;
+  --accent-subtle: rgba(139, 92, 246, 0.15);
+
+  --border-default: rgba(255, 255, 255, 0.5);
+  --border-subtle: rgba(255, 255, 255, 0.3);
+
+  --overlay-bg: rgba(0, 0, 0, 0.3);
+
+  --theme-bg: linear-gradient(135deg, #a8edea 0%, #fed6e3 25%, #d299c2 50%, #fef9d7 75%, #a8edea 100%);
+}
+
+/* Midnight Theme */
+[data-theme="midnight"] {
+  --glass-bg: rgba(30, 27, 75, 0.8);
+  --glass-bg-secondary: rgba(49, 46, 129, 0.6);
+  --glass-blur: 24px;
+  --glass-border: rgba(139, 92, 246, 0.2);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --glass-glow: 0 0 60px rgba(139, 92, 246, 0.2);
+
+  --surface-primary: rgba(30, 27, 75, 0.85);
+  --surface-secondary: rgba(17, 24, 39, 0.9);
+  --surface-tertiary: rgba(49, 46, 129, 0.7);
+
+  --text-primary: #e0e7ff;
+  --text-secondary: #a5b4fc;
+  --text-accent: #c4b5fd;
+
+  --accent-primary: #a78bfa;
+  --accent-hover: #8b5cf6;
+  --accent-subtle: rgba(167, 139, 250, 0.2);
+
+  --border-default: rgba(99, 102, 241, 0.3);
+  --border-subtle: rgba(139, 92, 246, 0.2);
+
+  --overlay-bg: rgba(0, 0, 0, 0.6);
+
+  --theme-bg: linear-gradient(to bottom, #0f0a2e 0%, #1e1b4b 50%, #312e81 100%);
+}
+
+/* ============================================
+   Base Styles
+   ============================================ */
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -9,30 +192,237 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color: var(--text-primary);
+  transition: color 0.3s ease;
 }
 
-/* FullCalendar customizations - Light mode */
+/* ============================================
+   Glassmorphism Utilities
+   ============================================ */
+
+.glass-effect {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: 0.75rem;
+}
+
+.glass-panel {
+  background: var(--glass-bg-secondary);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-right: 1px solid var(--glass-border);
+}
+
+.glass-glow {
+  box-shadow: var(--glass-glow);
+}
+
+/* ============================================
+   Theme Background Layer
+   ============================================ */
+
+.theme-background {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--theme-bg);
+  transition: background 0.5s ease;
+}
+
+/* Aurora animated background */
+[data-theme="aurora"] .theme-background {
+  background: linear-gradient(
+    135deg,
+    rgba(134, 239, 172, 0.6) 0%,
+    rgba(59, 130, 246, 0.5) 25%,
+    rgba(168, 85, 247, 0.5) 50%,
+    rgba(251, 146, 60, 0.4) 75%,
+    rgba(244, 114, 182, 0.5) 100%
+  );
+  background-size: 400% 400%;
+  animation: auroraShift 15s ease infinite;
+}
+
+/* Midnight starfield background */
+[data-theme="midnight"] .theme-background {
+  background:
+    radial-gradient(1px 1px at 10% 10%, rgba(255,255,255,0.8), transparent),
+    radial-gradient(1.5px 1.5px at 20% 30%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 30% 20%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(2px 2px at 40% 60%, rgba(167,139,250,0.8), transparent),
+    radial-gradient(1px 1px at 50% 40%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1.5px 1.5px at 60% 80%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 70% 10%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(2px 2px at 80% 50%, rgba(139,92,246,0.7), transparent),
+    radial-gradient(1px 1px at 90% 70%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1.5px 1.5px at 15% 85%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 25% 55%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(2px 2px at 35% 75%, rgba(196,181,253,0.6), transparent),
+    radial-gradient(1px 1px at 45% 25%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1.5px 1.5px at 55% 95%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(1px 1px at 65% 45%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(2px 2px at 75% 15%, rgba(167,139,250,0.5), transparent),
+    radial-gradient(1px 1px at 85% 35%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1.5px 1.5px at 95% 65%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 5% 45%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(2px 2px at 12% 72%, rgba(139,92,246,0.6), transparent),
+    linear-gradient(to bottom, #0f0a2e 0%, #1e1b4b 50%, #312e81 100%);
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+
+@keyframes auroraShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes starTwinkle {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes glowPulse {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="aurora"] .theme-background {
+    animation: none;
+  }
+
+  .glass-effect,
+  .glass-card,
+  .glass-panel,
+  body {
+    transition: none;
+  }
+}
+
+/* ============================================
+   FullCalendar Theme Overrides
+   ============================================ */
+
 .fc {
   @apply h-full;
 }
 
 .fc .fc-toolbar-title {
-  @apply text-xl font-semibold text-gray-800;
+  color: var(--text-primary);
+  @apply text-xl font-semibold;
 }
 
 .fc .fc-button {
-  @apply bg-blue-500 border-blue-500 hover:bg-blue-600 hover:border-blue-600;
+  background: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
+}
+
+.fc .fc-button:hover {
+  background: var(--accent-hover) !important;
+  border-color: var(--accent-hover) !important;
 }
 
 .fc .fc-button-primary:not(:disabled).fc-button-active {
-  @apply bg-blue-700 border-blue-700;
+  background: var(--accent-hover) !important;
+  border-color: var(--accent-hover) !important;
+}
+
+.fc .fc-col-header-cell-cushion {
+  color: var(--text-secondary);
+}
+
+.fc .fc-daygrid-day-number {
+  color: var(--text-primary);
+}
+
+.fc .fc-daygrid-day {
+  background: var(--surface-primary);
+  border-color: var(--border-default);
+  transition: background 0.2s ease;
 }
 
 .fc .fc-daygrid-day:hover {
-  @apply bg-gray-50 cursor-pointer;
+  background: var(--surface-tertiary);
+  cursor: pointer;
 }
 
-/* FullCalendar - Dark mode */
+.fc .fc-daygrid-day.fc-day-today {
+  background: var(--accent-subtle) !important;
+}
+
+.fc .fc-scrollgrid {
+  border-color: var(--border-default);
+}
+
+.fc .fc-scrollgrid td,
+.fc .fc-scrollgrid th {
+  border-color: var(--border-default);
+}
+
+.fc .fc-col-header {
+  background: var(--surface-secondary);
+}
+
+.fc .fc-day-other .fc-daygrid-day-number {
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+
+.fc .fc-more-link {
+  color: var(--text-accent);
+}
+
+/* Glass themes - calendar glass effect */
+[data-theme="crystal-light"] .fc .fc-daygrid-day,
+[data-theme="crystal-dark"] .fc .fc-daygrid-day,
+[data-theme="aurora"] .fc .fc-daygrid-day,
+[data-theme="midnight"] .fc .fc-daygrid-day {
+  background: var(--glass-bg-secondary);
+  backdrop-filter: blur(calc(var(--glass-blur) / 2));
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) / 2));
+}
+
+[data-theme="crystal-light"] .fc .fc-col-header,
+[data-theme="crystal-dark"] .fc .fc-col-header,
+[data-theme="aurora"] .fc .fc-col-header,
+[data-theme="midnight"] .fc .fc-col-header {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+/* ============================================
+   Legacy Dark Mode Support (backward compat)
+   ============================================ */
+
 .dark .fc .fc-toolbar-title {
   @apply text-white;
 }

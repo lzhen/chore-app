@@ -33,12 +33,15 @@ export function App() {
   // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+      <>
+        <div className="theme-background" />
+        <div className="h-screen flex items-center justify-center">
+          <div className="text-center glass-card p-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto"></div>
+            <p className="mt-4 text-content-secondary">Loading...</p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -50,28 +53,34 @@ export function App() {
   // Show loading while fetching data
   if (state.loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading chores...</p>
+      <>
+        <div className="theme-background" />
+        <div className="h-screen flex items-center justify-center">
+          <div className="text-center glass-card p-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto"></div>
+            <p className="mt-4 text-content-secondary">Loading chores...</p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-      <Header />
-      <div className="flex flex-1 overflow-hidden">
-        <TeamMemberList />
-        <Calendar onAddClick={handleAddClick} onEventClick={handleEventClick} />
+    <>
+      <div className="theme-background" />
+      <div className="h-screen flex flex-col relative">
+        <Header />
+        <div className="flex flex-1 overflow-hidden">
+          <TeamMemberList />
+          <Calendar onAddClick={handleAddClick} onEventClick={handleEventClick} />
+        </div>
+        <ChoreModal
+          isOpen={modalOpen}
+          onClose={handleCloseModal}
+          editChore={editChore}
+        />
+        <AgentPanel />
       </div>
-      <ChoreModal
-        isOpen={modalOpen}
-        onClose={handleCloseModal}
-        editChore={editChore}
-      />
-      <AgentPanel />
-    </div>
+    </>
   );
 }
