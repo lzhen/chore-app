@@ -37,15 +37,15 @@ export function AuthForm() {
   return (
     <>
       <div className="theme-background" />
-      <div className="min-h-screen flex items-center justify-center relative">
-        <div className="absolute top-4 right-4">
+      <div className="min-h-screen flex items-center justify-center relative px-4 py-8">
+        <div className="absolute top-3 right-3 sm:top-4 sm:right-4">
           <ThemeSelector />
         </div>
-        <div className="glass-card p-8 w-full max-w-md mx-4 animate-slide-up">
-          <h1 className="text-2xl font-bold text-center text-content-primary mb-2">
+        <div className="glass-card p-6 sm:p-8 w-full max-w-md animate-slide-up">
+          <h1 className="text-xl sm:text-2xl font-bold text-center text-content-primary mb-2">
             Office Chore Manager
           </h1>
-          <p className="text-center text-content-secondary mb-6">
+          <p className="text-center text-content-secondary mb-4 sm:mb-6 text-sm sm:text-base">
             {isSignUp ? 'Create an account' : 'Sign in to your account'}
           </p>
 
