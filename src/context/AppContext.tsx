@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Chore, TeamMember, RecurrenceType } from '../types';
 import { loadChores, saveChores, loadTeamMembers, saveTeamMembers } from '../utils/storage';
