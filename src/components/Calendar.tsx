@@ -40,8 +40,8 @@ export function Calendar({ onAddClick, onEventClick }: CalendarProps) {
   };
 
   return (
-    <div className="flex-1 p-6 bg-gray-50">
-      <div className="bg-white rounded-lg shadow-sm p-4 h-full flex flex-col">
+    <div className="flex-1 p-6 bg-gray-50 dark:bg-gray-900">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 h-full flex flex-col">
         <div className="flex justify-end mb-4">
           <button
             onClick={onAddClick}
@@ -53,7 +53,7 @@ export function Calendar({ onAddClick, onEventClick }: CalendarProps) {
             Add Chore
           </button>
         </div>
-        <div className="flex-1">
+        <div className="flex-1 calendar-dark">
           <FullCalendar
             plugins={[dayGridPlugin]}
             initialView="dayGridMonth"

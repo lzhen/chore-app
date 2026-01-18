@@ -32,10 +32,10 @@ export function App() {
   // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-100">
+      <div className="h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
         </div>
       </div>
     );
@@ -49,17 +49,17 @@ export function App() {
   // Show loading while fetching data
   if (state.loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-100">
+      <div className="h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading chores...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading chores...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100">
+    <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
       <Header />
       <div className="flex flex-1 overflow-hidden">
         <TeamMemberList />

@@ -11,7 +11,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* FullCalendar customizations */
+/* FullCalendar customizations - Light mode */
 .fc {
   @apply h-full;
 }
@@ -30,4 +30,54 @@ body {
 
 .fc .fc-daygrid-day:hover {
   @apply bg-gray-50 cursor-pointer;
+}
+
+/* FullCalendar - Dark mode */
+.dark .fc .fc-toolbar-title {
+  @apply text-white;
+}
+
+.dark .fc .fc-col-header-cell-cushion {
+  @apply text-gray-300;
+}
+
+.dark .fc .fc-daygrid-day-number {
+  @apply text-gray-300;
+}
+
+.dark .fc .fc-daygrid-day {
+  @apply bg-gray-800 border-gray-700;
+}
+
+.dark .fc .fc-daygrid-day:hover {
+  @apply bg-gray-700;
+}
+
+.dark .fc .fc-daygrid-day.fc-day-today {
+  @apply bg-blue-900/30;
+}
+
+.dark .fc .fc-scrollgrid {
+  @apply border-gray-700;
+}
+
+.dark .fc .fc-scrollgrid td,
+.dark .fc .fc-scrollgrid th {
+  @apply border-gray-700;
+}
+
+.dark .fc .fc-col-header {
+  @apply bg-gray-800;
+}
+
+.dark .fc .fc-daygrid-day-frame {
+  @apply border-gray-700;
+}
+
+.dark .fc .fc-day-other .fc-daygrid-day-number {
+  @apply text-gray-500;
+}
+
+.dark .fc .fc-more-link {
+  @apply text-blue-400;
 }
