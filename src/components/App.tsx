@@ -4,6 +4,7 @@ import { TeamMemberList } from './TeamMemberList';
 import { Calendar } from './Calendar';
 import { ChoreModal } from './ChoreModal';
 import { AuthForm } from './AuthForm';
+import { AgentPanel } from './AgentPanel';
 import { Chore } from '../types';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -70,6 +71,7 @@ export function App() {
         onClose={handleCloseModal}
         editChore={editChore}
       />
+      <AgentPanel />
     </div>
   );
 }
