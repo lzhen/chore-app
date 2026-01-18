@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 
-export function TeamMemberList() {
+interface TeamMemberListProps {
+  onClose?: () => void;
+}
+
+export function TeamMemberList({ onClose }: TeamMemberListProps) {
   const { state, addMember, removeMember } = useApp();
   const [newName, setNewName] = useState('');
 
@@ -14,8 +18,22 @@ export function TeamMemberList() {
   };
 
   return (
-    <div className="glass-panel w-64 p-4 flex flex-col h-full">
-      <h2 className="text-lg font-semibold text-content-primary mb-4">Team Members</h2>
+    <div className="glass-panel w-72 lg:w-64 p-4 flex flex-col h-full">
+      {/* Header with close button for mobile */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-content-primary">Team Members</h2>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="lg:hidden p-1 text-content-secondary hover:text-content-primary hover:bg-surface-tertiary rounded transition-colors"
+            aria-label="Close sidebar"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
 
       <form onSubmit={handleAdd} className="mb-4">
         <div className="flex gap-2">
@@ -47,14 +65,14 @@ export function TeamMemberList() {
               >
                 <div className="flex items-center gap-2">
                   <span
-                    className="w-3 h-3 rounded-full"
+                    className="w-3 h-3 rounded-full flex-shrink-0"
                     style={{ backgroundColor: member.color }}
                   />
-                  <span className="text-sm text-content-primary">{member.name}</span>
+                  <span className="text-sm text-content-primary truncate">{member.name}</span>
                 </div>
                 <button
                   onClick={() => removeMember(member.id)}
-                  className="text-content-secondary hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="text-content-secondary hover:text-red-500 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-2"
                   title="Remove member"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

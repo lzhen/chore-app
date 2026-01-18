@@ -106,10 +106,10 @@ export function AgentPanel() {
       {/* Floating Agent Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-accent hover:bg-accent-hover text-white rounded-full shadow-lg flex items-center justify-center z-40 transition-transform hover:scale-105"
+        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 w-12 h-12 sm:w-14 sm:h-14 bg-accent hover:bg-accent-hover text-white rounded-full shadow-lg flex items-center justify-center z-40 transition-transform hover:scale-105"
         title="Calendar Agent"
       >
-        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -126,7 +126,7 @@ export function AgentPanel() {
 
       {/* Agent Panel */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-80 glass-card overflow-hidden animate-slide-up z-40">
+        <div className="fixed bottom-20 sm:bottom-24 right-2 sm:right-6 left-2 sm:left-auto sm:w-80 glass-card overflow-hidden animate-slide-up z-40">
           <div className="bg-accent text-white px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

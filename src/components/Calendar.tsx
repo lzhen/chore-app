@@ -40,33 +40,36 @@ export function Calendar({ onAddClick, onEventClick }: CalendarProps) {
   };
 
   return (
-    <div className="flex-1 p-6">
-      <div className="glass-card p-4 h-full flex flex-col">
-        <div className="flex justify-end mb-4">
+    <div className="flex-1 p-3 sm:p-6 overflow-hidden">
+      <div className="glass-card p-3 sm:p-4 h-full flex flex-col">
+        <div className="flex justify-end mb-3 sm:mb-4">
           <button
             onClick={onAddClick}
-            className="px-4 py-2 bg-accent text-white rounded-md font-medium hover:bg-accent-hover transition-colors flex items-center gap-2"
+            className="px-3 sm:px-4 py-2 bg-accent text-white rounded-md font-medium hover:bg-accent-hover transition-colors flex items-center gap-2 text-sm sm:text-base"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Add Chore
+            <span className="hidden sm:inline">Add Chore</span>
+            <span className="sm:hidden">Add</span>
           </button>
         </div>
-        <div className="flex-1">
+        <div className="flex-1 min-h-0 calendar-container">
           <FullCalendar
             plugins={[dayGridPlugin]}
             initialView="dayGridMonth"
             events={events}
             eventClick={handleEventClick}
             headerToolbar={{
-              left: 'prev,next today',
+              left: 'prev,next',
               center: 'title',
-              right: '',
+              right: 'today',
             }}
             height="100%"
-            dayMaxEvents={3}
+            dayMaxEvents={2}
             eventDisplay="block"
+            titleFormat={{ year: 'numeric', month: 'short' }}
+            dayHeaderFormat={{ weekday: 'short' }}
           />
         </div>
       </div>

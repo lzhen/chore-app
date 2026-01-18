@@ -471,3 +471,38 @@ body {
 .dark .fc .fc-more-link {
   @apply text-blue-400;
 }
+
+/* Mobile responsive FullCalendar styles */
+@media (max-width: 640px) {
+  .fc .fc-toolbar {
+    @apply flex-col gap-2;
+  }
+
+  .fc .fc-toolbar-title {
+    @apply text-base;
+  }
+
+  .fc .fc-button {
+    @apply text-xs px-2 py-1;
+  }
+
+  .fc .fc-col-header-cell-cushion {
+    @apply text-xs py-1;
+  }
+
+  .fc .fc-daygrid-day-number {
+    @apply text-xs p-1;
+  }
+
+  .fc .fc-daygrid-event {
+    @apply text-xs;
+  }
+
+  .fc .fc-event-title {
+    @apply text-xs truncate;
+  }
+
+  .fc .fc-daygrid-day-frame {
+    min-height: 60px;
+  }
+}

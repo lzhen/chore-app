@@ -14,6 +14,7 @@ export function App() {
   const { user, loading: authLoading } = useAuth();
   const [modalOpen, setModalOpen] = useState(false);
   const [editChore, setEditChore] = useState<Chore | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleAddClick = () => {
     setEditChore(null);
@@ -28,6 +29,10 @@ export function App() {
   const handleCloseModal = () => {
     setModalOpen(false);
     setEditChore(null);
+  };
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
   };
 
   // Show loading while checking auth
@@ -69,9 +74,25 @@ export function App() {
     <>
       <div className="theme-background" />
       <div className="h-screen flex flex-col relative">
-        <Header />
-        <div className="flex flex-1 overflow-hidden">
-          <TeamMemberList />
+        <Header onMenuClick={toggleSidebar} />
+        <div className="flex flex-1 overflow-hidden relative">
+          {/* Mobile sidebar overlay */}
+          {sidebarOpen && (
+            <div
+              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
+          {/* Sidebar */}
+          <div
+            className={`
+              fixed lg:relative inset-y-0 left-0 z-50 lg:z-auto
+              transform transition-transform duration-300 ease-in-out
+              ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+            `}
+          >
+            <TeamMemberList onClose={() => setSidebarOpen(false)} />
+          </div>
           <Calendar onAddClick={handleAddClick} onEventClick={handleEventClick} />
         </div>
         <ChoreModal

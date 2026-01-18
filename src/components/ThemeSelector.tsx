@@ -82,9 +82,12 @@ export function ThemeSelector() {
 
       {/* Dropdown Panel */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-72 glass-card p-4 animate-slide-up z-[100]">
-          <h3 className="text-sm font-medium text-content-primary mb-3">Choose Theme</h3>
-          <div className="grid grid-cols-2 gap-2">
+        <>
+          {/* Mobile overlay */}
+          <div className="fixed inset-0 bg-black/20 sm:hidden z-[99]" onClick={() => setIsOpen(false)} />
+          <div className="fixed inset-x-2 bottom-2 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-72 glass-card p-4 animate-slide-up z-[100]">
+            <h3 className="text-sm font-medium text-content-primary mb-3">Choose Theme</h3>
+            <div className="grid grid-cols-2 gap-2">
             {themes.map((t) => (
               <button
                 key={t.id}
@@ -122,6 +125,7 @@ export function ThemeSelector() {
             ))}
           </div>
         </div>
+        </>
       )}
     </div>
   );

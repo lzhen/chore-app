@@ -58,15 +58,15 @@ export function ChoreModal({ isOpen, onClose, editChore, defaultDate }: ChoreMod
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-50">
-      <div className="glass-card w-full max-w-md mx-4 animate-slide-up">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+    <div className="fixed inset-0 bg-overlay flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div className="glass-card w-full sm:max-w-md sm:mx-4 animate-slide-up rounded-t-2xl sm:rounded-xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-border sticky top-0 glass-effect">
           <h3 className="text-lg font-semibold text-content-primary">
             {editChore ? 'Edit Chore' : 'Add New Chore'}
           </h3>
           <button
             onClick={onClose}
-            className="text-content-secondary hover:text-content-primary transition-colors"
+            className="text-content-secondary hover:text-content-primary transition-colors p-1"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -74,7 +74,7 @@ export function ChoreModal({ isOpen, onClose, editChore, defaultDate }: ChoreMod
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-content-primary mb-1">
               Title
