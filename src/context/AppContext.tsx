@@ -1,40 +1,51 @@
 import { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import { Chore, TeamMember, RecurrenceType } from '../types';
-import { loadChores, saveChores, loadTeamMembers, saveTeamMembers } from '../utils/storage';
+import {
+  fetchChores,
+  fetchTeamMembers,
+  createChore as dbCreateChore,
+  updateChore as dbUpdateChore,
+  deleteChore as dbDeleteChore,
+  createTeamMember as dbCreateTeamMember,
+  deleteTeamMember as dbDeleteTeamMember,
+} from '../utils/supabaseStorage';
 import { getNextColor } from '../utils/colors';
 
 interface AppState {
   chores: Chore[];
   teamMembers: TeamMember[];
+  loading: boolean;
 }
 
 type Action =
-  | { type: 'ADD_CHORE'; payload: { title: string; date: string; assigneeId: string | null; recurrence: RecurrenceType } }
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_CHORES'; payload: Chore[] }
+  | { type: 'ADD_CHORE'; payload: Chore }
   | { type: 'UPDATE_CHORE'; payload: Chore }
   | { type: 'DELETE_CHORE'; payload: string }
-  | { type: 'ADD_MEMBER'; payload: string }
-  | { type: 'REMOVE_MEMBER'; payload: string }
-  | { type: 'LOAD_STATE'; payload: AppState };
+  | { type: 'SET_MEMBERS'; payload: TeamMember[] }
+  | { type: 'ADD_MEMBER'; payload: TeamMember }
+  | { type: 'REMOVE_MEMBER'; payload: string };
 
 interface AppContextType {
   state: AppState;
-  addChore: (title: string, date: string, assigneeId: string | null, recurrence: RecurrenceType) => void;
-  updateChore: (chore: Chore) => void;
-  deleteChore: (id: string) => void;
-  addMember: (name: string) => void;
-  removeMember: (id: string) => void;
+  addChore: (title: string, date: string, assigneeId: string | null, recurrence: RecurrenceType) => Promise<void>;
+  updateChore: (chore: Chore) => Promise<void>;
+  deleteChore: (id: string) => Promise<void>;
+  addMember: (name: string) => Promise<void>;
+  removeMember: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
+    case 'SET_LOADING':
+      return { ...state, loading: action.payload };
+    case 'SET_CHORES':
+      return { ...state, chores: action.payload };
     case 'ADD_CHORE':
-      return {
-        ...state,
-        chores: [...state.chores, { id: uuidv4(), ...action.payload }],
-      };
+      return { ...state, chores: [...state.chores, action.payload] };
     case 'UPDATE_CHORE':
       return {
         ...state,
@@ -45,69 +56,77 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         chores: state.chores.filter(c => c.id !== action.payload),
       };
-    case 'ADD_MEMBER': {
-      const usedColors = state.teamMembers.map(m => m.color);
-      return {
-        ...state,
-        teamMembers: [
-          ...state.teamMembers,
-          { id: uuidv4(), name: action.payload, color: getNextColor(usedColors) },
-        ],
-      };
-    }
+    case 'SET_MEMBERS':
+      return { ...state, teamMembers: action.payload };
+    case 'ADD_MEMBER':
+      return { ...state, teamMembers: [...state.teamMembers, action.payload] };
     case 'REMOVE_MEMBER':
       return {
         ...state,
         teamMembers: state.teamMembers.filter(m => m.id !== action.payload),
-        // Also unassign chores from removed member
-        chores: state.chores.map(c =>
-          c.assigneeId === action.payload ? { ...c, assigneeId: null } : c
-        ),
       };
-    case 'LOAD_STATE':
-      return action.payload;
     default:
       return state;
   }
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, { chores: [], teamMembers: [] });
+  const [state, dispatch] = useReducer(reducer, {
+    chores: [],
+    teamMembers: [],
+    loading: true,
+  });
 
-  // Load from localStorage on mount
+  // Load data from Supabase on mount
   useEffect(() => {
-    const chores = loadChores();
-    const teamMembers = loadTeamMembers();
-    dispatch({ type: 'LOAD_STATE', payload: { chores, teamMembers } });
+    async function loadData() {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      const [chores, members] = await Promise.all([
+        fetchChores(),
+        fetchTeamMembers(),
+      ]);
+      dispatch({ type: 'SET_CHORES', payload: chores });
+      dispatch({ type: 'SET_MEMBERS', payload: members });
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+    loadData();
   }, []);
 
-  // Save to localStorage on changes
-  useEffect(() => {
-    saveChores(state.chores);
-  }, [state.chores]);
-
-  useEffect(() => {
-    saveTeamMembers(state.teamMembers);
-  }, [state.teamMembers]);
-
-  const addChore = (title: string, date: string, assigneeId: string | null, recurrence: RecurrenceType) => {
-    dispatch({ type: 'ADD_CHORE', payload: { title, date, assigneeId, recurrence } });
+  const addChore = async (title: string, date: string, assigneeId: string | null, recurrence: RecurrenceType) => {
+    const newChore = await dbCreateChore({ title, date, assigneeId, recurrence });
+    if (newChore) {
+      dispatch({ type: 'ADD_CHORE', payload: newChore });
+    }
   };
 
-  const updateChore = (chore: Chore) => {
-    dispatch({ type: 'UPDATE_CHORE', payload: chore });
+  const updateChore = async (chore: Chore) => {
+    const success = await dbUpdateChore(chore);
+    if (success) {
+      dispatch({ type: 'UPDATE_CHORE', payload: chore });
+    }
   };
 
-  const deleteChore = (id: string) => {
-    dispatch({ type: 'DELETE_CHORE', payload: id });
+  const deleteChore = async (id: string) => {
+    const success = await dbDeleteChore(id);
+    if (success) {
+      dispatch({ type: 'DELETE_CHORE', payload: id });
+    }
   };
 
-  const addMember = (name: string) => {
-    dispatch({ type: 'ADD_MEMBER', payload: name });
+  const addMember = async (name: string) => {
+    const usedColors = state.teamMembers.map(m => m.color);
+    const color = getNextColor(usedColors);
+    const newMember = await dbCreateTeamMember({ name, color });
+    if (newMember) {
+      dispatch({ type: 'ADD_MEMBER', payload: newMember });
+    }
   };
 
-  const removeMember = (id: string) => {
-    dispatch({ type: 'REMOVE_MEMBER', payload: id });
+  const removeMember = async (id: string) => {
+    const success = await dbDeleteTeamMember(id);
+    if (success) {
+      dispatch({ type: 'REMOVE_MEMBER', payload: id });
+    }
   };
 
   return (
