@@ -62,7 +62,15 @@ export function Logo({ size = 'md', showText = true }: LogoProps) {
       {/* Logo Text */}
       {showText && (
         <div className="flex flex-col">
-          <span className={`${textSizeClasses[size]} font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent`}>
+          <span
+            className={`${textSizeClasses[size]} font-bold`}
+            style={{
+              background: 'linear-gradient(to right, #3b82f6, #8b5cf6, #ec4899)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
             ChoreApp
           </span>
           {size === 'lg' && (
