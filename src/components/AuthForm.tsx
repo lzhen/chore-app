@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { ThemeSelector } from './ThemeSelector';
+import { Logo } from './Logo';
 
 export function AuthForm() {
   const { signIn, signUp } = useAuth();
@@ -42,9 +43,11 @@ export function AuthForm() {
           <ThemeSelector />
         </div>
         <div className="glass-card p-6 sm:p-8 w-full max-w-md animate-slide-up">
-          <h1 className="text-xl sm:text-2xl font-bold text-center text-content-primary mb-2">
-            Office Chore Manager
-          </h1>
+          {/* Logo */}
+          <div className="flex justify-center mb-6">
+            <Logo size="lg" showText={true} />
+          </div>
+
           <p className="text-center text-content-secondary mb-4 sm:mb-6 text-sm sm:text-base">
             {isSignUp ? 'Create an account' : 'Sign in to your account'}
           </p>

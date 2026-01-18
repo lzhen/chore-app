@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { ThemeSelector } from './ThemeSelector';
+import { Logo } from './Logo';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -24,10 +25,10 @@ export function Header({ onMenuClick }: HeaderProps) {
   return (
     <header
       className={`glass-effect border-b border-glass-border px-3 sm:px-6 flex items-center justify-between relative z-[100] transition-all duration-300 ${
-        isCollapsed ? 'py-2' : 'py-2 sm:py-4'
+        isCollapsed ? 'py-2' : 'py-2 sm:py-3'
       }`}
     >
-      {/* Left side - Menu button and title */}
+      {/* Left side - Menu button and logo */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         {/* Mobile menu button */}
         <button
@@ -40,31 +41,15 @@ export function Header({ onMenuClick }: HeaderProps) {
           </svg>
         </button>
 
-        {/* Logo/Icon for very small screens */}
-        <div className="flex items-center gap-2 min-w-0">
-          {/* App icon - visible on xs, hidden on sm+ when not collapsed */}
-          <div className={`flex-shrink-0 w-8 h-8 bg-accent rounded-lg flex items-center justify-center ${isCollapsed ? 'sm:flex' : 'sm:hidden'}`}>
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
-          </div>
+        {/* Logo */}
+        <Logo size={isCollapsed ? 'sm' : 'sm'} showText={!isCollapsed} />
 
-          {/* Title - hidden on xs, shown on sm+ */}
-          <div className={`min-w-0 ${isCollapsed ? 'hidden sm:block' : ''}`}>
-            <h1 className={`font-bold text-content-primary truncate transition-all duration-300 ${
-              isCollapsed
-                ? 'text-sm sm:text-base'
-                : 'hidden xs:block text-base sm:text-lg md:text-2xl'
-            }`}>
-              {isCollapsed ? 'Chores' : 'Office Chore Manager'}
-            </h1>
-            <p className={`text-content-secondary truncate transition-all duration-300 ${
-              isCollapsed ? 'hidden' : 'hidden md:block text-xs md:text-sm mt-0.5'
-            }`}>
-              Keep track of office chores and assignments
-            </p>
-          </div>
-        </div>
+        {/* Subtitle - only on larger screens when not collapsed */}
+        {!isCollapsed && (
+          <p className="hidden lg:block text-xs text-content-secondary ml-2">
+            Keep track of office chores and assignments
+          </p>
+        )}
       </div>
 
       {/* Right side - Theme, user, sign out */}
