@@ -3,11 +3,14 @@ import { Header } from './Header';
 import { TeamMemberList } from './TeamMemberList';
 import { Calendar } from './Calendar';
 import { ChoreModal } from './ChoreModal';
+import { AuthForm } from './AuthForm';
 import { Chore } from '../types';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 
 export function App() {
   const { state } = useApp();
+  const { user, loading: authLoading } = useAuth();
   const [modalOpen, setModalOpen] = useState(false);
   const [editChore, setEditChore] = useState<Chore | null>(null);
 
@@ -26,12 +29,30 @@ export function App() {
     setEditChore(null);
   };
 
-  if (state.loading) {
+  // Show loading while checking auth
+  if (authLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show auth form if not logged in
+  if (!user) {
+    return <AuthForm />;
+  }
+
+  // Show loading while fetching data
+  if (state.loading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading chores...</p>
         </div>
       </div>
     );
