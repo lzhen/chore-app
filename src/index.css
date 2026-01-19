@@ -519,6 +519,13 @@ a:hover svg {
   );
   background-size: 400% 400%;
   animation: auroraShift 15s ease infinite;
+  /* Fix fullscreen blinking */
+  transition: none !important; /* Prevent transition/animation conflict */
+  transform: translate3d(0, 0, 0); /* Force GPU layer */
+  backface-visibility: hidden; /* Prevent flicker during repaints */
+  -webkit-backface-visibility: hidden;
+  will-change: background-position; /* Hint browser to optimize */
+  contain: strict; /* Isolate from other layout/paint operations */
 }
 
 /* Midnight starfield background */
