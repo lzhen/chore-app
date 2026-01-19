@@ -8,6 +8,7 @@ import { AuthForm } from './AuthForm';
 import { AgentPanel } from './AgentPanel';
 import { Dashboard } from './Dashboard';
 import { MemberProfileModal } from './MemberProfileModal';
+import { AvailabilityModal } from './AvailabilityModal';
 import { ShortcutsHelpModal } from './ShortcutsHelpModal';
 import { Chore, ViewMode, TeamMember } from '../types';
 import { useApp } from '../context/AppContext';
@@ -37,6 +38,7 @@ export function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [hiddenMembers, setHiddenMembers] = useState<Set<string>>(new Set());
   const [profileMember, setProfileMember] = useState<TeamMember | null>(null);
+  const [availabilityMember, setAvailabilityMember] = useState<TeamMember | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Compute event dates for mini calendar
@@ -111,6 +113,10 @@ export function App() {
       }
       if (profileMember) {
         setProfileMember(null);
+        return;
+      }
+      if (availabilityMember) {
+        setAvailabilityMember(null);
         return;
       }
       if (modalOpen) {
@@ -257,6 +263,7 @@ export function App() {
               hiddenMembers={hiddenMembers}
               onToggleMemberVisibility={handleToggleMemberVisibility}
               onProfileOpen={setProfileMember}
+              onAvailabilityOpen={setAvailabilityMember}
             />
           </div>
           {viewMode === 'calendar' ? (
@@ -281,6 +288,7 @@ export function App() {
         <AgentPanel />
         {dashboardOpen && <Dashboard onClose={() => setDashboardOpen(false)} />}
         {profileMember && <MemberProfileModal member={profileMember} onClose={() => setProfileMember(null)} />}
+        {availabilityMember && <AvailabilityModal member={availabilityMember} onClose={() => setAvailabilityMember(null)} />}
         <ShortcutsHelpModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       </div>
     </>

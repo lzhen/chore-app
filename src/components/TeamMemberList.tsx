@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { TeamMember } from '../types';
-import { AvailabilityModal } from './AvailabilityModal';
 import { MiniCalendar } from './MiniCalendar';
 
 interface TeamMemberListProps {
@@ -11,12 +10,12 @@ interface TeamMemberListProps {
   hiddenMembers?: Set<string>;
   onToggleMemberVisibility?: (memberId: string) => void;
   onProfileOpen?: (member: TeamMember) => void;
+  onAvailabilityOpen?: (member: TeamMember) => void;
 }
 
-export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMembers = new Set(), onToggleMemberVisibility, onProfileOpen }: TeamMemberListProps) {
+export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMembers = new Set(), onToggleMemberVisibility, onProfileOpen, onAvailabilityOpen }: TeamMemberListProps) {
   const { state, addMember, removeMember, isMemberAvailable } = useApp();
   const [newName, setNewName] = useState('');
-  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -37,8 +36,7 @@ export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMember
   };
 
   return (
-    <>
-      <div className="fluent-panel w-72 lg:w-64 p-4 flex flex-col h-full">
+    <div className="fluent-panel w-72 lg:w-64 p-4 flex flex-col h-full">
         {/* Header with close button for mobile */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="fluent-title text-lg font-semibold text-content-primary">Team Members</h2>
@@ -169,7 +167,7 @@ export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMember
                       </button>
                       {/* Availability button */}
                       <button
-                        onClick={() => setSelectedMember(member)}
+                        onClick={() => onAvailabilityOpen?.(member)}
                         className="text-content-secondary hover:text-accent hover:bg-accent/10 rounded-fluent-sm p-0.5 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-all duration-fast"
                         title="Set availability"
                       >
@@ -194,15 +192,6 @@ export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMember
             </ul>
           )}
         </div>
-      </div>
-
-      {/* Availability Modal */}
-      {selectedMember && (
-        <AvailabilityModal
-          member={selectedMember}
-          onClose={() => setSelectedMember(null)}
-        />
-      )}
-    </>
+    </div>
   );
 }
