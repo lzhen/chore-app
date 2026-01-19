@@ -233,7 +233,7 @@
   --surface-tertiary: rgba(51, 51, 51, 0.7);
 
   --text-primary: #ffffff;
-  --text-secondary: #d6d6d6;
+  --text-secondary: #b8b8b8;
   --text-accent: #60cdff;
 
   --accent-primary: #60cdff;
@@ -301,7 +301,7 @@
   --surface-tertiary: rgba(49, 46, 129, 0.7);
 
   --text-primary: #e0e7ff;
-  --text-secondary: #a5b4fc;
+  --text-secondary: #c7d2fe;
   --text-accent: #c4b5fd;
 
   --accent-primary: #a78bfa;
@@ -473,6 +473,29 @@ body {
 }
 
 /* ============================================
+   Icon Accessibility & Contrast
+   ============================================ */
+
+/* Ensure icons have sufficient contrast */
+.text-content-secondary svg,
+button svg,
+a svg {
+  stroke-width: 2;
+}
+
+/* Improve icon visibility on hover */
+button:hover svg,
+a:hover svg {
+  opacity: 1;
+}
+
+/* Ensure action icons have good contrast */
+[class*="hover:text-"] svg {
+  transition: color var(--duration-fast) var(--curve-easy-ease),
+              opacity var(--duration-fast) var(--curve-easy-ease);
+}
+
+/* ============================================
    Theme Background Layer
    ============================================ */
 
@@ -496,6 +519,9 @@ body {
   );
   background-size: 400% 400%;
   animation: auroraShift 15s ease infinite;
+  transition: none; /* Disable transition to prevent flickering with animation */
+  will-change: background-position; /* GPU acceleration */
+  transform: translateZ(0); /* Force GPU layer */
 }
 
 /* Midnight starfield background */

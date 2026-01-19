@@ -12,6 +12,54 @@ export interface TeamMember {
   id: string;
   name: string;
   color: string;
+  // Profile fields
+  avatarUrl?: string;
+  email?: string;
+  skills?: string[];              // e.g., ["cooking", "cleaning", "organizing"]
+  workingHours?: WorkingHours;
+  weeklyCapacityMinutes?: number; // Max minutes per week
+  // Gamification
+  points: number;
+  badges: string[];               // Badge IDs earned
+}
+
+// Working hours configuration
+export interface WorkingHours {
+  start: string;                  // "09:00"
+  end: string;                    // "17:00"
+  days: number[];                 // [1,2,3,4,5] = Mon-Fri (0=Sun, 6=Sat)
+}
+
+// Badge definition
+export interface Badge {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;                   // Emoji or icon name
+  threshold: number;              // Points or count to earn
+  type: 'points' | 'streak' | 'completion' | 'special';
+}
+
+// Badge type for earned badges with timestamp
+export type BadgeType = 'points' | 'streak' | 'completion' | 'special';
+
+// Assignment rotation for auto-assignment
+export interface AssignmentRotation {
+  id: string;
+  choreId: string;
+  lastAssigneeId: string | null;
+  rotationOrder: string[];        // Member IDs in order
+  nextIndex: number;
+}
+
+// Auto-assignment options
+export interface AutoAssignOptions {
+  enabled: boolean;
+  rotationType: 'round-robin' | 'least-loaded' | 'random';
+  respectSkills: boolean;
+  respectAvailability: boolean;
+  respectWorkingHours: boolean;
+  balanceWorkload: boolean;
 }
 
 // Category for organizing chores
@@ -36,6 +84,7 @@ export interface Chore {
   priority: Priority;             // Priority level
   categoryId?: string;            // Category reference
   estimatedMinutes?: number;      // Estimated time to complete
+  autoAssign?: AutoAssignOptions; // Auto-assignment settings for recurring chores
 }
 
 // Chore instance for calendar display (includes recurring instances)
@@ -100,6 +149,7 @@ export interface MemberStats {
   memberId: string;
   memberName: string;
   memberColor: string;
+  memberAvatar?: string;
   totalCompleted: number;
   completedThisWeek: number;
   completedThisMonth: number;
@@ -107,6 +157,9 @@ export interface MemberStats {
   longestStreak: number;
   completionRate: number;         // Percentage 0-100
   totalAssigned: number;
+  points: number;                 // Total points earned
+  badges: string[];               // Badge IDs earned
+  workloadMinutes: number;        // Current week workload in minutes
 }
 
 // Dashboard summary data

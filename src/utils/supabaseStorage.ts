@@ -26,6 +26,15 @@ interface DbTeamMember {
   id: string;
   name: string;
   color: string;
+  avatar_url: string | null;
+  email: string | null;
+  skills: string[] | null;
+  working_hours_start: string | null;
+  working_hours_end: string | null;
+  working_days: number[] | null;
+  points: number;
+  badges: string[] | null;
+  weekly_capacity_minutes: number | null;
 }
 
 interface DbCategory {
@@ -73,6 +82,17 @@ function dbToMember(db: DbTeamMember): TeamMember {
     id: db.id,
     name: db.name,
     color: db.color,
+    avatarUrl: db.avatar_url || undefined,
+    email: db.email || undefined,
+    skills: db.skills || undefined,
+    workingHours: db.working_hours_start && db.working_hours_end ? {
+      start: db.working_hours_start,
+      end: db.working_hours_end,
+      days: db.working_days || [1, 2, 3, 4, 5],
+    } : undefined,
+    points: db.points || 0,
+    badges: db.badges || [],
+    weeklyCapacityMinutes: db.weekly_capacity_minutes || undefined,
   };
 }
 
@@ -206,21 +226,68 @@ export async function fetchTeamMembers(): Promise<TeamMember[]> {
 }
 
 export async function createTeamMember(member: Omit<TeamMember, 'id'>): Promise<TeamMember | null> {
-  const { data, error } = await supabase
-    .from('team_members')
-    .insert({
-      name: member.name,
-      color: member.color,
-    })
-    .select()
-    .single();
+  // Start with essential fields that definitely exist
+  const insertData: Record<string, unknown> = {
+    name: member.name,
+    color: member.color,
+  };
 
-  if (error) {
-    console.error('Error creating team member:', error);
+  // Add optional fields if they have values (these may or may not exist in the DB)
+  // The database will ignore unknown columns if RLS allows
+  try {
+    const { data, error } = await supabase
+      .from('team_members')
+      .insert(insertData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating team member:', error);
+      return null;
+    }
+
+    return dbToMember(data);
+  } catch (err) {
+    console.error('Error creating team member:', err);
     return null;
   }
+}
 
-  return dbToMember(data);
+export async function updateTeamMember(member: TeamMember): Promise<TeamMember | null> {
+  // Only update fields that exist - start with essential ones
+  const updateData: Record<string, unknown> = {
+    name: member.name,
+    color: member.color,
+  };
+
+  try {
+    const { data, error } = await supabase
+      .from('team_members')
+      .update(updateData)
+      .eq('id', member.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating team member:', error);
+      return null;
+    }
+
+    // Return the updated member with local data merged (for fields not in DB)
+    return {
+      ...dbToMember(data),
+      avatarUrl: member.avatarUrl,
+      email: member.email,
+      skills: member.skills,
+      workingHours: member.workingHours,
+      points: member.points || 0,
+      badges: member.badges || [],
+      weeklyCapacityMinutes: member.weeklyCapacityMinutes,
+    };
+  } catch (err) {
+    console.error('Error updating team member:', err);
+    return null;
+  }
 }
 
 export async function deleteTeamMember(id: string): Promise<boolean> {

@@ -7,8 +7,9 @@ import { ChoreModal } from './ChoreModal';
 import { AuthForm } from './AuthForm';
 import { AgentPanel } from './AgentPanel';
 import { Dashboard } from './Dashboard';
+import { MemberProfileModal } from './MemberProfileModal';
 import { ShortcutsHelpModal } from './ShortcutsHelpModal';
-import { Chore, ViewMode } from '../types';
+import { Chore, ViewMode, TeamMember } from '../types';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { generateChoreInstances, getCalendarRange } from '../utils/recurrence';
@@ -35,6 +36,7 @@ export function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [hiddenMembers, setHiddenMembers] = useState<Set<string>>(new Set());
+  const [profileMember, setProfileMember] = useState<TeamMember | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Compute event dates for mini calendar
@@ -105,6 +107,10 @@ export function App() {
     if (e.key === 'Escape') {
       if (shortcutsOpen) {
         setShortcutsOpen(false);
+        return;
+      }
+      if (profileMember) {
+        setProfileMember(null);
         return;
       }
       if (modalOpen) {
@@ -250,6 +256,7 @@ export function App() {
               eventDates={eventDates}
               hiddenMembers={hiddenMembers}
               onToggleMemberVisibility={handleToggleMemberVisibility}
+              onProfileOpen={setProfileMember}
             />
           </div>
           {viewMode === 'calendar' ? (
@@ -273,6 +280,7 @@ export function App() {
         />
         <AgentPanel />
         {dashboardOpen && <Dashboard onClose={() => setDashboardOpen(false)} />}
+        {profileMember && <MemberProfileModal member={profileMember} onClose={() => setProfileMember(null)} />}
         <ShortcutsHelpModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       </div>
     </>

@@ -10,9 +10,10 @@ interface TeamMemberListProps {
   eventDates?: Set<string>;
   hiddenMembers?: Set<string>;
   onToggleMemberVisibility?: (memberId: string) => void;
+  onProfileOpen?: (member: TeamMember) => void;
 }
 
-export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMembers = new Set(), onToggleMemberVisibility }: TeamMemberListProps) {
+export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMembers = new Set(), onToggleMemberVisibility, onProfileOpen }: TeamMemberListProps) {
   const { state, addMember, removeMember, isMemberAvailable } = useApp();
   const [newName, setNewName] = useState('');
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
@@ -114,11 +115,35 @@ export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMember
                           )}
                         </button>
                       )}
+                      {/* Avatar or color dot */}
+                      {member.avatarUrl ? (
+                        <img
+                          src={member.avatarUrl}
+                          alt={member.name}
+                          className={`w-6 h-6 rounded-fluent-circle object-cover flex-shrink-0 transition-opacity cursor-pointer ${!isVisible ? 'opacity-40' : ''}`}
+                          onClick={() => onProfileOpen?.(member)}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => onProfileOpen?.(member)}
+                          className={`w-6 h-6 rounded-fluent-circle flex-shrink-0 transition-opacity flex items-center justify-center text-white text-xs font-bold ${!isVisible ? 'opacity-40' : ''}`}
+                          style={{ backgroundColor: member.color }}
+                        >
+                          {member.name.charAt(0).toUpperCase()}
+                        </button>
+                      )}
                       <span
-                        className={`w-3 h-3 rounded-fluent-circle flex-shrink-0 transition-opacity ${!isVisible ? 'opacity-40' : ''}`}
-                        style={{ backgroundColor: member.color }}
-                      />
-                      <span className={`text-sm text-content-primary truncate transition-opacity ${!isVisible ? 'opacity-40' : ''}`}>{member.name}</span>
+                        className={`text-sm text-content-primary truncate transition-opacity cursor-pointer hover:underline ${!isVisible ? 'opacity-40' : ''}`}
+                        onClick={() => onProfileOpen?.(member)}
+                      >
+                        {member.name}
+                      </span>
+                      {/* Points badge */}
+                      {member.points > 0 && (
+                        <span className="text-xs bg-brand-primary/20 text-brand-primary px-1.5 py-0.5 rounded-fluent-sm flex-shrink-0">
+                          {member.points}pts
+                        </span>
+                      )}
                       {/* Availability badge */}
                       {!isAvailable && (
                         <span className="text-xs bg-orange-500/20 text-orange-600 px-1.5 py-0.5 rounded-fluent-sm flex-shrink-0">
@@ -132,6 +157,16 @@ export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMember
                       )}
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                      {/* Profile button */}
+                      <button
+                        onClick={() => onProfileOpen?.(member)}
+                        className="text-content-secondary hover:text-brand-primary hover:bg-brand-primary/10 rounded-fluent-sm p-0.5 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-all duration-fast"
+                        title="Edit profile"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </button>
                       {/* Availability button */}
                       <button
                         onClick={() => setSelectedMember(member)}

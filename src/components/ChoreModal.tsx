@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Chore, RecurrenceType, Priority } from '../types';
+import { Chore, RecurrenceType, Priority, AutoAssignOptions } from '../types';
+import { getAssignmentPreview, defaultAutoAssignOptions } from '../utils/autoAssign';
 
 interface ChoreDefaultValues {
   date?: string;
@@ -36,6 +37,7 @@ export function ChoreModal({ isOpen, onClose, editChore, defaultDate, instanceDa
   const [priority, setPriority] = useState<Priority>('medium');
   const [categoryId, setCategoryId] = useState<string>('');
   const [estimatedMinutes, setEstimatedMinutes] = useState<string>('');
+  const [autoAssign, setAutoAssign] = useState<AutoAssignOptions>(defaultAutoAssignOptions);
 
   // Check if this instance is completed
   const effectiveDate = instanceDate || (editChore?.date ?? '');
@@ -56,6 +58,7 @@ export function ChoreModal({ isOpen, onClose, editChore, defaultDate, instanceDa
       setPriority(editChore.priority || 'medium');
       setCategoryId(editChore.categoryId || '');
       setEstimatedMinutes(editChore.estimatedMinutes?.toString() || '');
+      setAutoAssign(editChore.autoAssign || defaultAutoAssignOptions);
     } else {
       setTitle('');
       setDescription('');
@@ -67,6 +70,7 @@ export function ChoreModal({ isOpen, onClose, editChore, defaultDate, instanceDa
       setPriority('medium');
       setCategoryId('');
       setEstimatedMinutes('');
+      setAutoAssign(defaultAutoAssignOptions);
     }
   }, [editChore, defaultDate, defaultValues, isOpen]);
 
@@ -85,6 +89,7 @@ export function ChoreModal({ isOpen, onClose, editChore, defaultDate, instanceDa
       priority,
       categoryId: categoryId || undefined,
       estimatedMinutes: estimatedMinutes ? parseInt(estimatedMinutes) : undefined,
+      autoAssign: recurrence !== 'none' ? autoAssign : undefined,
     };
 
     if (editChore) {
@@ -299,6 +304,129 @@ export function ChoreModal({ isOpen, onClose, editChore, defaultDate, instanceDa
               />
             </div>
           </div>
+
+          {/* Auto-assign options (only for recurring chores) */}
+          {recurrence !== 'none' && (
+            <div className="fluent-surface p-4 rounded-fluent-md border border-border space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-content-primary">Auto-Assignment</h4>
+                  <p className="text-xs text-content-secondary">Automatically rotate assignment for recurring instances</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAutoAssign(prev => ({ ...prev, enabled: !prev.enabled }))}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                    autoAssign.enabled ? 'bg-brand-primary' : 'bg-surface-tertiary'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${
+                      autoAssign.enabled ? 'left-7' : 'left-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {autoAssign.enabled && (
+                <>
+                  {/* Rotation Type */}
+                  <div>
+                    <label className="block text-xs font-medium text-content-secondary mb-1">
+                      Rotation Type
+                    </label>
+                    <select
+                      value={autoAssign.rotationType}
+                      onChange={(e) => setAutoAssign(prev => ({
+                        ...prev,
+                        rotationType: e.target.value as AutoAssignOptions['rotationType']
+                      }))}
+                      className="fluent-select w-full text-sm"
+                    >
+                      <option value="round-robin">Round Robin</option>
+                      <option value="least-loaded">Least Loaded</option>
+                      <option value="random">Random</option>
+                    </select>
+                  </div>
+
+                  {/* Options */}
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={autoAssign.respectAvailability}
+                        onChange={(e) => setAutoAssign(prev => ({
+                          ...prev,
+                          respectAvailability: e.target.checked
+                        }))}
+                        className="w-4 h-4 rounded border-border accent-brand-primary"
+                      />
+                      <span className="text-content-primary">Skip unavailable members</span>
+                    </label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={autoAssign.respectWorkingHours}
+                        onChange={(e) => setAutoAssign(prev => ({
+                          ...prev,
+                          respectWorkingHours: e.target.checked
+                        }))}
+                        className="w-4 h-4 rounded border-border accent-brand-primary"
+                      />
+                      <span className="text-content-primary">Respect working hours</span>
+                    </label>
+                    {autoAssign.rotationType === 'least-loaded' && (
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={autoAssign.balanceWorkload}
+                          onChange={(e) => setAutoAssign(prev => ({
+                            ...prev,
+                            balanceWorkload: e.target.checked
+                          }))}
+                          className="w-4 h-4 rounded border-border accent-brand-primary"
+                        />
+                        <span className="text-content-primary">Balance by capacity ratio</span>
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Preview */}
+                  {state.teamMembers.length > 0 && (
+                    <div className="pt-2 border-t border-border">
+                      <p className="text-xs text-content-secondary">
+                        Next assignment preview:{' '}
+                        <span className="text-content-primary font-medium">
+                          {(() => {
+                            const preview = getAssignmentPreview({
+                              chore: {
+                                id: editChore?.id || 'preview',
+                                title,
+                                date,
+                                dueTime,
+                                assigneeId: assigneeId || null,
+                                recurrence,
+                                priority,
+                                categoryId,
+                              },
+                              members: state.teamMembers,
+                              completions: state.completions,
+                              availability: state.availability,
+                              chores: state.chores,
+                              options: autoAssign,
+                            });
+                            return preview.assigneeName
+                              ? `${preview.assigneeName} (${preview.reason})`
+                              : preview.reason;
+                          })()}
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           {/* Completion toggle (only for existing chores) */}
           {editChore && (

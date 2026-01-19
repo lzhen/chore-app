@@ -16,6 +16,7 @@ import {
   updateChore as dbUpdateChore,
   deleteChore as dbDeleteChore,
   createTeamMember as dbCreateTeamMember,
+  updateTeamMember as dbUpdateTeamMember,
   deleteTeamMember as dbDeleteTeamMember,
   createCategory as dbCreateCategory,
   updateCategory as dbUpdateCategory,
@@ -27,6 +28,7 @@ import {
   deleteAvailability as dbDeleteAvailability,
 } from '../utils/supabaseStorage';
 import { getNextColor } from '../utils/colors';
+import { PRIORITY_POINTS, BONUS_POINTS, checkEarnedBadges } from '../data/badges';
 
 interface AppState {
   chores: Chore[];
@@ -45,6 +47,7 @@ type Action =
   | { type: 'DELETE_CHORE'; payload: string }
   | { type: 'SET_MEMBERS'; payload: TeamMember[] }
   | { type: 'ADD_MEMBER'; payload: TeamMember }
+  | { type: 'UPDATE_MEMBER'; payload: TeamMember }
   | { type: 'REMOVE_MEMBER'; payload: string }
   | { type: 'SET_CATEGORIES'; payload: Category[] }
   | { type: 'ADD_CATEGORY'; payload: Category }
@@ -66,6 +69,7 @@ interface AppContextType {
   deleteChore: (id: string) => Promise<void>;
   // Team member operations
   addMember: (name: string) => Promise<void>;
+  updateMember: (member: TeamMember) => Promise<void>;
   removeMember: (id: string) => Promise<void>;
   // Category operations
   addCategory: (name: string, color: string, icon?: string) => Promise<void>;
@@ -81,6 +85,8 @@ interface AppContextType {
   deleteAvailability: (id: string) => Promise<void>;
   isMemberAvailable: (memberId: string, date: string) => boolean;
   getAvailableMembers: (date: string) => TeamMember[];
+  // Gamification helpers
+  getMemberStats: (memberId: string) => { totalCompleted: number; currentStreak: number; longestStreak: number };
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -116,6 +122,11 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, teamMembers: action.payload };
     case 'ADD_MEMBER':
       return { ...state, teamMembers: [...state.teamMembers, action.payload] };
+    case 'UPDATE_MEMBER':
+      return {
+        ...state,
+        teamMembers: state.teamMembers.map(m => (m.id === action.payload.id ? action.payload : m)),
+      };
     case 'REMOVE_MEMBER':
       return {
         ...state,
@@ -219,9 +230,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addMember = async (name: string) => {
     const usedColors = state.teamMembers.map(m => m.color);
     const color = getNextColor(usedColors);
-    const newMember = await dbCreateTeamMember({ name, color });
+    const newMember = await dbCreateTeamMember({ name, color, points: 0, badges: [] });
     if (newMember) {
       dispatch({ type: 'ADD_MEMBER', payload: newMember });
+    }
+  };
+
+  const updateMember = async (member: TeamMember) => {
+    const updated = await dbUpdateTeamMember(member);
+    if (updated) {
+      dispatch({ type: 'UPDATE_MEMBER', payload: updated });
     }
   };
 
@@ -271,6 +289,62 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
     if (completion) {
       dispatch({ type: 'ADD_COMPLETION', payload: completion });
+
+      // Award points and check badges
+      const chore = state.chores.find(c => c.id === choreId);
+      const member = state.teamMembers.find(m => m.id === completedBy);
+
+      if (chore && member) {
+        // Calculate base points based on priority
+        let pointsEarned = PRIORITY_POINTS[chore.priority] || PRIORITY_POINTS.medium;
+
+        // Get member stats for streak bonus and badge checking
+        const stats = getMemberStats(completedBy);
+
+        // Add streak bonus (capped at maxStreakBonus)
+        const streakBonus = Math.min(stats.currentStreak, BONUS_POINTS.maxStreakBonus) * BONUS_POINTS.streakBonus;
+        pointsEarned += streakBonus;
+
+        // Check for special conditions
+        const completedAtTime = new Date();
+        const hour = completedAtTime.getHours();
+        const dayOfWeek = completedAtTime.getDay();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+        const specialConditions = {
+          earlyBird: hour < 8,
+          nightOwl: hour >= 22,
+          teamPlayer: chore.assigneeId === null,
+          weekendWarrior: isWeekend ? (state.completions.filter(
+            c => c.completedBy === completedBy &&
+            new Date(c.instanceDate).getDay() % 6 === 0 &&
+            c.instanceDate === instanceDate
+          ).length + 1) : 0,
+        };
+
+        // Check for newly earned badges
+        const newBadges = checkEarnedBadges(
+          stats.totalCompleted + 1, // Include this completion
+          stats.currentStreak + 1,  // Include this day
+          Math.max(stats.longestStreak, stats.currentStreak + 1),
+          member.points + pointsEarned,
+          member.badges,
+          specialConditions
+        );
+
+        // Update member with new points and badges
+        if (pointsEarned > 0 || newBadges.length > 0) {
+          const updatedMember = {
+            ...member,
+            points: member.points + pointsEarned,
+            badges: [...member.badges, ...newBadges],
+          };
+          const updated = await dbUpdateTeamMember(updatedMember);
+          if (updated) {
+            dispatch({ type: 'UPDATE_MEMBER', payload: updated });
+          }
+        }
+      }
     }
   };
 
@@ -285,6 +359,72 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return state.completions.some(
       c => c.choreId === choreId && c.instanceDate === instanceDate
     );
+  };
+
+  // ============================================
+  // Gamification helpers
+  // ============================================
+
+  const getMemberStats = (memberId: string): { totalCompleted: number; currentStreak: number; longestStreak: number } => {
+    // Get all completions for this member, sorted by date
+    const memberCompletions = state.completions
+      .filter(c => c.completedBy === memberId)
+      .sort((a, b) => new Date(a.instanceDate).getTime() - new Date(b.instanceDate).getTime());
+
+    const totalCompleted = memberCompletions.length;
+
+    if (totalCompleted === 0) {
+      return { totalCompleted: 0, currentStreak: 0, longestStreak: 0 };
+    }
+
+    // Calculate streaks by looking at unique dates
+    const uniqueDates = [...new Set(memberCompletions.map(c => c.instanceDate))].sort();
+
+    let currentStreak = 0;
+    let longestStreak = 0;
+    let tempStreak = 1;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Check if there's a completion today or yesterday for current streak
+    const lastCompletionDate = uniqueDates[uniqueDates.length - 1];
+    const lastDate = new Date(lastCompletionDate);
+    lastDate.setHours(0, 0, 0, 0);
+    const diffDays = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Calculate longest streak
+    for (let i = 1; i < uniqueDates.length; i++) {
+      const prevDate = new Date(uniqueDates[i - 1]);
+      const currDate = new Date(uniqueDates[i]);
+      const dayDiff = Math.floor((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (dayDiff === 1) {
+        tempStreak++;
+      } else {
+        longestStreak = Math.max(longestStreak, tempStreak);
+        tempStreak = 1;
+      }
+    }
+    longestStreak = Math.max(longestStreak, tempStreak);
+
+    // Current streak is only valid if last completion was today or yesterday
+    if (diffDays <= 1) {
+      // Count backwards from the last date
+      currentStreak = 1;
+      for (let i = uniqueDates.length - 2; i >= 0; i--) {
+        const currDate = new Date(uniqueDates[i + 1]);
+        const prevDate = new Date(uniqueDates[i]);
+        const dayDiff = Math.floor((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (dayDiff === 1) {
+          currentStreak++;
+        } else {
+          break;
+        }
+      }
+    }
+
+    return { totalCompleted, currentStreak, longestStreak };
   };
 
   // ============================================
@@ -335,6 +475,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateChore,
         deleteChore,
         addMember,
+        updateMember,
         removeMember,
         addCategory,
         updateCategory: updateCategoryFn,
@@ -347,6 +488,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         deleteAvailability: deleteAvailabilityFn,
         isMemberAvailable: isMemberAvailableFn,
         getAvailableMembers: getAvailableMembersFn,
+        getMemberStats,
       }}
     >
       {children}
