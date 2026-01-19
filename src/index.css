@@ -960,3 +960,83 @@ body {
   backdrop-filter: blur(calc(var(--glass-blur) / 2));
   -webkit-backdrop-filter: blur(calc(var(--glass-blur) / 2));
 }
+
+/* ============================================
+   Modal Solid Background Overrides
+   Ensures modals are never transparent
+   ============================================ */
+
+/* Base modal styles - force solid backgrounds */
+.fluent-card {
+  background: var(--surface-primary);
+  backdrop-filter: blur(var(--glass-blur, 20px)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(180%);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-large);
+  box-shadow: var(--shadow-16);
+}
+
+.fluent-surface {
+  background: var(--surface-secondary);
+}
+
+/* Override for glass themes to ensure modals are opaque */
+[data-theme="crystal-light"] .fluent-card,
+[data-theme="aurora"] .fluent-card {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(40px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
+}
+
+[data-theme="crystal-light"] .fluent-card .fluent-surface,
+[data-theme="aurora"] .fluent-card .fluent-surface {
+  background: rgba(249, 250, 251, 0.98) !important;
+}
+
+[data-theme="crystal-dark"] .fluent-card,
+[data-theme="midnight"] .fluent-card {
+  background: rgba(31, 31, 31, 0.97) !important;
+  backdrop-filter: blur(40px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
+}
+
+[data-theme="midnight"] .fluent-card {
+  background: rgba(30, 27, 75, 0.97) !important;
+}
+
+[data-theme="crystal-dark"] .fluent-card .fluent-surface,
+[data-theme="midnight"] .fluent-card .fluent-surface {
+  background: rgba(51, 51, 51, 0.95) !important;
+}
+
+[data-theme="midnight"] .fluent-card .fluent-surface {
+  background: rgba(49, 46, 129, 0.95) !important;
+}
+
+/* Ensure theme selector dropdown is also opaque */
+[data-theme="crystal-light"] .fluent-card[class*="fixed"],
+[data-theme="aurora"] .fluent-card[class*="fixed"] {
+  background: rgba(255, 255, 255, 0.98) !important;
+}
+
+[data-theme="crystal-dark"] .fluent-card[class*="fixed"],
+[data-theme="midnight"] .fluent-card[class*="fixed"] {
+  background: rgba(31, 31, 31, 0.98) !important;
+}
+
+/* Standard light/dark themes should already be solid, but reinforce */
+[data-theme="light"] .fluent-card {
+  background: #ffffff !important;
+}
+
+[data-theme="dark"] .fluent-card {
+  background: #2d2d2d !important;
+}
+
+[data-theme="light"] .fluent-surface {
+  background: #fafafa !important;
+}
+
+[data-theme="dark"] .fluent-surface {
+  background: #3d3d3d !important;
+}
