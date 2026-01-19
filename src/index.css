@@ -517,6 +517,7 @@ a:hover svg {
     rgba(251, 146, 60, 0.4) 75%,
     rgba(244, 114, 182, 0.5) 100%
   );
+  transition: none; /* Disable transition to prevent fullscreen blinking */
 }
 
 /* Midnight starfield background */
