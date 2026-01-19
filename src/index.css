@@ -510,12 +510,12 @@ a:hover svg {
 /* Aurora static gradient background - no animation to prevent blinking */
 [data-theme="aurora"] .theme-background {
   background:
-    radial-gradient(ellipse at 20% 80%, rgba(134, 239, 172, 0.4) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(59, 130, 246, 0.4) 0%, transparent 50%),
-    radial-gradient(ellipse at 40% 40%, rgba(168, 85, 247, 0.35) 0%, transparent 50%),
-    radial-gradient(ellipse at 70% 70%, rgba(251, 146, 60, 0.3) 0%, transparent 50%),
-    radial-gradient(ellipse at 10% 30%, rgba(244, 114, 182, 0.35) 0%, transparent 50%),
-    linear-gradient(135deg, #0c1821 0%, #1b2838 50%, #162447 100%);
+    radial-gradient(ellipse at 20% 80%, rgba(134, 239, 172, 0.5) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(96, 165, 250, 0.5) 0%, transparent 50%),
+    radial-gradient(ellipse at 40% 40%, rgba(192, 132, 252, 0.45) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 70%, rgba(251, 191, 36, 0.4) 0%, transparent 50%),
+    radial-gradient(ellipse at 10% 30%, rgba(244, 114, 182, 0.45) 0%, transparent 50%),
+    linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 50%, #3d5a80 100%);
   transition: none !important;
   transform: translateZ(0);
   will-change: auto;
