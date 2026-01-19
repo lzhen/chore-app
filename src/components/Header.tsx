@@ -31,6 +31,7 @@ export function Header({ onMenuClick, onDashboardClick, viewMode, onViewModeChan
 
   return (
     <header
+      role="banner"
       className={`fluent-surface border-b border-border px-3 sm:px-6 flex items-center justify-between relative z-[100] transition-all duration-normal ease-fluent-decelerate ${
         isCollapsed ? 'py-2' : 'py-2 sm:py-3'
       }`}
@@ -76,12 +77,14 @@ export function Header({ onMenuClick, onDashboardClick, viewMode, onViewModeChan
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search chores... (press /)"
+            aria-label="Search chores"
             className="w-full pl-10 pr-8 py-1.5 text-sm bg-surface-secondary border border-border rounded-fluent-md text-content-primary placeholder-content-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
           />
           {searchQuery && (
             <button
               onClick={() => onSearchChange('')}
               className="absolute right-2 top-1/2 transform -translate-y-1/2 text-content-secondary hover:text-content-primary"
+              aria-label="Clear search"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -94,7 +97,7 @@ export function Header({ onMenuClick, onDashboardClick, viewMode, onViewModeChan
       {/* Right side - View toggle, Dashboard, Theme, user, sign out */}
       <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
         {/* View toggle */}
-        <div className="flex rounded-fluent-md border border-border overflow-hidden">
+        <div className="flex rounded-fluent-md border border-border overflow-hidden" role="group" aria-label="View mode">
           <button
             onClick={() => onViewModeChange('calendar')}
             className={`p-1.5 sm:p-2 transition-all duration-fast ${
@@ -102,7 +105,8 @@ export function Header({ onMenuClick, onDashboardClick, viewMode, onViewModeChan
                 ? 'bg-accent text-white'
                 : 'bg-surface-secondary text-content-secondary hover:bg-subtle-background-hover'
             }`}
-            title="Calendar View"
+            aria-label="Calendar view"
+            aria-pressed={viewMode === 'calendar'}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -115,7 +119,8 @@ export function Header({ onMenuClick, onDashboardClick, viewMode, onViewModeChan
                 ? 'bg-accent text-white'
                 : 'bg-surface-secondary text-content-secondary hover:bg-subtle-background-hover'
             }`}
-            title="List View"
+            aria-label="List view"
+            aria-pressed={viewMode === 'list'}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -130,7 +135,7 @@ export function Header({ onMenuClick, onDashboardClick, viewMode, onViewModeChan
               ? 'p-1.5 sm:p-2'
               : 'px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm'
           }`}
-          title="Dashboard"
+          aria-label="Open dashboard"
         >
           <span className={isCollapsed ? 'hidden' : 'hidden sm:inline'}>Dashboard</span>
           <svg className={`${isCollapsed ? 'w-4 h-4 sm:w-5 sm:h-5' : 'w-5 h-5 sm:hidden'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -150,7 +155,7 @@ export function Header({ onMenuClick, onDashboardClick, viewMode, onViewModeChan
               ? 'p-1.5 sm:p-2'
               : 'px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm'
           }`}
-          title="Sign Out"
+          aria-label="Sign out"
         >
           <span className={isCollapsed ? 'hidden' : 'hidden sm:inline'}>Sign Out</span>
           <svg className={`${isCollapsed ? 'w-4 h-4 sm:w-5 sm:h-5' : 'w-5 h-5 sm:hidden'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -229,7 +229,8 @@ export function App() {
 
   return (
     <>
-      <div className="theme-background" />
+      <div className="theme-background" aria-hidden="true" />
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       <div className="h-screen flex flex-col relative" onKeyDown={handleKeyDown} tabIndex={-1}>
         <Header
           onMenuClick={toggleSidebar}
@@ -240,7 +241,7 @@ export function App() {
           onSearchChange={setSearchQuery}
           searchInputRef={searchInputRef}
         />
-        <div className="flex flex-1 overflow-hidden relative">
+        <main id="main-content" className="flex flex-1 overflow-hidden relative">
           {/* Mobile sidebar overlay */}
           {sidebarOpen && (
             <div
@@ -277,7 +278,7 @@ export function App() {
           ) : (
             <ListView onAddClick={handleAddClick} onEventClick={handleEventClick} />
           )}
-        </div>
+        </main>
         <ChoreModal
           isOpen={modalOpen}
           onClose={handleCloseModal}
