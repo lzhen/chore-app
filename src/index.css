@@ -516,6 +516,12 @@ a:hover svg {
     radial-gradient(ellipse at 70% 70%, rgba(251, 146, 60, 0.3) 0%, transparent 50%),
     radial-gradient(ellipse at 10% 30%, rgba(244, 114, 182, 0.35) 0%, transparent 50%),
     linear-gradient(135deg, #0c1821 0%, #1b2838 50%, #162447 100%);
+  transition: none !important;
+  transform: translateZ(0);
+  will-change: auto;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  contain: paint;
 }
 
 /* Midnight starfield background */
