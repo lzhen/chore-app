@@ -126,7 +126,7 @@ export function AgentPanel() {
 
       {/* Agent Panel */}
       {isOpen && (
-        <div className="fixed bottom-20 sm:bottom-24 right-2 sm:right-6 left-2 sm:left-auto sm:w-80 glass-card overflow-hidden animate-slide-up z-40">
+        <div className="fixed bottom-20 sm:bottom-24 right-2 sm:right-6 left-2 sm:left-auto sm:w-80 fluent-card overflow-hidden animate-slide-up z-40">
           <div className="bg-accent text-white px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -153,8 +153,9 @@ export function AgentPanel() {
             {/* Chat Assistant Button */}
             <button
               onClick={() => {
-                setIsChatOpen(true);
                 setIsOpen(false);
+                // Delay opening chat to prevent animation conflict
+                setTimeout(() => setIsChatOpen(true), 150);
               }}
               className="w-full py-3 px-4 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-md font-medium hover:from-purple-600 hover:to-blue-600 flex items-center justify-center gap-2"
             >

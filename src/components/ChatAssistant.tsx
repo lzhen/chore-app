@@ -136,7 +136,7 @@ export function ChatAssistant({ onClose }: ChatAssistantProps) {
   };
 
   return (
-    <div className="fixed inset-2 sm:inset-auto sm:bottom-24 sm:right-6 sm:w-96 sm:h-[500px] glass-card z-50 flex flex-col overflow-hidden animate-slide-up">
+    <div className="fixed inset-2 sm:inset-auto sm:bottom-24 sm:right-6 sm:w-96 sm:h-[500px] fluent-card z-50 flex flex-col overflow-hidden animate-slide-up">
       {/* Header */}
       <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2">
