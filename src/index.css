@@ -3,163 +3,298 @@
 @tailwind utilities;
 
 /* ============================================
-   Theme CSS Variables
+   Fluent Design System Tokens
    ============================================ */
 
-/* Light Theme (default) */
+:root {
+  /* Fluent Typography */
+  --font-family-base: 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Fluent Spacing (4px base) */
+  --spacing-xxs: 2px;
+  --spacing-xs: 4px;
+  --spacing-s: 8px;
+  --spacing-m: 12px;
+  --spacing-l: 16px;
+  --spacing-xl: 20px;
+  --spacing-xxl: 24px;
+
+  /* Fluent Border Radius */
+  --radius-none: 0;
+  --radius-small: 4px;
+  --radius-medium: 8px;
+  --radius-large: 12px;
+  --radius-xl: 16px;
+  --radius-circular: 9999px;
+
+  /* Fluent Transitions */
+  --duration-ultra-fast: 50ms;
+  --duration-faster: 100ms;
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+  --duration-slower: 400ms;
+  --curve-accelerate: cubic-bezier(0.9, 0.1, 1, 0.2);
+  --curve-decelerate: cubic-bezier(0.1, 0.9, 0.2, 1);
+  --curve-easy-ease: cubic-bezier(0.33, 0, 0.67, 1);
+}
+
+/* ============================================
+   Light Theme (Fluent Light)
+   ============================================ */
 :root,
 [data-theme="light"] {
-  --glass-bg: rgba(255, 255, 255, 1);
-  --glass-bg-secondary: rgba(249, 250, 251, 1);
-  --glass-blur: 0px;
-  --glass-border: rgba(229, 231, 235, 1);
-  --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  /* Fluent Neutral Colors */
+  --color-neutral-background-1: #ffffff;
+  --color-neutral-background-2: #fafafa;
+  --color-neutral-background-3: #f5f5f5;
+  --color-neutral-background-4: #f0f0f0;
+  --color-neutral-background-subtle: #fafafa;
+
+  --color-neutral-foreground-1: #242424;
+  --color-neutral-foreground-2: #424242;
+  --color-neutral-foreground-3: #616161;
+  --color-neutral-foreground-disabled: #bdbdbd;
+
+  --color-neutral-stroke-1: #d1d1d1;
+  --color-neutral-stroke-2: #e0e0e0;
+  --color-neutral-stroke-subtle: #f0f0f0;
+
+  /* Fluent Brand Colors */
+  --color-brand-background: #0078d4;
+  --color-brand-background-hover: #106ebe;
+  --color-brand-background-pressed: #005a9e;
+  --color-brand-foreground: #0078d4;
+  --color-brand-stroke: #0078d4;
+
+  /* Fluent Status Colors */
+  --color-status-success: #107c10;
+  --color-status-warning: #ffb900;
+  --color-status-danger: #d13438;
+
+  /* Fluent Shadows */
+  --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.14), 0 0 2px rgba(0, 0, 0, 0.12);
+  --shadow-4: 0 2px 4px rgba(0, 0, 0, 0.14), 0 0 2px rgba(0, 0, 0, 0.12);
+  --shadow-8: 0 4px 8px rgba(0, 0, 0, 0.14), 0 0 2px rgba(0, 0, 0, 0.12);
+  --shadow-16: 0 8px 16px rgba(0, 0, 0, 0.14), 0 0 2px rgba(0, 0, 0, 0.12);
+  --shadow-28: 0 14px 28px rgba(0, 0, 0, 0.14), 0 0 2px rgba(0, 0, 0, 0.12);
+  --shadow-64: 0 32px 64px rgba(0, 0, 0, 0.14), 0 0 2px rgba(0, 0, 0, 0.12);
+
+  /* Acrylic/Mica Effect */
+  --acrylic-background: rgba(255, 255, 255, 0.8);
+  --acrylic-blur: 20px;
+  --mica-background: rgba(243, 243, 243, 0.9);
+
+  /* Theme mappings */
+  --glass-bg: var(--acrylic-background);
+  --glass-bg-secondary: var(--mica-background);
+  --glass-blur: var(--acrylic-blur);
+  --glass-border: var(--color-neutral-stroke-2);
+  --glass-shadow: var(--shadow-4);
   --glass-glow: none;
 
-  --surface-primary: #ffffff;
-  --surface-secondary: #f9fafb;
-  --surface-tertiary: #f3f4f6;
+  --surface-primary: var(--color-neutral-background-1);
+  --surface-secondary: var(--color-neutral-background-2);
+  --surface-tertiary: var(--color-neutral-background-3);
 
-  --text-primary: #1f2937;
-  --text-secondary: #6b7280;
-  --text-accent: #3b82f6;
+  --text-primary: var(--color-neutral-foreground-1);
+  --text-secondary: var(--color-neutral-foreground-2);
+  --text-accent: var(--color-brand-foreground);
 
-  --accent-primary: #3b82f6;
-  --accent-hover: #2563eb;
-  --accent-subtle: rgba(59, 130, 246, 0.1);
+  --accent-primary: var(--color-brand-background);
+  --accent-hover: var(--color-brand-background-hover);
+  --accent-subtle: rgba(0, 120, 212, 0.08);
 
-  --border-default: #e5e7eb;
-  --border-subtle: #f3f4f6;
+  --border-default: var(--color-neutral-stroke-1);
+  --border-subtle: var(--color-neutral-stroke-2);
 
-  --overlay-bg: rgba(0, 0, 0, 0.5);
-
-  --theme-bg: #f3f4f6;
+  --overlay-bg: rgba(0, 0, 0, 0.4);
+  --theme-bg: var(--color-neutral-background-2);
 }
 
-/* Dark Theme */
+/* ============================================
+   Dark Theme (Fluent Dark)
+   ============================================ */
 [data-theme="dark"] {
-  --glass-bg: rgba(31, 41, 55, 1);
-  --glass-bg-secondary: rgba(17, 24, 39, 1);
-  --glass-blur: 0px;
-  --glass-border: rgba(55, 65, 81, 1);
-  --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  /* Fluent Neutral Colors - Dark */
+  --color-neutral-background-1: #1f1f1f;
+  --color-neutral-background-2: #2b2b2b;
+  --color-neutral-background-3: #333333;
+  --color-neutral-background-4: #3d3d3d;
+  --color-neutral-background-subtle: #2b2b2b;
+
+  --color-neutral-foreground-1: #ffffff;
+  --color-neutral-foreground-2: #d6d6d6;
+  --color-neutral-foreground-3: #adadad;
+  --color-neutral-foreground-disabled: #5c5c5c;
+
+  --color-neutral-stroke-1: #5c5c5c;
+  --color-neutral-stroke-2: #3d3d3d;
+  --color-neutral-stroke-subtle: #333333;
+
+  /* Fluent Brand Colors - Dark */
+  --color-brand-background: #60cdff;
+  --color-brand-background-hover: #98d8ff;
+  --color-brand-background-pressed: #40c4ff;
+  --color-brand-foreground: #60cdff;
+  --color-brand-stroke: #60cdff;
+
+  /* Fluent Shadows - Dark */
+  --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.28), 0 0 2px rgba(0, 0, 0, 0.24);
+  --shadow-4: 0 2px 4px rgba(0, 0, 0, 0.28), 0 0 2px rgba(0, 0, 0, 0.24);
+  --shadow-8: 0 4px 8px rgba(0, 0, 0, 0.28), 0 0 2px rgba(0, 0, 0, 0.24);
+  --shadow-16: 0 8px 16px rgba(0, 0, 0, 0.28), 0 0 2px rgba(0, 0, 0, 0.24);
+  --shadow-28: 0 14px 28px rgba(0, 0, 0, 0.28), 0 0 2px rgba(0, 0, 0, 0.24);
+  --shadow-64: 0 32px 64px rgba(0, 0, 0, 0.28), 0 0 2px rgba(0, 0, 0, 0.24);
+
+  /* Acrylic/Mica Effect - Dark */
+  --acrylic-background: rgba(31, 31, 31, 0.85);
+  --acrylic-blur: 20px;
+  --mica-background: rgba(43, 43, 43, 0.9);
+
+  /* Theme mappings */
+  --glass-bg: var(--acrylic-background);
+  --glass-bg-secondary: var(--mica-background);
+  --glass-blur: var(--acrylic-blur);
+  --glass-border: var(--color-neutral-stroke-2);
+  --glass-shadow: var(--shadow-4);
   --glass-glow: none;
 
-  --surface-primary: #1f2937;
-  --surface-secondary: #111827;
-  --surface-tertiary: #374151;
+  --surface-primary: var(--color-neutral-background-1);
+  --surface-secondary: var(--color-neutral-background-2);
+  --surface-tertiary: var(--color-neutral-background-3);
 
-  --text-primary: #f9fafb;
-  --text-secondary: #9ca3af;
-  --text-accent: #60a5fa;
+  --text-primary: var(--color-neutral-foreground-1);
+  --text-secondary: var(--color-neutral-foreground-2);
+  --text-accent: var(--color-brand-foreground);
 
-  --accent-primary: #3b82f6;
-  --accent-hover: #2563eb;
-  --accent-subtle: rgba(59, 130, 246, 0.2);
+  --accent-primary: #60cdff;
+  --accent-hover: #98d8ff;
+  --accent-subtle: rgba(96, 205, 255, 0.12);
 
-  --border-default: #374151;
-  --border-subtle: #4b5563;
+  --border-default: var(--color-neutral-stroke-1);
+  --border-subtle: var(--color-neutral-stroke-2);
 
-  --overlay-bg: rgba(0, 0, 0, 0.7);
-
-  --theme-bg: #111827;
+  --overlay-bg: rgba(0, 0, 0, 0.6);
+  --theme-bg: var(--color-neutral-background-1);
 }
 
-/* Crystal Light Theme */
+/* ============================================
+   Crystal Light Theme (Fluent Acrylic)
+   ============================================ */
 [data-theme="crystal-light"] {
-  --glass-bg: rgba(255, 255, 255, 0.72);
-  --glass-bg-secondary: rgba(255, 255, 255, 0.55);
-  --glass-blur: 20px;
+  --acrylic-background: rgba(255, 255, 255, 0.72);
+  --acrylic-blur: 24px;
+  --mica-background: rgba(255, 255, 255, 0.55);
+
+  --glass-bg: var(--acrylic-background);
+  --glass-bg-secondary: var(--mica-background);
+  --glass-blur: var(--acrylic-blur);
   --glass-border: rgba(255, 255, 255, 0.5);
-  --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+  --glass-shadow: var(--shadow-8);
   --glass-glow: none;
 
   --surface-primary: rgba(255, 255, 255, 0.8);
   --surface-secondary: rgba(249, 250, 251, 0.75);
   --surface-tertiary: rgba(243, 244, 246, 0.7);
 
-  --text-primary: #1f2937;
-  --text-secondary: #4b5563;
-  --text-accent: #3b82f6;
+  --text-primary: #242424;
+  --text-secondary: #5c5c5c;
+  --text-accent: #0078d4;
 
-  --accent-primary: #3b82f6;
-  --accent-hover: #2563eb;
-  --accent-subtle: rgba(59, 130, 246, 0.15);
+  --accent-primary: #0078d4;
+  --accent-hover: #106ebe;
+  --accent-subtle: rgba(0, 120, 212, 0.12);
 
   --border-default: rgba(255, 255, 255, 0.6);
   --border-subtle: rgba(255, 255, 255, 0.4);
 
   --overlay-bg: rgba(0, 0, 0, 0.25);
-
   --theme-bg: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
 }
 
-/* Crystal Dark Theme */
+/* ============================================
+   Crystal Dark Theme (Fluent Acrylic Dark)
+   ============================================ */
 [data-theme="crystal-dark"] {
-  --glass-bg: rgba(17, 24, 39, 0.75);
-  --glass-bg-secondary: rgba(31, 41, 55, 0.65);
-  --glass-blur: 24px;
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  --glass-glow: 0 0 40px rgba(59, 130, 246, 0.15);
+  --acrylic-background: rgba(31, 31, 31, 0.78);
+  --acrylic-blur: 24px;
+  --mica-background: rgba(43, 43, 43, 0.7);
 
-  --surface-primary: rgba(31, 41, 55, 0.8);
-  --surface-secondary: rgba(17, 24, 39, 0.85);
-  --surface-tertiary: rgba(55, 65, 81, 0.7);
+  --glass-bg: var(--acrylic-background);
+  --glass-bg-secondary: var(--mica-background);
+  --glass-blur: var(--acrylic-blur);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: var(--shadow-16);
+  --glass-glow: 0 0 40px rgba(96, 205, 255, 0.1);
 
-  --text-primary: #f9fafb;
-  --text-secondary: #d1d5db;
-  --text-accent: #60a5fa;
+  --surface-primary: rgba(31, 31, 31, 0.8);
+  --surface-secondary: rgba(27, 27, 27, 0.85);
+  --surface-tertiary: rgba(51, 51, 51, 0.7);
 
-  --accent-primary: #60a5fa;
-  --accent-hover: #3b82f6;
-  --accent-subtle: rgba(96, 165, 250, 0.2);
+  --text-primary: #ffffff;
+  --text-secondary: #d6d6d6;
+  --text-accent: #60cdff;
 
-  --border-default: rgba(75, 85, 99, 0.5);
-  --border-subtle: rgba(107, 114, 128, 0.3);
+  --accent-primary: #60cdff;
+  --accent-hover: #98d8ff;
+  --accent-subtle: rgba(96, 205, 255, 0.15);
+
+  --border-default: rgba(92, 92, 92, 0.5);
+  --border-subtle: rgba(92, 92, 92, 0.3);
 
   --overlay-bg: rgba(0, 0, 0, 0.5);
-
   --theme-bg: linear-gradient(135deg, #0c1445 0%, #1a1a2e 50%, #16213e 100%);
 }
 
-/* Aurora Theme */
+/* ============================================
+   Aurora Theme
+   ============================================ */
 [data-theme="aurora"] {
-  --glass-bg: rgba(255, 255, 255, 0.65);
-  --glass-bg-secondary: rgba(255, 255, 255, 0.5);
-  --glass-blur: 28px;
+  --acrylic-background: rgba(255, 255, 255, 0.68);
+  --acrylic-blur: 28px;
+  --mica-background: rgba(255, 255, 255, 0.52);
+
+  --glass-bg: var(--acrylic-background);
+  --glass-bg-secondary: var(--mica-background);
+  --glass-blur: var(--acrylic-blur);
   --glass-border: rgba(255, 255, 255, 0.4);
-  --glass-shadow: 0 8px 32px rgba(139, 92, 246, 0.2);
-  --glass-glow: 0 0 30px rgba(139, 92, 246, 0.1);
+  --glass-shadow: 0 8px 32px rgba(139, 92, 246, 0.15);
+  --glass-glow: 0 0 30px rgba(139, 92, 246, 0.08);
 
   --surface-primary: rgba(255, 255, 255, 0.7);
   --surface-secondary: rgba(249, 250, 251, 0.6);
   --surface-tertiary: rgba(243, 244, 246, 0.55);
 
-  --text-primary: #1f2937;
-  --text-secondary: #4b5563;
+  --text-primary: #242424;
+  --text-secondary: #5c5c5c;
   --text-accent: #8b5cf6;
 
   --accent-primary: #8b5cf6;
   --accent-hover: #7c3aed;
-  --accent-subtle: rgba(139, 92, 246, 0.15);
+  --accent-subtle: rgba(139, 92, 246, 0.12);
 
   --border-default: rgba(255, 255, 255, 0.5);
   --border-subtle: rgba(255, 255, 255, 0.3);
 
   --overlay-bg: rgba(0, 0, 0, 0.3);
-
   --theme-bg: linear-gradient(135deg, #a8edea 0%, #fed6e3 25%, #d299c2 50%, #fef9d7 75%, #a8edea 100%);
 }
 
-/* Midnight Theme */
+/* ============================================
+   Midnight Theme
+   ============================================ */
 [data-theme="midnight"] {
-  --glass-bg: rgba(30, 27, 75, 0.8);
-  --glass-bg-secondary: rgba(49, 46, 129, 0.6);
-  --glass-blur: 24px;
+  --acrylic-background: rgba(30, 27, 75, 0.82);
+  --acrylic-blur: 24px;
+  --mica-background: rgba(49, 46, 129, 0.65);
+
+  --glass-bg: var(--acrylic-background);
+  --glass-bg-secondary: var(--mica-background);
+  --glass-blur: var(--acrylic-blur);
   --glass-border: rgba(139, 92, 246, 0.2);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  --glass-glow: 0 0 60px rgba(139, 92, 246, 0.2);
+  --glass-shadow: var(--shadow-16);
+  --glass-glow: 0 0 60px rgba(139, 92, 246, 0.15);
 
   --surface-primary: rgba(30, 27, 75, 0.85);
   --surface-secondary: rgba(17, 24, 39, 0.9);
@@ -171,61 +306,170 @@
 
   --accent-primary: #a78bfa;
   --accent-hover: #8b5cf6;
-  --accent-subtle: rgba(167, 139, 250, 0.2);
+  --accent-subtle: rgba(167, 139, 250, 0.15);
 
   --border-default: rgba(99, 102, 241, 0.3);
   --border-subtle: rgba(139, 92, 246, 0.2);
 
   --overlay-bg: rgba(0, 0, 0, 0.6);
-
   --theme-bg: linear-gradient(to bottom, #0f0a2e 0%, #1e1b4b 50%, #312e81 100%);
 }
 
 /* ============================================
-   Base Styles
+   Base Styles (Fluent Typography)
    ============================================ */
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: var(--font-family-base);
+  font-size: 14px;
+  line-height: 20px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: var(--text-primary);
-  transition: color 0.3s ease;
+  background: var(--theme-bg);
+  transition: color var(--duration-normal) var(--curve-easy-ease),
+              background var(--duration-slow) var(--curve-easy-ease);
+}
+
+/* Fluent Typography Classes */
+.fluent-title {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+}
+
+.fluent-subtitle {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.fluent-body {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.fluent-caption {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
 }
 
 /* ============================================
-   Glassmorphism Utilities
+   Fluent Component Utilities
    ============================================ */
 
+/* Glass/Acrylic Effect */
 .glass-effect {
   background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
+  transition: box-shadow var(--duration-fast) var(--curve-decelerate);
 }
 
+.glass-effect:hover {
+  box-shadow: var(--shadow-8);
+}
+
+/* Fluent Card */
 .glass-card {
   background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-large);
+  transition: box-shadow var(--duration-fast) var(--curve-decelerate),
+              transform var(--duration-fast) var(--curve-decelerate);
 }
 
+.glass-card:hover {
+  box-shadow: var(--shadow-8);
+}
+
+/* Fluent Panel */
 .glass-panel {
   background: var(--glass-bg-secondary);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   border-right: 1px solid var(--glass-border);
 }
 
 .glass-glow {
   box-shadow: var(--glass-glow);
+}
+
+/* Fluent Button Base */
+.fluent-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-s);
+  padding: var(--spacing-xs) var(--spacing-m);
+  min-height: 32px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius-small);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--curve-easy-ease),
+              border-color var(--duration-fast) var(--curve-easy-ease),
+              box-shadow var(--duration-fast) var(--curve-easy-ease);
+}
+
+.fluent-button:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.fluent-button-primary {
+  background: var(--accent-primary);
+  color: white;
+}
+
+.fluent-button-primary:hover {
+  background: var(--accent-hover);
+}
+
+.fluent-button-subtle {
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.fluent-button-subtle:hover {
+  background: var(--surface-tertiary);
+}
+
+/* Fluent Input */
+.fluent-input {
+  width: 100%;
+  padding: var(--spacing-xs) var(--spacing-m);
+  min-height: 32px;
+  font-size: 14px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-small);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  transition: border-color var(--duration-fast) var(--curve-easy-ease),
+              box-shadow var(--duration-fast) var(--curve-easy-ease);
+}
+
+.fluent-input:hover {
+  border-color: var(--text-secondary);
+}
+
+.fluent-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+.fluent-input::placeholder {
+  color: var(--text-secondary);
 }
 
 /* ============================================
@@ -237,7 +481,7 @@ body {
   inset: 0;
   z-index: -1;
   background: var(--theme-bg);
-  transition: background 0.5s ease;
+  transition: background var(--duration-slower) var(--curve-easy-ease);
 }
 
 /* Aurora animated background */
@@ -293,42 +537,58 @@ body {
   }
 }
 
-@keyframes starTwinkle {
-  0%, 100% {
-    opacity: 0.3;
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
   }
-  50% {
+  to {
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
-@keyframes glowPulse {
-  0%, 100% {
-    opacity: 0.5;
-    transform: scale(1);
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
   }
-  50% {
+  to {
     opacity: 1;
-    transform: scale(1.02);
+    transform: translateY(0);
   }
+}
+
+.animate-fade-in {
+  animation: fadeIn var(--duration-normal) var(--curve-decelerate);
+}
+
+.animate-slide-up {
+  animation: slideUp var(--duration-normal) var(--curve-decelerate);
+}
+
+.animate-slide-down {
+  animation: slideDown var(--duration-normal) var(--curve-decelerate);
 }
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  [data-theme="aurora"] .theme-background {
-    animation: none;
-  }
-
-  .glass-effect,
-  .glass-card,
-  .glass-panel,
-  body {
-    transition: none;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
 /* ============================================
-   FullCalendar Theme Overrides
+   FullCalendar Theme Overrides (Fluent Style)
    ============================================ */
 
 .fc {
@@ -337,17 +597,25 @@ body {
 
 .fc .fc-toolbar-title {
   color: var(--text-primary);
-  @apply text-xl font-semibold;
+  font-size: 20px;
+  font-weight: 600;
 }
 
 .fc .fc-button {
   background: var(--accent-primary) !important;
   border-color: var(--accent-primary) !important;
+  border-radius: var(--radius-small) !important;
+  font-weight: 600 !important;
+  transition: background var(--duration-fast) var(--curve-easy-ease) !important;
 }
 
 .fc .fc-button:hover {
   background: var(--accent-hover) !important;
   border-color: var(--accent-hover) !important;
+}
+
+.fc .fc-button:focus {
+  box-shadow: 0 0 0 2px var(--accent-primary) !important;
 }
 
 .fc .fc-button-primary:not(:disabled).fc-button-active {
@@ -357,16 +625,21 @@ body {
 
 .fc .fc-col-header-cell-cushion {
   color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .fc .fc-daygrid-day-number {
   color: var(--text-primary);
+  font-weight: 500;
 }
 
 .fc .fc-daygrid-day {
   background: var(--surface-primary);
-  border-color: var(--border-default);
-  transition: background 0.2s ease;
+  border-color: var(--border-subtle) !important;
+  transition: background var(--duration-fast) var(--curve-easy-ease);
 }
 
 .fc .fc-daygrid-day:hover {
@@ -379,12 +652,14 @@ body {
 }
 
 .fc .fc-scrollgrid {
-  border-color: var(--border-default);
+  border-color: var(--border-default) !important;
+  border-radius: var(--radius-medium);
+  overflow: hidden;
 }
 
 .fc .fc-scrollgrid td,
 .fc .fc-scrollgrid th {
-  border-color: var(--border-default);
+  border-color: var(--border-subtle) !important;
 }
 
 .fc .fc-col-header {
@@ -398,16 +673,24 @@ body {
 
 .fc .fc-more-link {
   color: var(--text-accent);
+  font-weight: 600;
 }
 
-/* Glass themes - calendar glass effect */
+.fc .fc-event {
+  border-radius: var(--radius-small) !important;
+  font-weight: 500 !important;
+  border: none !important;
+  padding: 2px 6px !important;
+}
+
+/* Glass themes - calendar acrylic effect */
 [data-theme="crystal-light"] .fc .fc-daygrid-day,
 [data-theme="crystal-dark"] .fc .fc-daygrid-day,
 [data-theme="aurora"] .fc .fc-daygrid-day,
 [data-theme="midnight"] .fc .fc-daygrid-day {
   background: var(--glass-bg-secondary);
-  backdrop-filter: blur(calc(var(--glass-blur) / 2));
-  -webkit-backdrop-filter: blur(calc(var(--glass-blur) / 2));
+  backdrop-filter: blur(calc(var(--glass-blur) / 2)) saturate(150%);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) / 2)) saturate(150%);
 }
 
 [data-theme="crystal-light"] .fc .fc-col-header,
@@ -415,94 +698,265 @@ body {
 [data-theme="aurora"] .fc .fc-col-header,
 [data-theme="midnight"] .fc .fc-col-header {
   background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
 }
 
 /* ============================================
-   Legacy Dark Mode Support (backward compat)
+   Mobile responsive FullCalendar styles
    ============================================ */
-
-.dark .fc .fc-toolbar-title {
-  @apply text-white;
-}
-
-.dark .fc .fc-col-header-cell-cushion {
-  @apply text-gray-300;
-}
-
-.dark .fc .fc-daygrid-day-number {
-  @apply text-gray-300;
-}
-
-.dark .fc .fc-daygrid-day {
-  @apply bg-gray-800 border-gray-700;
-}
-
-.dark .fc .fc-daygrid-day:hover {
-  @apply bg-gray-700;
-}
-
-.dark .fc .fc-daygrid-day.fc-day-today {
-  @apply bg-blue-900/30;
-}
-
-.dark .fc .fc-scrollgrid {
-  @apply border-gray-700;
-}
-
-.dark .fc .fc-scrollgrid td,
-.dark .fc .fc-scrollgrid th {
-  @apply border-gray-700;
-}
-
-.dark .fc .fc-col-header {
-  @apply bg-gray-800;
-}
-
-.dark .fc .fc-daygrid-day-frame {
-  @apply border-gray-700;
-}
-
-.dark .fc .fc-day-other .fc-daygrid-day-number {
-  @apply text-gray-500;
-}
-
-.dark .fc .fc-more-link {
-  @apply text-blue-400;
-}
-
-/* Mobile responsive FullCalendar styles */
 @media (max-width: 640px) {
   .fc .fc-toolbar {
     @apply flex-col gap-2;
   }
 
   .fc .fc-toolbar-title {
-    @apply text-base;
+    font-size: 16px;
   }
 
   .fc .fc-button {
-    @apply text-xs px-2 py-1;
+    font-size: 12px !important;
+    padding: 4px 8px !important;
   }
 
   .fc .fc-col-header-cell-cushion {
-    @apply text-xs py-1;
+    font-size: 10px;
+    padding: 4px;
   }
 
   .fc .fc-daygrid-day-number {
-    @apply text-xs p-1;
+    font-size: 12px;
+    padding: 4px;
   }
 
   .fc .fc-daygrid-event {
-    @apply text-xs;
+    font-size: 11px;
   }
 
   .fc .fc-event-title {
-    @apply text-xs truncate;
+    @apply truncate;
   }
 
   .fc .fc-daygrid-day-frame {
     min-height: 60px;
   }
+}
+
+/* ============================================
+   Enhanced Calendar Styles for Week/Day Views
+   ============================================ */
+
+/* Time grid slot styling */
+.fc .fc-timegrid-slot {
+  height: 48px !important;
+}
+
+.fc .fc-timegrid-slot-label {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.fc .fc-timegrid-slot-lane {
+  border-color: var(--border-subtle) !important;
+}
+
+.fc .fc-timegrid-now-indicator-line {
+  border-color: #dc2626 !important;
+  border-width: 2px !important;
+}
+
+.fc .fc-timegrid-now-indicator-arrow {
+  border-color: #dc2626 !important;
+  border-top-color: transparent !important;
+  border-bottom-color: transparent !important;
+}
+
+/* All-day section styling */
+.fc .fc-timegrid-axis-cushion {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.fc .fc-timegrid-divider {
+  border-color: var(--border-default) !important;
+}
+
+/* Event styling in time grid */
+.fc .fc-timegrid-event {
+  border-radius: var(--radius-small) !important;
+  border-left: 3px solid rgba(0,0,0,0.2) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  transition: box-shadow var(--duration-fast) var(--curve-easy-ease),
+              transform var(--duration-fast) var(--curve-easy-ease);
+}
+
+.fc .fc-timegrid-event:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  transform: translateY(-1px);
+  z-index: 100 !important;
+}
+
+.fc .fc-timegrid-event .fc-event-main {
+  padding: 4px 6px;
+}
+
+/* Completed event styling */
+.fc .fc-event.event-completed {
+  opacity: 0.7;
+}
+
+.fc .fc-event.event-completed .fc-event-title {
+  text-decoration: line-through;
+}
+
+/* Priority indicators */
+.fc .fc-event.priority-high {
+  box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.3);
+}
+
+.fc .fc-event.priority-low {
+  box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+/* List view styling */
+.fc .fc-list {
+  border-radius: var(--radius-medium);
+  overflow: hidden;
+}
+
+.fc .fc-list-day-cushion {
+  background: var(--surface-secondary) !important;
+  color: var(--text-primary);
+}
+
+.fc .fc-list-event:hover td {
+  background: var(--surface-tertiary) !important;
+}
+
+.fc .fc-list-event-dot {
+  border-radius: 50%;
+}
+
+/* Selection styling */
+.fc .fc-highlight {
+  background: var(--accent-subtle) !important;
+  border: 2px dashed var(--accent-default) !important;
+}
+
+/* Drag ghost styling */
+.fc .fc-event-dragging {
+  opacity: 0.75;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+}
+
+.fc .fc-event-resizing {
+  opacity: 0.85;
+}
+
+/* Event popover animation */
+.event-popover {
+  animation: popover-enter 0.15s ease-out;
+}
+
+@keyframes popover-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Mini calendar styling */
+.mini-calendar {
+  user-select: none;
+}
+
+.mini-calendar button {
+  touch-action: manipulation;
+}
+
+/* Time grid header styling */
+.fc .fc-timegrid-axis {
+  width: 50px !important;
+}
+
+.fc .fc-timegrid-body {
+  background: var(--surface-primary);
+}
+
+/* Improve button group styling */
+.fc .fc-button-group {
+  gap: 1px;
+}
+
+.fc .fc-button-group .fc-button {
+  border-radius: 0 !important;
+}
+
+.fc .fc-button-group .fc-button:first-child {
+  border-top-left-radius: var(--radius-small) !important;
+  border-bottom-left-radius: var(--radius-small) !important;
+}
+
+.fc .fc-button-group .fc-button:last-child {
+  border-top-right-radius: var(--radius-small) !important;
+  border-bottom-right-radius: var(--radius-small) !important;
+}
+
+/* Week/Day view header */
+.fc .fc-timegrid-col-frame {
+  background: var(--surface-primary);
+}
+
+.fc .fc-col-header-cell {
+  padding: 8px 4px !important;
+}
+
+.fc .fc-col-header-cell.fc-day-today {
+  background: var(--accent-subtle) !important;
+}
+
+.fc .fc-col-header-cell-cushion {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Agenda/List view enhancements */
+.fc .fc-list-sticky .fc-list-day > th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.fc .fc-list-event td {
+  padding: 12px !important;
+}
+
+.fc .fc-list-event-title a {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Dark theme time grid adjustments */
+[data-theme="dark"] .fc .fc-timegrid-now-indicator-line,
+[data-theme="midnight"] .fc .fc-timegrid-now-indicator-line {
+  border-color: #f87171 !important;
+}
+
+/* Glass themes time grid */
+[data-theme="crystal-light"] .fc .fc-timegrid-body,
+[data-theme="crystal-dark"] .fc .fc-timegrid-body,
+[data-theme="aurora"] .fc .fc-timegrid-body,
+[data-theme="midnight"] .fc .fc-timegrid-body {
+  background: var(--glass-bg-secondary);
+  backdrop-filter: blur(calc(var(--glass-blur) / 2));
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) / 2));
 }

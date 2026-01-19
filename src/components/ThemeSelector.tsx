@@ -35,20 +35,20 @@ export function ThemeSelector({ compact = false }: ThemeSelectorProps) {
       {/* Trigger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center rounded-lg glass-effect hover:opacity-80 transition-all duration-300 ${
+        className={`flex items-center rounded-fluent-sm fluent-surface hover:bg-subtle-background-hover transition-all duration-fast ${
           compact ? 'p-1.5 sm:p-2 gap-1' : 'px-2 sm:px-3 py-1.5 sm:py-2 gap-1 sm:gap-2'
         }`}
         title={`Theme: ${themeConfig.name}`}
       >
-        <div className={`rounded-md ${themeSwatches[theme].bg} flex items-center justify-center shadow-sm transition-all duration-300 ${
+        <div className={`rounded-fluent-sm ${themeSwatches[theme].bg} flex items-center justify-center shadow-fluent-4 transition-all duration-fast ${
           compact ? 'w-5 h-5 sm:w-6 sm:h-6' : 'w-5 h-5 sm:w-6 sm:h-6'
         }`}>
-          <div className={`rounded-sm ${themeSwatches[theme].accent} transition-all duration-300 ${
+          <div className={`rounded-sm ${themeSwatches[theme].accent} transition-all duration-fast ${
             compact ? 'w-2 h-2 sm:w-3 sm:h-3' : 'w-2.5 h-2.5 sm:w-3 sm:h-3'
           }`}></div>
         </div>
         <svg
-          className={`text-content-secondary transition-all duration-300 ${isOpen ? 'rotate-180' : ''} ${
+          className={`text-content-secondary transition-all duration-fast ${isOpen ? 'rotate-180' : ''} ${
             compact ? 'w-3 h-3 hidden sm:block' : 'w-3 h-3 sm:w-4 sm:h-4'
           }`}
           fill="none"
@@ -64,8 +64,8 @@ export function ThemeSelector({ compact = false }: ThemeSelectorProps) {
         <>
           {/* Mobile overlay */}
           <div className="fixed inset-0 bg-black/20 sm:hidden z-[99]" onClick={() => setIsOpen(false)} />
-          <div className="fixed inset-x-2 bottom-2 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-80 glass-card p-4 animate-slide-up z-[100]">
-            <h3 className="text-sm font-medium text-content-primary mb-3">Choose Theme</h3>
+          <div className="fixed inset-x-2 bottom-2 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-80 fluent-card p-4 animate-fluent-appear z-[100] shadow-fluent-16">
+            <h3 className="fluent-title text-sm font-semibold text-content-primary mb-3">Choose Theme</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {themes.map((t) => (
               <button
@@ -74,22 +74,22 @@ export function ThemeSelector({ compact = false }: ThemeSelectorProps) {
                   setTheme(t.id);
                   setIsOpen(false);
                 }}
-                className={`flex flex-col items-center gap-2 p-3 rounded-lg transition-all ${
+                className={`flex flex-col items-center gap-2 p-3 rounded-fluent-md transition-all duration-fast ${
                   theme === t.id
-                    ? 'bg-accent/20 ring-2 ring-accent'
-                    : 'hover:bg-surface-tertiary'
+                    ? 'bg-brand/10 ring-2 ring-brand'
+                    : 'hover:bg-subtle-background-hover'
                 }`}
               >
                 {/* Theme Swatch */}
                 <div className="relative">
                   <div
-                    className={`w-12 h-12 rounded-xl ${themeSwatches[t.id].bg} flex items-center justify-center shadow-md`}
+                    className={`w-12 h-12 rounded-fluent-md ${themeSwatches[t.id].bg} flex items-center justify-center shadow-fluent-4`}
                   >
-                    <div className={`w-6 h-6 rounded-lg ${themeSwatches[t.id].accent}`}></div>
+                    <div className={`w-6 h-6 rounded-fluent-sm ${themeSwatches[t.id].accent}`}></div>
                   </div>
                   {/* Check Mark */}
                   {theme === t.id && (
-                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-accent rounded-full flex items-center justify-center">
+                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-brand rounded-fluent-circle flex items-center justify-center">
                       <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>

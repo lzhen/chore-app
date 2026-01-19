@@ -42,7 +42,7 @@ export function AuthForm() {
         <div className="absolute top-3 right-3 sm:top-4 sm:right-4">
           <ThemeSelector />
         </div>
-        <div className="glass-card p-6 sm:p-8 w-full max-w-md animate-slide-up">
+        <div className="fluent-card p-6 sm:p-8 w-full max-w-md animate-fluent-appear">
           {/* Logo */}
           <div className="flex justify-center mb-6">
             <Logo size="lg" showText={true} />
@@ -54,40 +54,40 @@ export function AuthForm() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-content-primary mb-1">
+              <label className="fluent-label block text-sm font-medium text-content-primary mb-1">
                 Email
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent bg-surface-primary text-content-primary"
+                className="fluent-input w-full"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-content-primary mb-1">
+              <label className="fluent-label block text-sm font-medium text-content-primary mb-1">
                 Password
               </label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent bg-surface-primary text-content-primary"
+                className="fluent-input w-full"
                 required
                 minLength={6}
               />
             </div>
 
             {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-md text-red-500 text-sm">
+              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-fluent-sm text-red-500 text-sm">
                 {error}
               </div>
             )}
 
             {message && (
-              <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-md text-green-500 text-sm">
+              <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-fluent-sm text-green-500 text-sm">
                 {message}
               </div>
             )}
@@ -95,7 +95,7 @@ export function AuthForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 px-4 bg-accent text-white rounded-md font-medium hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="fluent-button w-full py-2.5"
             >
               {loading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Sign In'}
             </button>
@@ -108,7 +108,7 @@ export function AuthForm() {
                 setError(null);
                 setMessage(null);
               }}
-              className="text-content-accent hover:underline text-sm"
+              className="text-brand hover:underline text-sm transition-colors duration-fast"
             >
               {isSignUp
                 ? 'Already have an account? Sign in'

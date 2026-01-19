@@ -64,12 +64,13 @@ export function ChatAssistant({ onClose }: ChatAssistantProps) {
         (m) => m.name.toLowerCase() === action.data?.assigneeName?.toLowerCase()
       );
 
-      await addChore(
-        action.data.title!,
-        action.data.date!,
-        member?.id || null,
-        action.data.recurrence || 'none'
-      );
+      await addChore({
+        title: action.data.title!,
+        date: action.data.date!,
+        assigneeId: member?.id || null,
+        recurrence: action.data.recurrence || 'none',
+        priority: 'medium',
+      });
 
       const assistantMessage: ChatMessage = {
         id: generateId(),

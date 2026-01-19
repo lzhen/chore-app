@@ -1,4 +1,4 @@
-import { Chore, ChoreInstance, TeamMember } from '../types';
+import { Chore, ChoreInstance, TeamMember, ChoreCompletion } from '../types';
 
 function addDays(date: Date, days: number): Date {
   const result = new Date(date);
@@ -24,11 +24,17 @@ function parseDate(dateStr: string): Date {
 export function generateChoreInstances(
   chores: Chore[],
   teamMembers: TeamMember[],
+  completions: ChoreCompletion[],
   rangeStart: Date,
   rangeEnd: Date
 ): ChoreInstance[] {
   const instances: ChoreInstance[] = [];
   const memberMap = new Map(teamMembers.map(m => [m.id, m]));
+
+  // Create a set of completed instance keys for quick lookup
+  const completedKeys = new Set(
+    completions.map(c => `${c.choreId}-${c.instanceDate}`)
+  );
 
   for (const chore of chores) {
     const choreDate = parseDate(chore.date);
@@ -38,14 +44,23 @@ export function generateChoreInstances(
     if (chore.recurrence === 'none') {
       // Single occurrence
       if (choreDate >= rangeStart && choreDate <= rangeEnd) {
+        const instanceKey = `${chore.id}-${chore.date}`;
         instances.push({
           id: chore.id,
           choreId: chore.id,
           title: chore.title,
+          description: chore.description,
           date: chore.date,
+          dueTime: chore.dueTime,
+          endTime: chore.endTime,
+          allDay: chore.allDay,
           assigneeId: chore.assigneeId,
+          assigneeName: member?.name,
           color,
           isRecurring: false,
+          priority: chore.priority,
+          categoryId: chore.categoryId,
+          isCompleted: completedKeys.has(instanceKey),
         });
       }
     } else {
@@ -57,14 +72,23 @@ export function generateChoreInstances(
       while (currentDate <= rangeEnd && instanceCount < maxInstances) {
         if (currentDate >= rangeStart) {
           const dateStr = formatDate(currentDate);
+          const instanceKey = `${chore.id}-${dateStr}`;
           instances.push({
             id: `${chore.id}-${dateStr}`,
             choreId: chore.id,
             title: chore.title,
+            description: chore.description,
             date: dateStr,
+            dueTime: chore.dueTime,
+            endTime: chore.endTime,
+            allDay: chore.allDay,
             assigneeId: chore.assigneeId,
+            assigneeName: member?.name,
             color,
             isRecurring: true,
+            priority: chore.priority,
+            categoryId: chore.categoryId,
+            isCompleted: completedKeys.has(instanceKey),
           });
         }
 
