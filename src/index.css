@@ -507,24 +507,15 @@ a:hover svg {
   transition: background var(--duration-slower) var(--curve-easy-ease);
 }
 
-/* Aurora animated background */
+/* Aurora static gradient background - no animation to prevent blinking */
 [data-theme="aurora"] .theme-background {
-  background: linear-gradient(
-    135deg,
-    rgba(134, 239, 172, 0.6) 0%,
-    rgba(59, 130, 246, 0.5) 25%,
-    rgba(168, 85, 247, 0.5) 50%,
-    rgba(251, 146, 60, 0.4) 75%,
-    rgba(244, 114, 182, 0.5) 100%
-  );
-  background-size: 400% 400%;
-  animation: auroraShift 20s linear infinite;
-  transition: none !important;
-  will-change: background-position;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  perspective: 1000px;
+  background:
+    radial-gradient(ellipse at 20% 80%, rgba(134, 239, 172, 0.4) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(59, 130, 246, 0.4) 0%, transparent 50%),
+    radial-gradient(ellipse at 40% 40%, rgba(168, 85, 247, 0.35) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 70%, rgba(251, 146, 60, 0.3) 0%, transparent 50%),
+    radial-gradient(ellipse at 10% 30%, rgba(244, 114, 182, 0.35) 0%, transparent 50%),
+    linear-gradient(135deg, #0c1821 0%, #1b2838 50%, #162447 100%);
 }
 
 /* Midnight starfield background */
@@ -556,15 +547,6 @@ a:hover svg {
 /* ============================================
    Animations
    ============================================ */
-
-@keyframes auroraShift {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
 
 @keyframes fadeIn {
   from { opacity: 0; }
