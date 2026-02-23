@@ -9,7 +9,10 @@ import { AgentPanel } from './AgentPanel';
 import { Dashboard } from './Dashboard';
 import { MemberProfileModal } from './MemberProfileModal';
 import { AvailabilityModal } from './AvailabilityModal';
+import { QuickAddButton } from './QuickAddButton';
 import { ShortcutsHelpModal } from './ShortcutsHelpModal';
+import { EmailVerification } from './EmailVerification';
+import { PasswordReset } from './PasswordReset';
 import { Chore, ViewMode, TeamMember } from '../types';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -24,7 +27,7 @@ interface ChoreDefaultValues {
 
 export function App() {
   const { state } = useApp();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset } = useAuth();
   const calendarRef = useRef<CalendarRef>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -207,6 +210,16 @@ export function App() {
     );
   }
 
+  // Show email verification page
+  if (isEmailVerification) {
+    return <EmailVerification onContinue={clearEmailVerification} />;
+  }
+
+  // Show password reset page
+  if (isPasswordReset) {
+    return <PasswordReset onComplete={clearPasswordReset} />;
+  }
+
   // Show auth form if not logged in
   if (!user) {
     return <AuthForm />;
@@ -287,6 +300,7 @@ export function App() {
           defaultValues={defaultValues}
         />
         <AgentPanel />
+        <QuickAddButton onClick={() => handleAddClick()} />
         {dashboardOpen && <Dashboard onClose={() => setDashboardOpen(false)} />}
         {profileMember && <MemberProfileModal member={profileMember} onClose={() => setProfileMember(null)} />}
         {availabilityMember && <AvailabilityModal member={availabilityMember} onClose={() => setAvailabilityMember(null)} />}

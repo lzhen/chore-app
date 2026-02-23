@@ -25,3 +25,17 @@ npm-debug.log*
 
 # Cache
 .cache/
+
+# Test coverage
+coverage/
+
+# Playwright
+playwright-report/
+test-results/
+playwright/.cache/
+
+# Watchman
+.watchman-cookie-*
+
+# TypeScript
+*.tsbuildinfo

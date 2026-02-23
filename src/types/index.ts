@@ -114,6 +114,7 @@ export interface ChoreCompletion {
   completedBy: string;            // Team member ID who completed it
   completedAt: string;            // ISO timestamp of completion
   notes?: string;                 // Optional completion notes
+  pointsEarned?: number;          // Points earned for this completion
 }
 
 // Member availability (vacation/away status)

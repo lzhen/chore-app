@@ -504,7 +504,11 @@ a:hover svg {
   inset: 0;
   z-index: -1;
   background: var(--theme-bg);
-  transition: background var(--duration-slower) var(--curve-easy-ease);
+  /* GPU acceleration to prevent fullscreen blinking */
+  transform: translateZ(0);
+  will-change: contents;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 /* Aurora static gradient background */
@@ -517,7 +521,6 @@ a:hover svg {
     rgba(251, 146, 60, 0.4) 75%,
     rgba(244, 114, 182, 0.5) 100%
   );
-  transition: none; /* Disable transition to prevent fullscreen blinking */
 }
 
 /* Midnight starfield background */

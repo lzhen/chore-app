@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+# Run tests only (skip lint-staged for now)
+npm run test:run

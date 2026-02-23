@@ -4,13 +4,36 @@ import { MemberStats } from '../types';
 import { BADGES, getBadgeById } from '../data/badges';
 import { WorkloadChart } from './WorkloadChart';
 
+// Format relative time (e.g., "2 hours ago", "3 days ago")
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+}
+
 interface DashboardProps {
   onClose: () => void;
 }
 
 export function Dashboard({ onClose }: DashboardProps) {
   const { state } = useApp();
-  const [activeTab, setActiveTab] = useState<'overview' | 'achievements' | 'workload'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'workload' | 'achievements'>('overview');
+
+  // Sort completions by completedAt (most recent first)
+  const sortedCompletions = useMemo(() => {
+    return [...state.completions].sort((a, b) =>
+      new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+    );
+  }, [state.completions]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -144,6 +167,16 @@ export function Dashboard({ onClose }: DashboardProps) {
             }`}
           >
             Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('activity')}
+            className={`px-4 py-3 text-sm font-medium transition-colors ${
+              activeTab === 'activity'
+                ? 'text-brand-primary border-b-2 border-brand-primary'
+                : 'text-content-secondary hover:text-content-primary'
+            }`}
+          >
+            Activity
           </button>
           <button
             onClick={() => setActiveTab('workload')}
@@ -281,7 +314,7 @@ export function Dashboard({ onClose }: DashboardProps) {
               <div>
                 <h3 className="fluent-title text-lg font-semibold text-content-primary mb-4">Recent Completions</h3>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {state.completions.slice(0, 10).map((completion) => {
+                  {sortedCompletions.slice(0, 5).map((completion) => {
                     const chore = state.chores.find(c => c.id === completion.choreId);
                     const member = state.teamMembers.find(m => m.id === completion.completedBy);
                     return (
@@ -299,7 +332,7 @@ export function Dashboard({ onClose }: DashboardProps) {
                           </span>
                         </div>
                         <span className="text-xs text-content-secondary flex-shrink-0">
-                          {new Date(completion.completedAt).toLocaleDateString()}
+                          {formatRelativeTime(completion.completedAt)}
                         </span>
                       </div>
                     );
@@ -310,9 +343,93 @@ export function Dashboard({ onClose }: DashboardProps) {
                       No completions yet. Complete some chores to see activity.
                     </p>
                   )}
+
+                  {state.completions.length > 5 && (
+                    <button
+                      onClick={() => setActiveTab('activity')}
+                      className="w-full text-center text-sm text-brand-primary hover:text-brand-primary/80 py-2"
+                    >
+                      View all activity →
+                    </button>
+                  )}
                 </div>
               </div>
             </>
+          ) : activeTab === 'activity' ? (
+            /* Activity Tab - Full Activity Feed */
+            <div>
+              <h3 className="fluent-title text-lg font-semibold text-content-primary mb-4">
+                Activity Feed ({sortedCompletions.length} completions)
+              </h3>
+              <div className="space-y-3">
+                {sortedCompletions.map((completion) => {
+                  const chore = state.chores.find(c => c.id === completion.choreId);
+                  const member = state.teamMembers.find(m => m.id === completion.completedBy);
+                  const pointsEarned = completion.pointsEarned || 0;
+
+                  return (
+                    <div
+                      key={completion.id}
+                      className="fluent-surface flex items-center gap-4 p-4 rounded-fluent-md border border-border hover:shadow-fluent-4 transition-all"
+                    >
+                      {/* Member avatar */}
+                      {member?.avatarUrl ? (
+                        <img
+                          src={member.avatarUrl}
+                          alt={member.name}
+                          className="w-10 h-10 rounded-fluent-circle object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div
+                          className="w-10 h-10 rounded-fluent-circle flex-shrink-0 flex items-center justify-center text-white font-bold"
+                          style={{ backgroundColor: member?.color || '#888' }}
+                        >
+                          {member?.name?.charAt(0).toUpperCase() || '?'}
+                        </div>
+                      )}
+
+                      {/* Activity details */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-content-primary">{member?.name || 'Unknown'}</span>
+                          <span className="text-content-secondary">completed</span>
+                          <span className="font-medium text-content-primary truncate">{chore?.title || 'Unknown chore'}</span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-content-secondary">
+                          <span>{formatRelativeTime(completion.completedAt)}</span>
+                          <span>•</span>
+                          <span>{new Date(completion.instanceDate).toLocaleDateString()}</span>
+                          {pointsEarned > 0 && (
+                            <>
+                              <span>•</span>
+                              <span className="text-brand-primary font-medium">+{pointsEarned} pts</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Completion check */}
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 rounded-fluent-circle bg-green-500/20 flex items-center justify-center">
+                          <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {sortedCompletions.length === 0 && (
+                  <div className="text-center py-12">
+                    <svg className="w-12 h-12 mx-auto text-content-secondary opacity-50 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                    <p className="text-content-secondary">No completions yet. Complete some chores to see activity.</p>
+                  </div>
+                )}
+              </div>
+            </div>
           ) : activeTab === 'achievements' ? (
             /* Achievements Tab */
             <div className="space-y-6">

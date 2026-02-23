@@ -1,6 +1,9 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 
 export type ThemeId = 'light' | 'dark' | 'crystal-light' | 'crystal-dark' | 'aurora' | 'midnight';
+
+// Theme selection includes 'system' which auto-follows system preference
+export type ThemeSelection = ThemeId | 'system';
 
 export interface ThemeConfig {
   id: ThemeId;
@@ -56,36 +59,80 @@ export const THEMES: ThemeConfig[] = [
 ];
 
 interface ThemeContextType {
-  theme: ThemeId;
+  theme: ThemeId;                    // Actual applied theme
+  themeSelection: ThemeSelection;    // User selection (including 'system')
   themeConfig: ThemeConfig;
-  setTheme: (theme: ThemeId) => void;
+  setTheme: (theme: ThemeSelection) => void;
   themes: ThemeConfig[];
   toggleTheme: () => void;
   isDark: boolean;
   isGlass: boolean;
+  isSystemTheme: boolean;            // Whether using system preference
 }
 
 const ThemeContext = createContext<ThemeContextType | null>(null);
 
+// Get system preference
+function getSystemTheme(): 'light' | 'dark' {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeId>(() => {
-    const saved = localStorage.getItem('theme') as ThemeId | null;
+  // User's theme selection (can be 'system' or a specific theme)
+  const [themeSelection, setThemeSelection] = useState<ThemeSelection>(() => {
+    const saved = localStorage.getItem('theme') as ThemeSelection | null;
+    if (saved === 'system') return 'system';
     if (saved && THEMES.find((t) => t.id === saved)) {
-      return saved;
+      return saved as ThemeId;
     }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    return 'system'; // Default to system
   });
 
-  const themeConfig = THEMES.find((t) => t.id === theme)!;
+  // Actual applied theme
+  const [appliedTheme, setAppliedTheme] = useState<ThemeId>(() => {
+    if (themeSelection === 'system') {
+      return getSystemTheme();
+    }
+    return themeSelection;
+  });
+
+  // Update applied theme when selection or system preference changes
+  const updateAppliedTheme = useCallback(() => {
+    if (themeSelection === 'system') {
+      setAppliedTheme(getSystemTheme());
+    } else {
+      setAppliedTheme(themeSelection);
+    }
+  }, [themeSelection]);
+
+  // Listen for system theme changes
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => {
+      if (themeSelection === 'system') {
+        setAppliedTheme(getSystemTheme());
+      }
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [themeSelection]);
+
+  // Update applied theme when selection changes
+  useEffect(() => {
+    updateAppliedTheme();
+  }, [updateAppliedTheme]);
+
+  const themeConfig = THEMES.find((t) => t.id === appliedTheme)!;
 
   useEffect(() => {
-    localStorage.setItem('theme', theme);
+    localStorage.setItem('theme', themeSelection);
 
     // Remove all theme-related classes
     document.documentElement.classList.remove('dark', 'glass-theme');
 
     // Set data-theme attribute
-    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-theme', appliedTheme);
 
     // Add 'dark' class for Tailwind dark: prefix compatibility
     if (themeConfig.isDark) {
@@ -96,15 +143,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (themeConfig.isGlass) {
       document.documentElement.classList.add('glass-theme');
     }
-  }, [theme, themeConfig]);
+  }, [appliedTheme, themeSelection, themeConfig]);
 
-  const setTheme = (newTheme: ThemeId) => {
-    setThemeState(newTheme);
+  const setTheme = (newTheme: ThemeSelection) => {
+    setThemeSelection(newTheme);
   };
 
   // Backward compatibility: toggle between light and dark
   const toggleTheme = () => {
-    setThemeState((prev) => {
+    setThemeSelection((prev) => {
+      if (prev === 'system') {
+        // If system, toggle to opposite of current applied theme
+        return appliedTheme === 'dark' ? 'light' : 'dark';
+      }
       const currentConfig = THEMES.find((t) => t.id === prev)!;
       return currentConfig.isDark ? 'light' : 'dark';
     });
@@ -113,13 +164,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
     <ThemeContext.Provider
       value={{
-        theme,
+        theme: appliedTheme,
+        themeSelection,
         themeConfig,
         setTheme,
         themes: THEMES,
         toggleTheme,
         isDark: themeConfig.isDark,
         isGlass: themeConfig.isGlass,
+        isSystemTheme: themeSelection === 'system',
       }}
     >
       {children}
