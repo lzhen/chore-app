@@ -1,5 +1,8 @@
 # Dependencies
 node_modules/
+ios/App/Pods/
+ios/App/App/public/
+ios/App/DerivedData/
 
 # Build output
 dist/

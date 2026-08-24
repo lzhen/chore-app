@@ -20,7 +20,10 @@
     "typecheck": "tsc --noEmit",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
-    "prepare": "husky"
+    "prepare": "husky",
+    "ios:init": "CAPACITOR_BUILD=true npm run build && npx cap add ios",
+    "ios:sync": "CAPACITOR_BUILD=true npm run build && npx cap sync ios",
+    "ios:open": "npx cap open ios"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -31,6 +34,8 @@
     ]
   },
   "dependencies": {
+    "@capacitor/core": "^7.4.3",
+    "@capacitor/ios": "^7.4.3",
     "@fullcalendar/core": "^6.1.10",
     "@fullcalendar/daygrid": "^6.1.10",
     "@fullcalendar/interaction": "^6.1.20",
@@ -43,6 +48,8 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^7.4.3",
     "@playwright/test": "^1.58.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
