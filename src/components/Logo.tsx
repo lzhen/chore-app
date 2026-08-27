@@ -71,10 +71,10 @@ export function Logo({ size = 'md', showText = true }: LogoProps) {
               backgroundClip: 'text',
             }}
           >
-            ChoreApp
+            Chorely
           </span>
           {size === 'lg' && (
-            <span className="text-xs text-content-secondary -mt-1">Office Task Manager</span>
+            <span className="text-xs text-content-secondary -mt-1">Family Chore Manager</span>
           )}
         </div>
       )}
