@@ -10,6 +10,7 @@ export function AuthForm() {
   const [mode, setMode] = useState<AuthMode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -21,21 +22,21 @@ export function AuthForm() {
     setLoading(true);
 
     if (mode === 'forgotPassword') {
-      const { error } = await resetPassword(email);
+      const { error } = await resetPassword(email.trim().toLowerCase());
       if (error) {
         setError(error.message);
       } else {
         setMessage('Check your email for a password reset link!');
       }
     } else if (mode === 'signUp') {
-      const { error } = await signUp(email, password);
+      const { error } = await signUp(email.trim().toLowerCase(), password);
       if (error) {
         setError(error.message);
       } else {
         setMessage('Check your email for a confirmation link!');
       }
     } else {
-      const { error } = await signIn(email, password);
+      const { error } = await signIn(email.trim().toLowerCase(), password);
       if (error) {
         setError(error.message);
       }
@@ -100,6 +101,10 @@ export function AuthForm() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                autoComplete="email"
                 className="fluent-input w-full"
                 required
               />
@@ -110,15 +115,29 @@ export function AuthForm() {
                 <label htmlFor="password" className="fluent-label block text-sm font-medium text-content-primary mb-1">
                   Password
                 </label>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="fluent-input w-full"
-                  required
-                  minLength={6}
-                />
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    autoComplete={mode === 'signUp' ? 'new-password' : 'current-password'}
+                    className="fluent-input w-full pr-16"
+                    required
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((visible) => !visible)}
+                    className="absolute inset-y-0 right-0 px-3 text-xs text-content-secondary hover:text-brand"
+                    aria-label={showPassword ? 'Conceal' : 'Reveal'}
+                  >
+                    {showPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
               </div>
             )}
 
