@@ -254,7 +254,7 @@ export function App() {
           onSearchChange={setSearchQuery}
           searchInputRef={searchInputRef}
         />
-        <main id="main-content" className="flex flex-1 overflow-hidden relative">
+        <main id="main-content" className="mobile-tab-content flex flex-1 overflow-hidden relative">
           {/* Mobile sidebar overlay */}
           {sidebarOpen && (
             <div

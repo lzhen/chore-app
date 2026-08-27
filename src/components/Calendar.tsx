@@ -270,8 +270,8 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
     };
 
     return (
-      <div className="flex-1 p-3 sm:p-6 overflow-hidden">
-        <div className="fluent-card p-3 sm:p-4 h-full flex flex-col">
+      <div className="flex-1 p-0 sm:p-6 overflow-hidden">
+        <div className="mobile-calendar-shell fluent-card p-2 sm:p-4 h-full flex flex-col">
           <div className="flex-1 min-h-0 calendar-container">
             <FullCalendar
               ref={calendarRef}

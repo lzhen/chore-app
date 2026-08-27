@@ -32,9 +32,42 @@ export function Header({ onMenuClick, onDashboardClick, viewMode, onViewModeChan
   }, []);
 
   return (
+    <>
+    {/* Mobile app navigation bar */}
     <header
       role="banner"
-      className={`fluent-surface border-b border-border px-2 sm:px-6 flex items-center justify-between relative z-[100] transition-all duration-normal ease-fluent-decelerate ${
+      className="sm:hidden fluent-surface border-b border-border px-3 py-2 flex items-center justify-between relative z-[100]"
+    >
+      <button
+        onClick={onMenuClick}
+        className="w-10 h-10 -ml-1 flex items-center justify-center text-content-secondary rounded-full active:bg-subtle-background-hover"
+        aria-label="Open family menu"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+        <Logo size="sm" showText={false} />
+        <div>
+          <p className="text-[11px] leading-none text-content-secondary">Chorely</p>
+          <h1 className="text-base leading-tight font-semibold text-content-primary">
+            {viewMode === 'calendar' ? 'Calendar' : 'Chores'}
+          </h1>
+        </div>
+      </div>
+      <button
+        onClick={() => setAccountOpen(true)}
+        className="w-10 h-10 -mr-1 flex items-center justify-center rounded-full bg-accent-subtle text-brand font-semibold"
+        aria-label="Open account"
+      >
+        {(user?.email?.[0] || 'A').toUpperCase()}
+      </button>
+    </header>
+
+    <header
+      role="banner"
+      className={`hidden sm:flex fluent-surface border-b border-border px-6 items-center justify-between relative z-[100] transition-all duration-normal ease-fluent-decelerate ${
         isCollapsed ? 'py-2' : 'py-2 sm:py-3'
       }`}
     >
@@ -171,7 +204,37 @@ export function Header({ onMenuClick, onDashboardClick, viewMode, onViewModeChan
           </svg>
         </button>
       </div>
-      <AccountSettings isOpen={accountOpen} onClose={() => setAccountOpen(false)} />
     </header>
+
+    {/* Primary mobile navigation follows the familiar native tab-bar pattern. */}
+    <nav className="mobile-tab-bar sm:hidden" aria-label="Primary navigation">
+      <button
+        onClick={() => onViewModeChange('calendar')}
+        className={viewMode === 'calendar' ? 'mobile-tab-active' : ''}
+        aria-current={viewMode === 'calendar' ? 'page' : undefined}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+        <span>Calendar</span>
+      </button>
+      <button
+        onClick={() => onViewModeChange('list')}
+        className={viewMode === 'list' ? 'mobile-tab-active' : ''}
+        aria-current={viewMode === 'list' ? 'page' : undefined}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
+        <span>Chores</span>
+      </button>
+      <button onClick={onDashboardClick}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 19V9m5 10V5m5 14v-7m5 7V3" /></svg>
+        <span>Insights</span>
+      </button>
+      <button onClick={() => setAccountOpen(true)}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 21a8 8 0 10-16 0m12-13a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+        <span>Account</span>
+      </button>
+    </nav>
+
+    <AccountSettings isOpen={accountOpen} onClose={() => setAccountOpen(false)} />
+    </>
   );
 }

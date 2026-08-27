@@ -722,6 +722,17 @@ a:hover svg {
    Mobile responsive FullCalendar styles
    ============================================ */
 @media (max-width: 640px) {
+  .mobile-tab-content {
+    padding-bottom: calc(58px + env(safe-area-inset-bottom));
+  }
+
+  .mobile-calendar-shell {
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    box-shadow: none;
+  }
+
   .fc .fc-toolbar {
     @apply flex-col gap-2;
   }
@@ -756,6 +767,48 @@ a:hover svg {
   .fc .fc-daygrid-day-frame {
     min-height: 60px;
   }
+}
+
+.mobile-tab-bar {
+  position: fixed;
+  z-index: 150;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 6px 8px max(6px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--surface-primary) 92%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+}
+
+.mobile-tab-bar button {
+  min-width: 0;
+  min-height: 46px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 10px;
+}
+
+.mobile-tab-bar button:active {
+  background: var(--accent-subtle);
+}
+
+.mobile-tab-bar button.mobile-tab-active {
+  color: var(--accent-primary);
+}
+
+.mobile-tab-bar svg {
+  width: 22px;
+  height: 22px;
 }
 
 /* ============================================
