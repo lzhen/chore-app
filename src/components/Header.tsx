@@ -34,12 +34,12 @@ export function Header({ onMenuClick, onDashboardClick, viewMode, onViewModeChan
   return (
     <header
       role="banner"
-      className={`fluent-surface border-b border-border px-3 sm:px-6 flex items-center justify-between relative z-[100] transition-all duration-normal ease-fluent-decelerate ${
+      className={`fluent-surface border-b border-border px-2 sm:px-6 flex items-center justify-between relative z-[100] transition-all duration-normal ease-fluent-decelerate ${
         isCollapsed ? 'py-2' : 'py-2 sm:py-3'
       }`}
     >
       {/* Left side - Menu button and logo */}
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+      <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
         {/* Mobile menu button */}
         <button
           onClick={onMenuClick}
@@ -97,7 +97,7 @@ export function Header({ onMenuClick, onDashboardClick, viewMode, onViewModeChan
       </div>
 
       {/* Right side - View toggle, Dashboard, Theme, user, sign out */}
-      <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+      <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
         {/* View toggle */}
         <div className="flex rounded-fluent-md border border-border overflow-hidden" role="group" aria-label="View mode">
           <button
@@ -144,7 +144,11 @@ export function Header({ onMenuClick, onDashboardClick, viewMode, onViewModeChan
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
         </button>
-        <ThemeSelector compact={isCollapsed} />
+        {/* The complete mobile action row is wider than an iPhone viewport.
+            Theme selection remains available on tablet and desktop. */}
+        <div className="hidden sm:block">
+          <ThemeSelector compact={isCollapsed} />
+        </div>
         <button
           onClick={() => setAccountOpen(true)}
           className={`text-content-secondary truncate max-w-[100px] md:max-w-[150px] hover:text-content-primary transition-all duration-normal ${isCollapsed ? 'hidden' : 'hidden md:inline text-xs md:text-sm'}`}
