@@ -731,10 +731,12 @@ a:hover svg {
     border-left: 0;
     border-right: 0;
     box-shadow: none;
+    background: #ffffff;
   }
 
   .fc .fc-toolbar {
     @apply flex-col gap-2;
+    padding: 8px 6px 4px;
   }
 
   .fc .fc-toolbar-title {
@@ -743,7 +745,8 @@ a:hover svg {
 
   .fc .fc-button {
     font-size: 12px !important;
-    padding: 4px 8px !important;
+    padding: 7px 12px !important;
+    border-radius: 9999px !important;
   }
 
   .fc .fc-col-header-cell-cushion {
@@ -769,6 +772,28 @@ a:hover svg {
   }
 }
 
+.material-top-app-bar {
+  min-height: 56px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 70%, transparent);
+  background: color-mix(in srgb, var(--surface-primary) 96%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  backdrop-filter: blur(18px) saturate(150%);
+}
+
+.material-search-field {
+  height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 9999px;
+  outline: none;
+  color: var(--text-primary);
+  background: var(--surface-tertiary);
+}
+
+.material-search-field:focus {
+  box-shadow: inset 0 0 0 2px var(--accent-primary);
+}
+
 .mobile-tab-bar {
   position: fixed;
   z-index: 150;
@@ -777,9 +802,10 @@ a:hover svg {
   bottom: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  padding: 6px 8px max(6px, env(safe-area-inset-bottom));
-  border-top: 1px solid var(--border-default);
-  background: color-mix(in srgb, var(--surface-primary) 92%, transparent);
+  padding: 5px 8px max(5px, env(safe-area-inset-bottom));
+  border-top: 0;
+  box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.08);
+  background: color-mix(in srgb, var(--surface-secondary) 96%, transparent);
   -webkit-backdrop-filter: blur(18px) saturate(160%);
   backdrop-filter: blur(18px) saturate(160%);
 }
@@ -791,7 +817,7 @@ a:hover svg {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 1px;
   color: var(--text-secondary);
   font-size: 10px;
   font-weight: 600;
@@ -806,9 +832,32 @@ a:hover svg {
   color: var(--accent-primary);
 }
 
+.mobile-tab-bar button.mobile-tab-active svg {
+  width: 38px;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  background: var(--accent-subtle);
+}
+
 .mobile-tab-bar svg {
   width: 22px;
   height: 22px;
+}
+
+.material-fab {
+  bottom: calc(70px + env(safe-area-inset-bottom));
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 16%, var(--surface-primary));
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+@media (min-width: 640px) {
+  .material-fab {
+    bottom: 24px;
+  }
 }
 
 /* ============================================

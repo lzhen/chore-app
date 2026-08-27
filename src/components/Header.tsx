@@ -19,6 +19,7 @@ export function Header({ onMenuClick, onDashboardClick, viewMode, onViewModeChan
   const { user, signOut } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   // Collapse header on scroll
   useEffect(() => {
@@ -36,7 +37,7 @@ export function Header({ onMenuClick, onDashboardClick, viewMode, onViewModeChan
     {/* Mobile app navigation bar */}
     <header
       role="banner"
-      className="sm:hidden fluent-surface border-b border-border px-3 py-2 flex items-center justify-between relative z-[100]"
+      className="material-top-app-bar sm:hidden px-2 py-2 flex items-center gap-1 relative z-[100]"
     >
       <button
         onClick={onMenuClick}
@@ -47,15 +48,43 @@ export function Header({ onMenuClick, onDashboardClick, viewMode, onViewModeChan
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
         </svg>
       </button>
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
-        <Logo size="sm" showText={false} />
+      {mobileSearchOpen ? (
+        <div className="flex-1 px-1">
+          <input
+            ref={searchInputRef}
+            value={searchQuery}
+            onChange={(event) => onSearchChange(event.target.value)}
+            autoFocus
+            placeholder="Search chores"
+            aria-label="Search chores"
+            className="material-search-field w-full"
+          />
+        </div>
+      ) : (
+        <div className="flex-1 min-w-0 flex items-center gap-2 px-1">
+          <Logo size="sm" showText={false} />
         <div>
           <p className="text-[11px] leading-none text-content-secondary">Chorely</p>
-          <h1 className="text-base leading-tight font-semibold text-content-primary">
-            {viewMode === 'calendar' ? 'Calendar' : 'Chores'}
+          <h1 className="text-lg leading-tight font-medium text-content-primary truncate">
+            {viewMode === 'calendar' ? 'My calendar' : 'My chores'}
           </h1>
         </div>
-      </div>
+        </div>
+      )}
+      <button
+        onClick={() => {
+          setMobileSearchOpen((open) => !open);
+          if (mobileSearchOpen) onSearchChange('');
+        }}
+        className="w-10 h-10 flex items-center justify-center text-content-secondary rounded-full active:bg-subtle-background-hover"
+        aria-label={mobileSearchOpen ? 'Close search' : 'Search'}
+      >
+        {mobileSearchOpen ? (
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+        ) : (
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m2.35-5.65a8 8 0 11-16 0 8 8 0 0116 0z" /></svg>
+        )}
+      </button>
       <button
         onClick={() => setAccountOpen(true)}
         className="w-10 h-10 -mr-1 flex items-center justify-center rounded-full bg-accent-subtle text-brand font-semibold"
