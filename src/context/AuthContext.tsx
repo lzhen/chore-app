@@ -13,6 +13,7 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<{ error: Error | null }>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
 }
 
@@ -75,6 +76,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  const deleteAccount = async () => {
+    const { error } = await supabase.functions.invoke('delete-account', {
+      method: 'POST',
+    });
+
+    if (error) {
+      return { error: error as Error };
+    }
+
+    localStorage.clear();
+    await supabase.auth.signOut({ scope: 'local' });
+    setSession(null);
+    setUser(null);
+    return { error: null };
+  };
+
   const resetPassword = async (email: string) => {
     const baseUrl = window.location.origin;
     const basePath = import.meta.env.BASE_URL || '/';
@@ -87,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset, signUp, signIn, signOut, resetPassword }}>
+    <AuthContext.Provider value={{ user, session, loading, isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset, signUp, signIn, signOut, deleteAccount, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

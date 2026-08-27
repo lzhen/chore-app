@@ -36,3 +36,13 @@ After the first run, use `npm run ios:sync` whenever the web app changes.
 
 The App Store submission also requires a 1024×1024 icon, iPhone screenshots,
 support and privacy-policy URLs, an app description, keywords, and review notes.
+
+## App Review readiness
+
+- Deploy the `delete-account` Supabase Edge Function before submission.
+- Host `privacy.html` at a stable public URL and use that URL in App Store Connect.
+- Provide App Review with a working demo account containing representative chores.
+- Complete the App Privacy questionnaire for email address, user ID, and user content.
+- Verify account deletion from Account settings using a disposable test account.
+- Enable Supabase leaked-password protection and resolve Security Advisor warnings.
+- Confirm Supabase row-level security isolates each household before inviting external testers.

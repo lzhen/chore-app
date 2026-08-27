@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { ThemeSelector } from './ThemeSelector';
 import { Logo } from './Logo';
 import { ViewMode } from '../types';
+import { AccountSettings } from './AccountSettings';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -17,6 +18,7 @@ interface HeaderProps {
 export function Header({ onMenuClick, onDashboardClick, viewMode, onViewModeChange, searchQuery, onSearchChange, searchInputRef }: HeaderProps) {
   const { user, signOut } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   // Collapse header on scroll
   useEffect(() => {
@@ -143,11 +145,13 @@ export function Header({ onMenuClick, onDashboardClick, viewMode, onViewModeChan
           </svg>
         </button>
         <ThemeSelector compact={isCollapsed} />
-        <span className={`text-content-secondary truncate max-w-[100px] md:max-w-[150px] transition-all duration-normal ${
-          isCollapsed ? 'hidden' : 'hidden md:inline text-xs md:text-sm'
-        }`}>
+        <button
+          onClick={() => setAccountOpen(true)}
+          className={`text-content-secondary truncate max-w-[100px] md:max-w-[150px] hover:text-content-primary transition-all duration-normal ${isCollapsed ? 'hidden' : 'hidden md:inline text-xs md:text-sm'}`}
+          aria-label="Open account settings"
+        >
           {user?.email}
-        </span>
+        </button>
         <button
           onClick={signOut}
           className={`fluent-button-subtle text-content-secondary hover:text-content-primary border border-border rounded-fluent-sm hover:bg-subtle-background-hover transition-all duration-fast ${
@@ -163,6 +167,7 @@ export function Header({ onMenuClick, onDashboardClick, viewMode, onViewModeChan
           </svg>
         </button>
       </div>
+      <AccountSettings isOpen={accountOpen} onClose={() => setAccountOpen(false)} />
     </header>
   );
 }

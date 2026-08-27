@@ -173,6 +173,10 @@ export function AuthForm() {
               </button>
             )}
           </div>
+          <p className="mt-6 text-center text-xs text-content-secondary">
+            By continuing, you agree to Chorely's policies.{' '}
+            <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noreferrer" className="text-brand hover:underline">Privacy Policy</a>
+          </p>
         </div>
       </div>
     </>
