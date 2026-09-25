@@ -1,0 +1,35 @@
+name: Capture Chorely App Store screenshots
+on:
+  push:
+    branches: [assets/chorely-store-screenshots]
+    paths: ['scripts/store-capture/**', '.github/workflows/chorely-store-screenshots.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22', cache: npm}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: latest-stable}
+      - name: Build the current app with isolated screenshot data
+        env: {HUSKY: '0'}
+        run: |
+          npm ci
+          CAPACITOR_BUILD=true npm run build
+          python3 scripts/store-capture/prepare.py
+          npx cap sync ios
+          mkdir -p capture-output
+          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/chorely-capture" CODE_SIGNING_ALLOWED=NO build > capture-output/simulator-build.log 2>&1 || { tail -100 capture-output/simulator-build.log; exit 1; }
+      - name: Capture actual iPhone and iPad simulator displays
+        run: python3 scripts/store-capture/capture.py "$RUNNER_TEMP/chorely-capture/Build/Products/Debug-iphonesimulator"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chorely-native-app-store-screenshots
+          path: capture-output/
+          retention-days: 14
