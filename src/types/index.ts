@@ -186,7 +186,7 @@ export interface ChoreFilters {
 }
 
 // View mode for main content area
-export type ViewMode = 'calendar' | 'list' | 'dashboard';
+export type ViewMode = 'today' | 'calendar' | 'list' | 'dashboard' | 'account';
 
 // Notification preferences
 export interface NotificationPreferences {

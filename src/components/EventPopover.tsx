@@ -1,3 +1,4 @@
+import { parseDate } from '../utils/dates';
 import { Chore, ChoreInstance } from '../types';
 
 interface EventPopoverProps {
@@ -17,7 +18,7 @@ const priorityLabels = {
 
 const priorityColors = {
   low: 'bg-blue-500',
-  medium: 'bg-yellow-500',
+  medium: 'bg-amber-700',
   high: 'bg-red-500',
 };
 
@@ -32,13 +33,13 @@ export function EventPopover({
   // Note: _chore is available for future enhancements (e.g., showing recurrence rule details)
   // Adjust position to stay within viewport
   const adjustedPosition = {
-    x: Math.min(position.x, window.innerWidth - 320),
-    y: Math.min(position.y, window.innerHeight - 300),
+    x: Math.max(8, Math.min(position.x, window.innerWidth - 328)),
+    y: Math.max(8, Math.min(position.y, window.innerHeight - 410)),
   };
 
   // Format date for display
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = parseDate(dateStr);
     return date.toLocaleDateString(undefined, {
       weekday: 'long',
       month: 'long',
@@ -77,7 +78,7 @@ export function EventPopover({
             {instance.title}
           </h3>
           <button
-            onClick={onClose}
+            onClick={onClose} aria-label="Close task details"
             className="text-content-secondary hover:text-content-primary p-1 hover:bg-subtle-background-hover rounded-fluent-sm transition-all flex-shrink-0"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

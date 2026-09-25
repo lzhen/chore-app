@@ -5,9 +5,10 @@ import { ThemeSelector } from './ThemeSelector';
 interface AccountSettingsProps {
   isOpen: boolean;
   onClose: () => void;
+  embedded?: boolean;
 }
 
-export function AccountSettings({ isOpen, onClose }: AccountSettingsProps) {
+export function AccountSettings({ isOpen, onClose, embedded=false }: AccountSettingsProps) {
   const { user, signOut, deleteAccount } = useAuth();
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -26,11 +27,11 @@ export function AccountSettings({ isOpen, onClose }: AccountSettingsProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4" role="presentation">
+    <div className={embedded?"chore-account-page":"fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4"}>
       <section
         className="fluent-card w-full sm:max-w-md max-h-[90dvh] overflow-y-auto rounded-t-fluent-xl sm:rounded-fluent-lg p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
-        role="dialog"
-        aria-modal="true"
+        role={embedded?undefined:"dialog"}
+        aria-modal={embedded?undefined:true}
         aria-labelledby="account-settings-title"
       >
         <div className="flex items-start justify-between gap-4">
@@ -38,7 +39,7 @@ export function AccountSettings({ isOpen, onClose }: AccountSettingsProps) {
             <h2 id="account-settings-title" className="text-xl font-semibold text-content-primary">Account</h2>
             <p className="mt-1 text-sm text-content-secondary">{user?.email}</p>
           </div>
-          <button onClick={onClose} className="p-2 text-content-secondary hover:text-content-primary" aria-label="Close account settings">✕</button>
+          <button hidden={embedded} onClick={onClose} className="p-2 text-content-secondary hover:text-content-primary" aria-label="Close account settings">✕</button>
         </div>
 
         <div className="mt-6 border-t border-border pt-5">

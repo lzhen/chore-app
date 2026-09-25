@@ -1,4 +1,6 @@
-import { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import { useAuth } from './AuthContext';
+import { parseDate } from '../utils/dates';
+import { createContext, useContext, useReducer, useEffect, useState, useRef, ReactNode } from 'react';
 import {
   Chore,
   TeamMember,
@@ -37,10 +39,12 @@ interface AppState {
   completions: ChoreCompletion[];
   availability: MemberAvailability[];
   loading: boolean;
+  error: string | null;
 }
 
 type Action =
   | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_CHORES'; payload: Chore[] }
   | { type: 'ADD_CHORE'; payload: Chore }
   | { type: 'UPDATE_CHORE'; payload: Chore }
@@ -63,6 +67,7 @@ type Action =
 
 interface AppContextType {
   state: AppState;
+  reload: () => void;
   // Chore operations
   addChore: (chore: Omit<Chore, 'id'>) => Promise<void>;
   updateChore: (chore: Chore) => Promise<void>;
@@ -98,10 +103,12 @@ const initialState: AppState = {
   completions: [],
   availability: [],
   loading: true,
+  error: null,
 };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
+    case 'SET_ERROR': return {...state, error: action.payload, loading: false};
     case 'SET_LOADING':
       return { ...state, loading: action.payload };
     case 'SET_CHORES':
@@ -176,27 +183,28 @@ function reducer(state: AppState, action: Action): AppState {
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const { user, loading: authLoading } = useAuth();
+  const [revision, setRevision] = useState(0);
+  const completionInFlight = useRef(new Set<string>());
+  const reload = () => setRevision(value => value + 1);
 
-  // Load data from Supabase on mount
   useEffect(() => {
-    async function loadData() {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      const [chores, members, categories, completions, availability] = await Promise.all([
-        fetchChores(),
-        fetchTeamMembers(),
-        fetchCategories(),
-        fetchCompletions(),
-        fetchAvailability(),
-      ]);
-      dispatch({ type: 'SET_CHORES', payload: chores });
-      dispatch({ type: 'SET_MEMBERS', payload: members });
-      dispatch({ type: 'SET_CATEGORIES', payload: categories });
-      dispatch({ type: 'SET_COMPLETIONS', payload: completions });
-      dispatch({ type: 'SET_AVAILABILITY', payload: availability });
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
-    loadData();
-  }, []);
+    if (authLoading || !user) { dispatch({type:'SET_LOADING',payload:false}); return; }
+    let current = true;
+    dispatch({type:'SET_ERROR',payload:null});
+    dispatch({type:'SET_LOADING',payload:true});
+    Promise.all([fetchChores(), fetchTeamMembers(), fetchCategories(), fetchCompletions(), fetchAvailability()])
+      .then(([chores,members,categories,completions,availability]) => {
+        if (!current) return;
+        dispatch({type:'SET_CHORES',payload:chores});
+        dispatch({type:'SET_MEMBERS',payload:members});
+        dispatch({type:'SET_CATEGORIES',payload:categories});
+        dispatch({type:'SET_COMPLETIONS',payload:completions});
+        dispatch({type:'SET_AVAILABILITY',payload:availability});
+        dispatch({type:'SET_LOADING',payload:false});
+      }).catch(() => { if(current) dispatch({type:'SET_ERROR',payload:'Your chores could not be loaded. Check your connection and try again.'}); });
+    return () => { current = false; };
+  }, [user?.id, authLoading, revision]);
 
   // ============================================
   // Chore operations
@@ -204,6 +212,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addChore = async (choreData: Omit<Chore, 'id'>) => {
     const newChore = await dbCreateChore(choreData);
+    if (!newChore) throw new Error('Your chore could not be saved. Please try again.');
     if (newChore) {
       dispatch({ type: 'ADD_CHORE', payload: newChore });
     }
@@ -211,6 +220,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateChore = async (chore: Chore) => {
     const success = await dbUpdateChore(chore);
+    if (!success) throw new Error('Your changes could not be saved. Please try again.');
     if (success) {
       dispatch({ type: 'UPDATE_CHORE', payload: chore });
     }
@@ -218,6 +228,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteChore = async (id: string) => {
     const success = await dbDeleteChore(id);
+    if (!success) throw new Error('This chore could not be deleted. Please try again.');
     if (success) {
       dispatch({ type: 'DELETE_CHORE', payload: id });
     }
@@ -280,6 +291,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ============================================
 
   const completeChore = async (choreId: string, instanceDate: string, completedBy: string, notes?: string) => {
+    if (!state.teamMembers.some(member => member.id === completedBy)) throw new Error('Choose who completed this chore.');
+    const key = `${choreId}:${instanceDate}`;
+    if (completionInFlight.current.has(key) || isChoreCompleted(choreId, instanceDate)) return;
+    completionInFlight.current.add(key);
+    try {
     const completion = await dbCreateCompletion({
       choreId,
       instanceDate,
@@ -287,6 +303,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       completedAt: new Date().toISOString(),
       notes,
     });
+    if (!completion) throw new Error('Completion was not saved. Please try again.');
     if (completion) {
       dispatch({ type: 'ADD_COMPLETION', payload: completion });
 
@@ -317,7 +334,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           teamPlayer: chore.assigneeId === null,
           weekendWarrior: isWeekend ? (state.completions.filter(
             c => c.completedBy === completedBy &&
-            new Date(c.instanceDate).getDay() % 6 === 0 &&
+            parseDate(c.instanceDate).getDay() % 6 === 0 &&
             c.instanceDate === instanceDate
           ).length + 1) : 0,
         };
@@ -339,13 +356,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
             points: member.points + pointsEarned,
             badges: [...member.badges, ...newBadges],
           };
-          const updated = await dbUpdateTeamMember(updatedMember);
+          const updated = await dbUpdateTeamMember(updatedMember).catch(() => null);
           if (updated) {
             dispatch({ type: 'UPDATE_MEMBER', payload: updated });
           }
         }
       }
     }
+    } finally { completionInFlight.current.delete(key); }
   };
 
   const uncompleteChore = async (completionId: string) => {
@@ -389,14 +407,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Check if there's a completion today or yesterday for current streak
     const lastCompletionDate = uniqueDates[uniqueDates.length - 1];
-    const lastDate = new Date(lastCompletionDate);
+    const lastDate = parseDate(lastCompletionDate);
     lastDate.setHours(0, 0, 0, 0);
     const diffDays = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
 
     // Calculate longest streak
     for (let i = 1; i < uniqueDates.length; i++) {
-      const prevDate = new Date(uniqueDates[i - 1]);
-      const currDate = new Date(uniqueDates[i]);
+      const prevDate = parseDate(uniqueDates[i - 1]);
+      const currDate = parseDate(uniqueDates[i]);
       const dayDiff = Math.floor((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
 
       if (dayDiff === 1) {
@@ -413,8 +431,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Count backwards from the last date
       currentStreak = 1;
       for (let i = uniqueDates.length - 2; i >= 0; i--) {
-        const currDate = new Date(uniqueDates[i + 1]);
-        const prevDate = new Date(uniqueDates[i]);
+        const currDate = parseDate(uniqueDates[i + 1]);
+        const prevDate = parseDate(uniqueDates[i]);
         const dayDiff = Math.floor((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
         if (dayDiff === 1) {
           currentStreak++;
@@ -471,6 +489,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider
       value={{
         state,
+    reload,
         addChore,
         updateChore,
         deleteChore,

@@ -1,3 +1,4 @@
+import { dateKey, parseDate } from '../utils/dates';
 import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { MemberStats } from '../types';
@@ -22,9 +23,10 @@ function formatRelativeTime(dateString: string): string {
 
 interface DashboardProps {
   onClose: () => void;
+  embedded?: boolean;
 }
 
-export function Dashboard({ onClose }: DashboardProps) {
+export function Dashboard({ onClose, embedded=false }: DashboardProps) {
   const { state } = useApp();
   const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'workload' | 'achievements'>('overview');
 
@@ -37,9 +39,9 @@ export function Dashboard({ onClose }: DashboardProps) {
 
   // Calculate stats
   const stats = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const today = dateKey();
+    const weekAgo = dateKey(new Date(Date.now() - 7 * 86400000));
+    const monthAgo = dateKey(new Date(Date.now() - 30 * 86400000));
 
     // Get completions
     const completedToday = state.completions.filter(c => c.instanceDate === today).length;
@@ -74,8 +76,8 @@ export function Dashboard({ onClose }: DashboardProps) {
 
   // Calculate member stats
   const memberStats: MemberStats[] = useMemo(() => {
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const weekAgo = dateKey(new Date(Date.now() - 7 * 86400000));
+    const monthAgo = dateKey(new Date(Date.now() - 30 * 86400000));
 
     return state.teamMembers.map(member => {
       const memberCompletions = state.completions.filter(c => c.completedBy === member.id);
@@ -89,7 +91,7 @@ export function Dashboard({ onClose }: DashboardProps) {
       let prevDate: Date | null = null;
 
       for (const dateStr of completionDates) {
-        const date = new Date(dateStr);
+        const date = parseDate(dateStr);
         if (prevDate === null) {
           tempStreak = 1;
         } else {
@@ -141,13 +143,13 @@ export function Dashboard({ onClose }: DashboardProps) {
   }, [state.teamMembers, state.completions, state.chores]);
 
   return (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-50 p-4">
+    <div className={embedded?"chore-insights-page":"fixed inset-0 bg-overlay flex items-center justify-center z-50 p-4"}>
       <div className="fluent-card w-full max-w-4xl max-h-[90vh] overflow-hidden animate-fluent-appear shadow-fluent-28">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2 className="fluent-title text-xl font-semibold text-content-primary">Dashboard</h2>
+          <h2 className="fluent-title text-xl font-semibold text-content-primary">Insights</h2>
           <button
-            onClick={onClose}
+            hidden={embedded} onClick={onClose}
             className="text-content-secondary hover:text-content-primary hover:bg-subtle-background-hover rounded-fluent-sm transition-all duration-fast p-1.5"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

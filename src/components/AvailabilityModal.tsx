@@ -1,3 +1,4 @@
+import { parseDate } from '../utils/dates';
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { TeamMember } from '../types';
@@ -31,7 +32,7 @@ export function AvailabilityModal({ member, onClose }: AvailabilityModalProps) {
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString(undefined, {
+    return parseDate(dateStr).toLocaleDateString(undefined, {
       month: 'short',
       day: 'numeric',
       year: 'numeric',

@@ -5,6 +5,7 @@ import { Calendar, CalendarRef } from './Calendar';
 import { ListView } from './ListView';
 import { ChoreModal } from './ChoreModal';
 import { AuthForm } from './AuthForm';
+import { AccountSettings } from './AccountSettings';
 import { AgentPanel } from './AgentPanel';
 import { Dashboard } from './Dashboard';
 import { MemberProfileModal } from './MemberProfileModal';
@@ -26,7 +27,7 @@ interface ChoreDefaultValues {
 }
 
 export function App() {
-  const { state } = useApp();
+  const { state, reload } = useApp();
   const { user, loading: authLoading, isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset } = useAuth();
   const calendarRef = useRef<CalendarRef>(null);
 
@@ -35,8 +36,8 @@ export function App() {
   const [instanceDate, setInstanceDate] = useState<string | undefined>(undefined);
   const [defaultValues, setDefaultValues] = useState<ChoreDefaultValues | undefined>(undefined);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [dashboardOpen, setDashboardOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('calendar');
+
+  const [viewMode, setViewMode] = useState<ViewMode>(()=>window.innerWidth<768?'today':'calendar');
   const [searchQuery, setSearchQuery] = useState('');
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [hiddenMembers, setHiddenMembers] = useState<Set<string>>(new Set());
@@ -101,7 +102,7 @@ export function App() {
   };
 
   const handleDashboardClick = () => {
-    setDashboardOpen(true);
+    setViewMode('dashboard');
   };
 
   // Keyboard shortcuts
@@ -126,8 +127,8 @@ export function App() {
         handleCloseModal();
         return;
       }
-      if (dashboardOpen) {
-        setDashboardOpen(false);
+      if (viewMode === 'dashboard') {
+        setViewMode('today');
         return;
       }
       // Blur search input on Escape
@@ -142,7 +143,7 @@ export function App() {
 
     switch (e.key.toLowerCase()) {
       case 'c':
-        if (!modalOpen && !dashboardOpen && !shortcutsOpen) {
+        if (!modalOpen && viewMode !== 'dashboard' && !shortcutsOpen) {
           handleAddClick();
         }
         break;
@@ -240,72 +241,23 @@ export function App() {
     );
   }
 
-  return (
-    <>
-      <div className="theme-background" aria-hidden="true" />
-      <a href="#main-content" className="skip-link">Skip to main content</a>
-      <div className="h-screen flex flex-col relative" onKeyDown={handleKeyDown} tabIndex={-1}>
-        <Header
-          onMenuClick={toggleSidebar}
-          onDashboardClick={handleDashboardClick}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          searchInputRef={searchInputRef}
-        />
-        <main id="main-content" className="mobile-tab-content flex flex-1 overflow-hidden relative">
-          {/* Mobile sidebar overlay */}
-          {sidebarOpen && (
-            <div
-              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-              onClick={() => setSidebarOpen(false)}
-            />
-          )}
-          {/* Sidebar */}
-          <div
-            className={`
-              fixed lg:relative inset-y-0 left-0 z-50 lg:z-auto
-              transform transition-transform duration-300 ease-in-out
-              ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-            `}
-          >
-            <TeamMemberList
-              onClose={() => setSidebarOpen(false)}
-              onDateSelect={handleMiniCalendarDateSelect}
-              eventDates={eventDates}
-              hiddenMembers={hiddenMembers}
-              onToggleMemberVisibility={handleToggleMemberVisibility}
-              onProfileOpen={setProfileMember}
-              onAvailabilityOpen={setAvailabilityMember}
-            />
-          </div>
-          {viewMode === 'calendar' ? (
-            <Calendar
-              ref={calendarRef}
-              onAddClick={handleAddClick}
-              onEventClick={handleEventClick}
-              searchQuery={searchQuery}
-              hiddenMembers={hiddenMembers}
-            />
-          ) : (
-            <ListView onAddClick={handleAddClick} onEventClick={handleEventClick} />
-          )}
-        </main>
-        <ChoreModal
-          isOpen={modalOpen}
-          onClose={handleCloseModal}
-          editChore={editChore}
-          instanceDate={instanceDate}
-          defaultValues={defaultValues}
-        />
-        <AgentPanel />
-        <QuickAddButton onClick={() => handleAddClick()} />
-        {dashboardOpen && <Dashboard onClose={() => setDashboardOpen(false)} />}
-        {profileMember && <MemberProfileModal member={profileMember} onClose={() => setProfileMember(null)} />}
-        {availabilityMember && <AvailabilityModal member={availabilityMember} onClose={() => setAvailabilityMember(null)} />}
-        <ShortcutsHelpModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
-      </div>
-    </>
-  );
+  if(state.error) return <div className="chore-load-error"><h1>Let’s try that again.</h1><p role="alert">{state.error}</p><button className="chore-button primary" onClick={reload}>Retry</button></div>;
+  return <><div className="theme-background" aria-hidden="true"/><a className="skip-link" href="#main-content">Skip to main content</a>
+   <div className="chore-app" onKeyDown={handleKeyDown} tabIndex={-1}>
+    <Header onMenuClick={toggleSidebar} onDashboardClick={handleDashboardClick} viewMode={viewMode} onViewModeChange={mode=>{setViewMode(mode);setSidebarOpen(false);}} searchQuery={searchQuery} onSearchChange={setSearchQuery} searchInputRef={searchInputRef}/>
+    <main id="main-content" className="chore-main">
+    {sidebarOpen&&<div className="family-overlay"><button className="family-backdrop" aria-label="Close family menu" onClick={()=>setSidebarOpen(false)}/><aside className="family-panel"><TeamMemberList onClose={()=>setSidebarOpen(false)} onDateSelect={handleMiniCalendarDateSelect} eventDates={eventDates} hiddenMembers={hiddenMembers} onToggleMemberVisibility={handleToggleMemberVisibility} onProfileOpen={m=>{setSidebarOpen(false);setProfileMember(m);}} onAvailabilityOpen={m=>{setSidebarOpen(false);setAvailabilityMember(m);}}/></aside></div>}
+    {viewMode==='calendar'&&<Calendar ref={calendarRef} onAddClick={handleAddClick} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers}/>}
+    {(viewMode==='today'||viewMode==='list')&&<ListView key={viewMode} todayView={viewMode==='today'} onAddClick={()=>handleAddClick()} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers}/>}
+    {viewMode==='dashboard'&&<Dashboard embedded onClose={()=>setViewMode('today')}/>}
+    {viewMode==='account'&&<AccountSettings embedded isOpen onClose={()=>setViewMode('today')}/>}
+    </main>
+    {!modalOpen&&!profileMember&&!availabilityMember&&!sidebarOpen&&['today','calendar','list'].includes(viewMode)&&<QuickAddButton onClick={()=>handleAddClick()}/>}
+    {viewMode==='calendar'&&!modalOpen&&<div className="chore-desktop-assistant"><AgentPanel/></div>}
+   </div>
+   <ChoreModal isOpen={modalOpen} onClose={handleCloseModal} editChore={editChore} instanceDate={instanceDate} defaultValues={defaultValues}/>
+   {profileMember&&<MemberProfileModal member={profileMember} onClose={()=>setProfileMember(null)}/>}
+   {availabilityMember&&<AvailabilityModal member={availabilityMember} onClose={()=>setAvailabilityMember(null)}/>}
+   <ShortcutsHelpModal isOpen={shortcutsOpen} onClose={()=>setShortcutsOpen(false)}/>
+  </>;
 }

@@ -1,3 +1,4 @@
+import { shortTime } from './dates';
 import { supabase } from './supabase';
 import {
   Chore,
@@ -15,6 +16,7 @@ interface DbChore {
   description: string | null;
   date: string;
   due_time: string | null;
+  end_time?: string | null;
   assignee_id: string | null;
   recurrence: string;
   priority: string;
@@ -68,7 +70,8 @@ function dbToChore(db: DbChore): Chore {
     title: db.title,
     description: db.description || undefined,
     date: db.date,
-    dueTime: db.due_time || undefined,
+    dueTime: shortTime(db.due_time),
+    endTime: shortTime(db.end_time),
     assigneeId: db.assignee_id,
     recurrence: db.recurrence as Chore['recurrence'],
     priority: (db.priority || 'medium') as Priority,
@@ -137,8 +140,7 @@ export async function fetchChores(): Promise<Chore[]> {
     .order('date', { ascending: true });
 
   if (error) {
-    console.error('Error fetching chores:', error);
-    return [];
+    throw new Error('Could not load chores. Please try again.');
   }
 
   return (data || []).map(dbToChore);
@@ -152,6 +154,7 @@ export async function createChore(chore: Omit<Chore, 'id'>): Promise<Chore | nul
       description: chore.description || null,
       date: chore.date,
       due_time: chore.dueTime || null,
+      end_time: chore.endTime || null,
       assignee_id: chore.assigneeId,
       recurrence: chore.recurrence,
       priority: chore.priority || 'medium',
@@ -162,46 +165,44 @@ export async function createChore(chore: Omit<Chore, 'id'>): Promise<Chore | nul
     .single();
 
   if (error) {
-    console.error('Error creating chore:', error);
-    return null;
+    throw new Error('Could not save chore. Please try again.');
   }
 
   return dbToChore(data);
 }
 
 export async function updateChore(chore: Chore): Promise<boolean> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('chores')
     .update({
       title: chore.title,
       description: chore.description || null,
       date: chore.date,
       due_time: chore.dueTime || null,
+      end_time: chore.endTime || null,
       assignee_id: chore.assigneeId,
       recurrence: chore.recurrence,
       priority: chore.priority || 'medium',
       category_id: chore.categoryId || null,
       estimated_minutes: chore.estimatedMinutes || null,
     })
-    .eq('id', chore.id);
+    .eq('id', chore.id).select('id');
 
-  if (error) {
-    console.error('Error updating chore:', error);
-    return false;
+  if (error || !data?.length) {
+    throw new Error('Could not update chore. Please try again.');
   }
 
   return true;
 }
 
 export async function deleteChore(id: string): Promise<boolean> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('chores')
     .delete()
-    .eq('id', id);
+    .eq('id', id).select('id');
 
-  if (error) {
-    console.error('Error deleting chore:', error);
-    return false;
+  if (error || !data?.length) {
+    throw new Error('Could not delete chore. Please try again.');
   }
 
   return true;
@@ -218,8 +219,7 @@ export async function fetchTeamMembers(): Promise<TeamMember[]> {
     .order('created_at', { ascending: true });
 
   if (error) {
-    console.error('Error fetching team members:', error);
-    return [];
+    throw new Error('Could not load team members. Please try again.');
   }
 
   return (data || []).map(dbToMember);
@@ -233,7 +233,7 @@ export async function createTeamMember(member: Omit<TeamMember, 'id'>): Promise<
   };
 
   // Add optional fields if they have values (these may or may not exist in the DB)
-  // The database will ignore unknown columns if RLS allows
+  // Only known columns are sent to the database.
   try {
     const { data, error } = await supabase
       .from('team_members')
@@ -242,14 +242,12 @@ export async function createTeamMember(member: Omit<TeamMember, 'id'>): Promise<
       .single();
 
     if (error) {
-      console.error('Error creating team member:', error);
-      return null;
+      throw new Error('Could not save team member. Please try again.');
     }
 
     return dbToMember(data);
   } catch (err) {
-    console.error('Error creating team member:', err);
-    return null;
+    throw err instanceof Error ? err : new Error('Could not save family member. Please try again.');
   }
 }
 
@@ -269,8 +267,7 @@ export async function updateTeamMember(member: TeamMember): Promise<TeamMember |
       .single();
 
     if (error) {
-      console.error('Error updating team member:', error);
-      return null;
+      throw new Error('Could not update team member. Please try again.');
     }
 
     // Return the updated member with local data merged (for fields not in DB)
@@ -297,8 +294,7 @@ export async function deleteTeamMember(id: string): Promise<boolean> {
     .eq('id', id);
 
   if (error) {
-    console.error('Error deleting team member:', error);
-    return false;
+    throw new Error('Could not delete team member. Please try again.');
   }
 
   return true;
@@ -315,8 +311,7 @@ export async function fetchCategories(): Promise<Category[]> {
     .order('name', { ascending: true });
 
   if (error) {
-    console.error('Error fetching categories:', error);
-    return [];
+    throw new Error('Could not load categories. Please try again.');
   }
 
   return (data || []).map(dbToCategory);
@@ -334,8 +329,7 @@ export async function createCategory(category: Omit<Category, 'id'>): Promise<Ca
     .single();
 
   if (error) {
-    console.error('Error creating category:', error);
-    return null;
+    throw new Error('Could not save category. Please try again.');
   }
 
   return dbToCategory(data);
@@ -352,8 +346,7 @@ export async function updateCategory(category: Category): Promise<boolean> {
     .eq('id', category.id);
 
   if (error) {
-    console.error('Error updating category:', error);
-    return false;
+    throw new Error('Could not update category. Please try again.');
   }
 
   return true;
@@ -366,8 +359,7 @@ export async function deleteCategory(id: string): Promise<boolean> {
     .eq('id', id);
 
   if (error) {
-    console.error('Error deleting category:', error);
-    return false;
+    throw new Error('Could not delete category. Please try again.');
   }
 
   return true;
@@ -384,8 +376,7 @@ export async function fetchCompletions(): Promise<ChoreCompletion[]> {
     .order('completed_at', { ascending: false });
 
   if (error) {
-    console.error('Error fetching completions:', error);
-    return [];
+    throw new Error('Could not load completions. Please try again.');
   }
 
   return (data || []).map(dbToCompletion);
@@ -405,22 +396,20 @@ export async function createCompletion(completion: Omit<ChoreCompletion, 'id'>):
     .single();
 
   if (error) {
-    console.error('Error creating completion:', error);
-    return null;
+    throw new Error('Could not save completion. Please try again.');
   }
 
   return dbToCompletion(data);
 }
 
 export async function deleteCompletion(id: string): Promise<boolean> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('chore_completions')
     .delete()
-    .eq('id', id);
+    .eq('id', id).select('id');
 
-  if (error) {
-    console.error('Error deleting completion:', error);
-    return false;
+  if (error || !data?.length) {
+    throw new Error('Could not delete completion. Please try again.');
   }
 
   return true;
@@ -451,8 +440,7 @@ export async function getChoreCompletions(choreId: string): Promise<ChoreComplet
     .order('completed_at', { ascending: false });
 
   if (error) {
-    console.error('Error fetching chore completions:', error);
-    return [];
+    throw new Error('Could not load chore completions. Please try again.');
   }
 
   return (data || []).map(dbToCompletion);
@@ -469,8 +457,7 @@ export async function fetchAvailability(): Promise<MemberAvailability[]> {
     .order('start_date', { ascending: true });
 
   if (error) {
-    console.error('Error fetching availability:', error);
-    return [];
+    throw new Error('Could not load availability. Please try again.');
   }
 
   return (data || []).map(dbToAvailability);
@@ -489,8 +476,7 @@ export async function createAvailability(availability: Omit<MemberAvailability, 
     .single();
 
   if (error) {
-    console.error('Error creating availability:', error);
-    return null;
+    throw new Error('Could not save availability. Please try again.');
   }
 
   return dbToAvailability(data);
@@ -508,8 +494,7 @@ export async function updateAvailability(availability: MemberAvailability): Prom
     .eq('id', availability.id);
 
   if (error) {
-    console.error('Error updating availability:', error);
-    return false;
+    throw new Error('Could not update availability. Please try again.');
   }
 
   return true;
@@ -522,8 +507,7 @@ export async function deleteAvailability(id: string): Promise<boolean> {
     .eq('id', id);
 
   if (error) {
-    console.error('Error deleting availability:', error);
-    return false;
+    throw new Error('Could not delete availability. Please try again.');
   }
 
   return true;

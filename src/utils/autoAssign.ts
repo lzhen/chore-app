@@ -1,3 +1,4 @@
+import { dateKey, parseDate } from './dates';
 import { Chore, TeamMember, ChoreCompletion, MemberAvailability, AutoAssignOptions } from '../types';
 
 interface AssignmentContext {
@@ -17,7 +18,7 @@ export function getNextAssignee(context: AssignmentContext): string | null {
     return null;
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = dateKey();
   let eligibleMembers = [...members];
 
   // Filter by availability if enabled
@@ -36,7 +37,7 @@ export function getNextAssignee(context: AssignmentContext): string | null {
     eligibleMembers = eligibleMembers.filter(m => {
       if (!m.workingHours) return true; // No working hours set, assume available
       const { start, end, days } = m.workingHours;
-      const choreDate = new Date(chore.date);
+      const choreDate = parseDate(chore.date);
       const dayOfWeek = choreDate.getDay();
 
       // Check if the day is a working day

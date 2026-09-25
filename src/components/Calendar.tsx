@@ -1,3 +1,5 @@
+import { dateKey, shiftDate } from '../utils/dates';
+import { CompletionDialog } from './CompletionDialog';
 import { useMemo, useRef, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -34,7 +36,9 @@ const priorityIndicators = {
 
 export const Calendar = forwardRef<CalendarRef, CalendarProps>(
   ({ onAddClick, onEventClick, searchQuery, hiddenMembers = new Set() }, ref) => {
-    const { state, updateChore, completeChore, uncompleteChore } = useApp();
+    const { state, updateChore } = useApp();
+    const [completionInstance,setCompletionInstance] = useState<ChoreInstance|null>(null);
+    const [operationError,setOperationError] = useState('');
     const calendarRef = useRef<FullCalendar>(null);
 
     // Popover state
@@ -107,7 +111,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
       return filteredInstances.map((instance) => {
         // Build start/end times for time grid views
         let start = instance.date;
-        let end = instance.date;
+        let end = shiftDate(instance.date,1);
         const allDay = instance.allDay !== false && !instance.dueTime;
 
         if (instance.dueTime) {
@@ -118,7 +122,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
             // Default 1 hour duration
             const [hours, mins] = instance.dueTime.split(':').map(Number);
             const endHour = (hours + 1) % 24;
-            end = `${instance.date}T${String(endHour).padStart(2, '0')}:${String(mins).padStart(2, '0')}:00`;
+            end = `${endHour===0?shiftDate(instance.date,1):instance.date}T${String(endHour).padStart(2, '0')}:${String(mins).padStart(2, '0')}:00`;
           }
         }
 
@@ -190,32 +194,37 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
 
       // For recurring events, we would need to ask user if they want to update all or just this instance
       // For now, we update all occurrences
+      if (isRecurring && !confirm('Move the entire repeating series? This changes all occurrences.')) {info.revert();return;}
+      try {
       if (isRecurring) {
         const newDate = info.event.start;
         if (newDate) {
-          const newDateStr = newDate.toISOString().split('T')[0];
+          const newDateStr = dateKey(newDate);
           const newTime = info.event.allDay ? undefined : newDate.toTimeString().slice(0, 5);
 
           await updateChore({
             ...chore,
             date: newDateStr,
-            dueTime: newTime || chore.dueTime,
+            dueTime: newTime,
+            endTime: undefined,
           });
         }
       } else {
         // Single event - update directly
         const newDate = info.event.start;
         if (newDate) {
-          const newDateStr = newDate.toISOString().split('T')[0];
+          const newDateStr = dateKey(newDate);
           const newTime = info.event.allDay ? undefined : newDate.toTimeString().slice(0, 5);
 
           await updateChore({
             ...chore,
             date: newDateStr,
-            dueTime: newTime || chore.dueTime,
+            dueTime: newTime,
+            endTime: undefined,
           });
         }
       }
+      } catch(e) {info.revert();setOperationError(e instanceof Error?e.message:'Could not move chore.');}
     };
 
     // Handle event resize
@@ -231,11 +240,9 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
       const startTime = info.event.start.toTimeString().slice(0, 5);
       const endTime = info.event.end.toTimeString().slice(0, 5);
 
-      await updateChore({
-        ...chore,
-        dueTime: startTime,
-        endTime: endTime,
-      });
+      if (chore.recurrence!=='none'&&!confirm('Change the time for the entire repeating series?')) {info.revert();return;}
+      try {await updateChore({...chore,dueTime:startTime,endTime});}
+      catch(e){info.revert();setOperationError(e instanceof Error?e.message:'Could not save time.');}
     };
 
     // Popover actions
@@ -246,23 +253,9 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
       }
     };
 
-    const handlePopoverComplete = async () => {
-      if (popover.instance && popover.chore) {
-        if (popover.instance.isCompleted) {
-          // Find the completion and remove it
-          const completion = state.completions.find(
-            c => c.choreId === popover.instance!.choreId && c.instanceDate === popover.instance!.date
-          );
-          if (completion) {
-            await uncompleteChore(completion.id);
-          }
-        } else {
-          // Complete the chore
-          const completedBy = popover.chore.assigneeId || state.teamMembers[0]?.id || 'unknown';
-          await completeChore(popover.instance.choreId, popover.instance.date, completedBy);
-        }
-        setPopover(prev => ({ ...prev, visible: false }));
-      }
+    const handlePopoverComplete = () => {
+      if(popover.instance) setCompletionInstance(popover.instance);
+      setPopover(prev=>({...prev,visible:false}));
     };
 
     const handlePopoverClose = () => {
@@ -270,7 +263,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
     };
 
     return (
-      <div className="flex-1 p-0 sm:p-6 overflow-hidden">
+      <div className="chore-calendar-page flex-1 p-0 sm:p-6 overflow-hidden">{operationError&&<p className="chore-error" role="alert">{operationError}<button onClick={()=>setOperationError('')}>Dismiss</button></p>}{completionInstance&&<CompletionDialog instance={completionInstance} onClose={()=>setCompletionInstance(null)}/>}
         <div className="mobile-calendar-shell fluent-card p-2 sm:p-4 h-full flex flex-col">
           <div className="flex-1 min-h-0 calendar-container">
             <FullCalendar

@@ -1,3 +1,4 @@
+import { dateKey } from '../utils/dates';
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { TeamMember } from '../types';
@@ -17,13 +18,15 @@ export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMember
   const { state, addMember, removeMember, isMemberAvailable } = useApp();
   const [newName, setNewName] = useState('');
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = dateKey();
 
-  const handleAdd = (e: React.FormEvent) => {
+  const [error,setError] = useState('');
+  const [busy,setBusy] = useState(false);
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newName.trim()) {
-      addMember(newName.trim());
-      setNewName('');
+      setBusy(true);setError('');
+      try {await addMember(newName.trim());setNewName('');}catch(e){setError(e instanceof Error?e.message:'Could not add member.');}finally{setBusy(false);}
     }
   };
 
@@ -39,7 +42,7 @@ export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMember
     <div className="fluent-panel w-72 lg:w-64 p-4 flex flex-col h-full">
         {/* Header with close button for mobile */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="fluent-title text-lg font-semibold text-content-primary">Team Members</h2>
+          <h2 className="fluent-title text-lg font-semibold text-content-primary">Family</h2>
           {onClose && (
             <button
               onClick={onClose}
@@ -69,11 +72,11 @@ export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMember
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="Add member..."
+              placeholder="Family member name"
               className="fluent-input flex-1 text-sm"
             />
             <button
-              type="submit"
+              type="submit" disabled={busy}
               className="fluent-button px-3 py-2 text-sm"
             >
               Add
@@ -81,9 +84,9 @@ export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMember
           </div>
         </form>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto">{error&&<p className="chore-error" role="alert">{error}</p>}
           {state.teamMembers.length === 0 ? (
-            <p className="text-sm text-content-secondary italic">No team members yet</p>
+            <p className="text-sm text-content-secondary italic">Add the people you plan chores for.</p>
           ) : (
             <ul className="space-y-1">
               {state.teamMembers.map((member) => {
@@ -177,7 +180,7 @@ export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMember
                       </button>
                       {/* Remove button */}
                       <button
-                        onClick={() => removeMember(member.id)}
+                        onClick={async () => {if(!confirm(`Remove ${member.name}? Their tasks will become unassigned.`))return;try{await removeMember(member.id);}catch(e){setError(e instanceof Error?e.message:'Could not remove member.');}}}
                         className="text-content-secondary hover:text-red-500 hover:bg-red-500/10 rounded-fluent-sm p-0.5 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-all duration-fast"
                         title="Remove member"
                       >
