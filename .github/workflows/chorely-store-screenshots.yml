@@ -9,7 +9,7 @@ permissions:
 jobs:
   capture:
     runs-on: macos-15
-    timeout-minutes: 25
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,9 +24,9 @@ jobs:
           python3 scripts/store-capture/prepare.py
           npx cap sync ios
           mkdir -p capture-output
-          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/chorely-capture" CODE_SIGNING_ALLOWED=NO build > capture-output/simulator-build.log 2>&1 || { tail -100 capture-output/simulator-build.log; exit 1; }
+          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/chorely-capture" ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build > capture-output/simulator-build.log 2>&1 || { tail -100 capture-output/simulator-build.log; exit 1; }
       - name: Capture actual iPhone and iPad simulator displays
-        run: python3 scripts/store-capture/capture.py "$RUNNER_TEMP/chorely-capture/Build/Products/Debug-iphonesimulator"
+        run: python3 -u scripts/store-capture/capture.py "$RUNNER_TEMP/chorely-capture/Build/Products/Debug-iphonesimulator"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
