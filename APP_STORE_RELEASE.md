@@ -1,48 +1,71 @@
-# Chorely iOS release
+# Pawssible Chorely — existing App Store release
 
-App name: **Chorely**  
-Bundle ID: `com.pawssible.chorely`  
-Initial version: `1.0.0`  
-Initial build: `1`
+- App Store Connect app: **Pawssible Chorely**, ID `6805738533`.
+- Existing Bundle ID: `com.pawssible.chorely`.
+- Existing Xcode Cloud workflow: **Chorely TestFlight**.
+- Current Xcode marketing version: `1.0`; Xcode Cloud manages its build number.
+- Existing application: https://appstoreconnect.apple.com/apps/6805738533
 
-## Create and open the iOS project
+Do not create another app record or use Empathie Care source code for this release.
 
-On a Mac with Xcode installed:
+## Fix the existing Xcode Cloud archive failure
 
-```bash
-npm install
-npm run ios:init
-npm run ios:open
+The previously observed Build 16 failure was missing `Pods-App.release.xcconfig`.
+The dependency hook was in repository-root `ci_scripts/`, not beside the nested
+Xcode workspace. The executable hook is now at
+`ios/App/ci_scripts/ci_post_clone.sh`. It installs Node when needed, installs the
+locked npm dependencies, builds native web assets, runs Capacitor / CocoaPods
+sync, then checks that both Pods configuration files and bundled resources exist.
+The adjacent pre-xcodebuild hook fails early if dependency preparation is absent.
+
+In the existing Xcode Cloud workflow, verify:
+
+- Workspace: `ios/App/App.xcworkspace` (includes CocoaPods), not `.xcodeproj` alone.
+- Scheme: `App`.
+- Branch: `main`.
+- Archive configuration: `Release`, iOS, current supported Xcode SDK.
+- Distribution: TestFlight and App Store. Do not use a TestFlight-internal-only
+  build when the intent is to submit that build for App Review.
+- Keep the existing Apple signing team and app identity.
+
+Start a build from the newest main commit. Build 16 is a historical failed build;
+rebuilding that old commit would not include this fix. A GitHub Release Check
+verifies an unsigned device archive, not Apple signing, upload, or App Review.
+
+## Local Xcode alternative
+
+Clone/open the existing `lzhen/chore-app` repository. From its root:
+
+```sh
+./ios/App/ci_scripts/ci_post_clone.sh
+open ios/App/App.xcworkspace
 ```
 
-After the first run, use `npm run ios:sync` whenever the web app changes.
+Select the App target, the existing Apple Developer team, automatic signing,
+and a generic iOS device destination. Product → Archive → Distribute App →
+App Store Connect. Do not run `cap add ios` again on the existing project.
 
-## Xcode signing
+## Submission after the build is processed
 
-1. Select the **App** target, then **Signing & Capabilities**.
-2. Choose the Apple Developer team for Pawssible Studio.
-3. Keep **Automatically manage signing** enabled.
-4. Confirm the bundle identifier is `com.pawssible.chorely`.
-5. Set version `1.0.0` and build `1`.
+Select the processed build on the app's Distribution version page. Supply the
+required screenshots, description, keywords, support/privacy URLs, age-rating,
+App Privacy, export-compliance answers and review access. Add for Review, then
+Submit for Review. Uploading a build, adding it for review, and releasing on the
+public App Store are distinct steps.
 
-## Upload to TestFlight
+## App Review readiness — still verify before public submission
 
-1. In App Store Connect, create the Chorely app with the bundle ID above.
-2. In Xcode, select **Any iOS Device (arm64)**.
-3. Choose **Product → Archive**.
-4. In Organizer, choose **Distribute App → App Store Connect → Upload**.
-5. Complete export-compliance, privacy, age-rating, and review-information fields in App Store Connect.
-6. Add the processed build to an internal TestFlight group before external testing or App Review.
+- Deploy and verify the existing delete-account backend with a disposable account.
+- Confirm privacy.html is hosted at the intended public privacy URL.
+- Supply App Review with a working demo account and representative chores.
+- Verify household data isolation and the actual App Privacy answers.
+- Test login, calendar/chores, rewards and account deletion on an iPhone.
+- Confirm the version, availability, pricing and release method in App Store Connect.
 
-The App Store submission also requires a 1024×1024 icon, iPhone screenshots,
-support and privacy-policy URLs, an app description, keywords, and review notes.
+No passwords, signing private keys, API keys or review credentials belong in this
+public repository. The CI verification workflow does not upload or submit apps.
 
-## App Review readiness
-
-- Deploy the `delete-account` Supabase Edge Function before submission.
-- Host `privacy.html` at a stable public URL and use that URL in App Store Connect.
-- Provide App Review with a working demo account containing representative chores.
-- Complete the App Privacy questionnaire for email address, user ID, and user content.
-- Verify account deletion from Account settings using a disposable test account.
-- Enable Supabase leaked-password protection and resolve Security Advisor warnings.
-- Confirm Supabase row-level security isolates each household before inviting external testers.
+Apple documentation:
+https://developer.apple.com/documentation/xcode/writing-custom-build-scripts
+https://developer.apple.com/documentation/xcode/making-dependencies-available-to-xcode-cloud
+https://developer.apple.com/help/app-store-connect/manage-submissions-to-app-review/submit-an-app

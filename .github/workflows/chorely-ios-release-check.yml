@@ -1,0 +1,50 @@
+name: Chorely iOS Release Check
+on:
+  push:
+    branches: [main, release/chorely-app-store]
+    paths: ['ios/**', 'ci_scripts/**', 'src/**', 'public/**', 'package*.json', 'capacitor.config.ts', 'vite.config.ts', '.github/workflows/chorely-ios-release-check.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: chorely-ios-release-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  archive-check:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Prepare the same dependencies used by Xcode Cloud
+        env:
+          CI_PRIMARY_REPOSITORY_PATH: ${{ github.workspace }}
+        run: ios/App/ci_scripts/ci_post_clone.sh
+      - name: Run unit tests and pre-archive checks
+        run: |
+          npm run test:run
+          ios/App/ci_scripts/ci_pre_xcodebuild.sh
+      - name: Compile a real iOS Release archive without signing
+        run: |
+          mkdir -p release-check
+          xcodebuild -version > release-check/xcode-version.txt
+          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Pawssible-Chorely.xcarchive" CODE_SIGNING_ALLOWED=NO archive > release-check/archive.log 2>&1 || { tail -120 release-check/archive.log; exit 1; }
+          APP="$RUNNER_TEMP/Pawssible-Chorely.xcarchive/Products/Applications/Pawssible Chorely.app"
+          test -d "$APP"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")" = 'com.pawssible.chorely'
+          test -s "$APP/public/index.html"
+          printf '%s\n' 'PASS: unsigned device Release archive compiled with bundled app resources.' 'This is not an App Store upload. Signing and upload remain in the existing Xcode Cloud workflow.' > release-check/result.txt
+          cat release-check/result.txt >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload build verification logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chorely-ios-release-verification
+          path: release-check/
+          retention-days: 14
