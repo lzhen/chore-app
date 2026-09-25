@@ -1,7 +1,8 @@
 name: Chorely UX verification
 on:
   push:
-    branches: [fix/chorely-mobile-ux]
+    branches: [main, fix/chorely-mobile-ux, release/chorely-app-store]
+    paths: ['src/**', 'e2e/**', 'package*.json', 'playwright.ux.config.ts', '.github/workflows/chorely-ux-check.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -18,28 +19,22 @@ jobs:
         with: {node-version: '22', cache: npm}
       - run: npm ci
         env: {HUSKY: '0'}
-      - name: Export source and locked local development tools
+      - name: Unit tests, timezone regressions and production build
         run: |
-          git archive --format=tar.gz --output=chorely-source.tar.gz HEAD
-          tar -czf chorely-development-tools.tar.gz node_modules
-      - uses: actions/upload-artifact@v4
-        with:
-          name: chorely-source-and-tools
-          path: |
-            chorely-source.tar.gz
-            chorely-development-tools.tar.gz
-          retention-days: 1
-      - run: npm run test:run && npm run build
-      - name: UX regression tests
-        if: ${{ hashFiles('e2e/ux.spec.ts') != '' }}
+          npm run test:run
+          TZ=America/Los_Angeles npx vitest run src/utils/dates.test.ts
+          TZ=Asia/Shanghai npx vitest run src/utils/dates.test.ts
+          npm run build
+      - name: Isolated phone UX regression tests
         run: |
           npx playwright install --with-deps chromium
-          npx playwright test e2e/ux.spec.ts --project=chromium --reporter=line
-      - uses: actions/upload-artifact@v4
+          npx playwright test -c playwright.ux.config.ts
+      - name: Save test screenshots
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: chorely-ux-browser-evidence
           path: |
-            test-results
-            playwright-report
+            test-results/
+            playwright-report/
           retention-days: 14
