@@ -1,8 +1,12 @@
+import { readFileSync } from 'node:fs';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthForm } from './AuthForm';
-import authStyles from './AuthForm.css?raw';
+
+// Vitest disables CSS processing in this repository. Read the actual source,
+// rather than accepting an empty CSS-module stub, for stylesheet assertions.
+const authStyles = readFileSync('src/components/AuthForm.css', 'utf8');
 
 // Presentation regression only: no real account or backend request is used.
 vi.mock('../context/AuthContext', () => ({
