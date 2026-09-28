@@ -30,9 +30,9 @@ describe('AUTH-01 presentation regression', () => {
     const user = userEvent.setup();
     render(<AuthForm />);
     if (switchLabel) {
-      await user.click(screen.getByRole('button', { name: switchLabel, exact: true }));
+      await user.click(screen.getByRole('button', { name: switchLabel }));
     }
-    const submit = screen.getByRole('button', { name: submitLabel, exact: true });
+    const submit = screen.getByRole('button', { name: submitLabel });
     expect(submit).toHaveClass('chore-button', 'primary', 'w-full');
     expect(submit.closest('.chore-auth')).not.toBeNull();
     expect(screen.getByLabelText('Email').closest('.chore-auth')).not.toBeNull();
