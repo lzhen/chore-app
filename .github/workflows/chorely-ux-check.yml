@@ -1,7 +1,7 @@
 name: Chorely UX verification
 on:
   push:
-    branches: [main, fix/chorely-mobile-ux, release/chorely-app-store]
+    branches: [main, fix/chorely-mobile-ux, release/chorely-app-store, fix/chorely-auth-viewport-20260927]
     paths: ['src/**', 'e2e/**', 'package*.json', 'playwright.ux.config.ts', '.github/workflows/chorely-ux-check.yml']
   workflow_dispatch:
 permissions:

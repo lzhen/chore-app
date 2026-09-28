@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { ThemeSelector } from './ThemeSelector';
 import { Logo } from './Logo';
+import './AuthForm.css';
 
 type AuthMode = 'signIn' | 'signUp' | 'forgotPassword';
 
@@ -77,7 +78,7 @@ export function AuthForm() {
   return (
     <>
       <div className="theme-background" />
-      <div className="min-h-screen flex items-center justify-center relative px-4 py-8">
+      <div className="chore-auth min-h-screen flex items-center justify-center relative px-4 py-8">
         <div className="absolute top-3 right-3 sm:top-4 sm:right-4">
           <ThemeSelector />
         </div>
@@ -156,7 +157,7 @@ export function AuthForm() {
             <button
               type="submit"
               disabled={loading}
-              className="fluent-button w-full py-2.5"
+              className="chore-button primary w-full"
             >
               {getButtonText()}
             </button>
