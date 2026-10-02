@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Chorely",
+  "version": "1.0.0",
+  "description": "Open Chorely and keep household tasks within reach.",
+  "action": {
+    "default_title": "Chorely",
+    "default_popup": "popup.html"
+  },
+  "permissions": []
+}
