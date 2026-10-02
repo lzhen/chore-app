@@ -19,7 +19,7 @@ A modern chore management application built with React, TypeScript, Vite, and Su
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20+
 - npm or yarn
 - Supabase account
 
@@ -341,7 +341,7 @@ Runs on every push and pull request to `main`/`master`:
 | **Lint** | Runs ESLint to check code quality |
 | **Test** | Runs all tests and generates coverage report |
 | **Build** | Builds the production bundle |
-| **Test Matrix** | Tests across Node.js 18, 20, and 22 |
+| **Test Matrix** | Tests across Node.js 20 and 22 |
 
 #### E2E Workflow (`.github/workflows/e2e.yml`)
 
