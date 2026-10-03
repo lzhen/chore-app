@@ -246,10 +246,22 @@ export function App() {
    <div className="chore-app" onKeyDown={handleKeyDown} tabIndex={-1}>
     <Header onMenuClick={toggleSidebar} onDashboardClick={handleDashboardClick} viewMode={viewMode} onViewModeChange={mode=>{setViewMode(mode);setSidebarOpen(false);}} searchQuery={searchQuery} onSearchChange={setSearchQuery} searchInputRef={searchInputRef}/>
     <main id="main-content" className="chore-main">
+    {state.chores.length===0&&<section className="min-h-[70vh] flex items-center justify-center p-4 sm:p-8">
+      <div className="fluent-card w-full max-w-2xl p-6 sm:p-8 text-center">
+        <p className="text-sm font-semibold text-brand-primary mb-2">WELCOME TO CHORELY</p>
+        <h1 className="text-2xl sm:text-3xl font-semibold text-content-primary">Start with one shared responsibility.</h1>
+        <p className="text-content-secondary mt-3 max-w-xl mx-auto">Add the first chore, then invite or add the people who share the work. Chorely will help everyone see what needs doing without relying on repeated reminders.</p>
+        <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+          <button className="fluent-button fluent-button-primary px-5 py-3" onClick={()=>handleAddClick()}>Add first chore</button>
+          <button className="fluent-button px-5 py-3 border border-border" onClick={()=>setSidebarOpen(true)}>Set up household</button>
+        </div>
+        <p className="text-xs text-content-secondary mt-5">A good first setup takes about two minutes: one chore, one other household member, and a clear owner.</p>
+      </div>
+    </section>}
     {sidebarOpen&&<div className="family-overlay"><button className="family-backdrop" aria-label="Close family menu" onClick={()=>setSidebarOpen(false)}/><aside className="family-panel"><TeamMemberList onClose={()=>setSidebarOpen(false)} onDateSelect={handleMiniCalendarDateSelect} eventDates={eventDates} hiddenMembers={hiddenMembers} onToggleMemberVisibility={handleToggleMemberVisibility} onProfileOpen={m=>{setSidebarOpen(false);setProfileMember(m);}} onAvailabilityOpen={m=>{setSidebarOpen(false);setAvailabilityMember(m);}}/></aside></div>}
-    {viewMode==='calendar'&&<Calendar ref={calendarRef} onAddClick={handleAddClick} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers}/>}
-    {(viewMode==='today'||viewMode==='list')&&<ListView key={viewMode} todayView={viewMode==='today'} onAddClick={()=>handleAddClick()} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers}/>}
-    {viewMode==='dashboard'&&<Dashboard embedded onClose={()=>setViewMode('today')}/>}
+    {state.chores.length>0&&viewMode==='calendar'&&<Calendar ref={calendarRef} onAddClick={handleAddClick} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers}/>}
+    {state.chores.length>0&&(viewMode==='today'||viewMode==='list')&&<ListView key={viewMode} todayView={viewMode==='today'} onAddClick={()=>handleAddClick()} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers}/>}
+    {state.chores.length>0&&viewMode==='dashboard'&&<Dashboard embedded onClose={()=>setViewMode('today')}/>}
     {viewMode==='account'&&<AccountSettings embedded isOpen onClose={()=>setViewMode('today')}/>}
     </main>
     {!modalOpen&&!profileMember&&!availabilityMember&&!sidebarOpen&&['today','calendar','list'].includes(viewMode)&&<QuickAddButton onClick={()=>handleAddClick()}/>}
