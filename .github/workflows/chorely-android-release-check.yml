@@ -1,0 +1,31 @@
+name: Chorely Android Play Release Check
+on:
+  push:
+    branches: [main, release/android-play-readiness-20261003]
+    paths: ['mobile/**', '.github/workflows/chorely-android-release-check.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  release-aab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '21'}
+      - run: npm install --prefix mobile --no-audit --no-fund
+      - run: cd mobile && npm run add:android
+      - name: Build release AAB without store signing
+        run: |
+          chmod +x mobile/android/gradlew
+          cd mobile/android
+          ./gradlew bundleRelease --no-daemon
+          test -f app/build/outputs/bundle/release/app-release.aab
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chorely-android-release-aab-UNSIGNED
+          path: mobile/android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30
