@@ -1,0 +1,6 @@
+/* AUTH-01 candidate: presentation only. Keep user-controlled pinch zoom available. */
+.chore-auth .fluent-input {
+  /* Reduce focus-triggered iPhone zoom; do not cap larger user font settings. */
+  font-size: max(16px, 1rem);
+  min-height: 48px;
+}
