@@ -87,9 +87,11 @@ export function AuthForm() {
             <Logo size="lg" showText={true} />
           </div>
 
-          <p className="text-center text-content-secondary mb-4 sm:mb-6 text-sm sm:text-base">
-            {getTitle()}
-          </p>
+          <div className="text-center mb-5 sm:mb-6">
+            <p className="text-content-primary font-semibold text-base sm:text-lg">Share the work. Skip the nagging.</p>
+            <p className="text-content-secondary mt-1 text-sm">See what needs doing today, divide responsibilities clearly, and keep household routines moving together.</p>
+            <p className="text-content-secondary mt-3 text-sm sm:text-base">{getTitle()}</p>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -193,7 +195,7 @@ export function AuthForm() {
             )}
           </div>
           <p className="mt-6 text-center text-xs text-content-secondary">
-            By continuing, you agree to Chorely's policies.{' '}
+            Your household data stays tied to your account. By continuing, you agree to Chorely's policies.{' '}
             <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noreferrer" className="text-brand hover:underline">Privacy Policy</a>
           </p>
         </div>
