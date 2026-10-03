@@ -1,0 +1,5 @@
+/* App Store RC: reduce focus-triggered iPhone zoom while preserving user zoom. */
+.chore-auth .fluent-input {
+  font-size: max(16px, 1rem);
+  min-height: 48px;
+}
