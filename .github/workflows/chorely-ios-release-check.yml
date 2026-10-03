@@ -1,7 +1,7 @@
 name: Chorely iOS Release Check
 on:
   push:
-    branches: [main, release/chorely-app-store]
+    branches: [main, release/chorely-app-store, release/apple-readiness-20261003]
     paths: ['ios/**', 'ci_scripts/**', 'src/**', 'public/**', 'package*.json', 'capacitor.config.ts', 'vite.config.ts', '.github/workflows/chorely-ios-release-check.yml']
   workflow_dispatch:
 permissions:
