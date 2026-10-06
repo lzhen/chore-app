@@ -42,7 +42,8 @@ jobs:
           test -d "$APP"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")" = 'com.pawssible.chorely'
           test -s "$APP/public/index.html"
-          swift ios/App/ci_scripts/verify_app_icon.swift ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png "$APP" | tee release-check/app-icon-result.txt
+          swift ios/App/ci_scripts/verify_app_icon.swift ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png "$APP" > release-check/app-icon-result.txt
+          cat release-check/app-icon-result.txt
           cp "$APP"/AppIcon*.png release-check/
           plutil -convert json -o release-check/built-info.json "$APP/Info.plist"
           shasum -a 256 "$APP/Assets.car" > release-check/compiled-assets-sha256.txt
