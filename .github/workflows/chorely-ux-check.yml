@@ -3,6 +3,9 @@ on:
   push:
     branches: [main, fix/chorely-mobile-ux, release/chorely-app-store]
     paths: ['src/**', 'e2e/**', 'package*.json', 'playwright.ux.config.ts', '.github/workflows/chorely-ux-check.yml']
+  pull_request:
+    branches: [main]
+    paths: ['src/**', 'e2e/**', 'public/**', 'index.html', 'package*.json', 'playwright.ux.config.ts', '.github/workflows/chorely-ux-check.yml']
   workflow_dispatch:
 permissions:
   contents: read

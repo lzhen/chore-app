@@ -3,7 +3,7 @@ import { Header } from './Header';
 import { TeamMemberList } from './TeamMemberList';
 import { Calendar, CalendarRef } from './Calendar';
 import { ListView } from './ListView';
-import { ChoreModal } from './ChoreModal';
+import { ChoreModal, type ChoreDefaultValues } from './ChoreModal';
 import { AuthForm } from './AuthForm';
 import { AccountSettings } from './AccountSettings';
 import { AgentPanel } from './AgentPanel';
@@ -19,12 +19,11 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { generateChoreInstances, getCalendarRange } from '../utils/recurrence';
 
-interface ChoreDefaultValues {
-  date?: string;
-  startTime?: string;
-  endTime?: string;
-  allDay?: boolean;
-}
+const starterChores: {label:string;detail:string;draft:ChoreDefaultValues}[] = [
+  {label:'Wash dishes',detail:'Every day · 15 min',draft:{title:'Wash dishes',recurrence:'daily',estimatedMinutes:15}},
+  {label:'Take out trash',detail:'Every week · 5 min',draft:{title:'Take out trash',recurrence:'weekly',estimatedMinutes:5}},
+  {label:'Do laundry',detail:'Every week · 45 min',draft:{title:'Do laundry',recurrence:'weekly',estimatedMinutes:45}},
+];
 
 export function App() {
   const { state, reload } = useApp();
@@ -37,7 +36,7 @@ export function App() {
   const [defaultValues, setDefaultValues] = useState<ChoreDefaultValues | undefined>(undefined);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const [viewMode, setViewMode] = useState<ViewMode>(()=>window.innerWidth<768?'today':'calendar');
+  const [viewMode, setViewMode] = useState<ViewMode>('today');
   const [searchQuery, setSearchQuery] = useState('');
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [hiddenMembers, setHiddenMembers] = useState<Set<string>>(new Set());
@@ -246,25 +245,29 @@ export function App() {
    <div className="chore-app" onKeyDown={handleKeyDown} tabIndex={-1}>
     <Header onMenuClick={toggleSidebar} onDashboardClick={handleDashboardClick} viewMode={viewMode} onViewModeChange={mode=>{setViewMode(mode);setSidebarOpen(false);}} searchQuery={searchQuery} onSearchChange={setSearchQuery} searchInputRef={searchInputRef}/>
     <main id="main-content" className="chore-main">
-    {state.chores.length===0&&<section className="min-h-[70vh] flex items-center justify-center p-4 sm:p-8">
-      <div className="fluent-card w-full max-w-2xl p-6 sm:p-8 text-center">
-        <p className="text-sm font-semibold text-brand-primary mb-2">WELCOME TO NESMI</p>
-        <h1 className="text-2xl sm:text-3xl font-semibold text-content-primary">Start with one shared responsibility.</h1>
-        <p className="text-content-secondary mt-3 max-w-xl mx-auto">Add the first chore, then invite or add the people who share the work. Nesmi will help everyone see what needs doing without relying on repeated reminders.</p>
-        <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-          <button className="fluent-button fluent-button-primary px-5 py-3" onClick={()=>handleAddClick()}>Add first chore</button>
-          <button className="fluent-button px-5 py-3 border border-border" onClick={()=>setSidebarOpen(true)}>Set up household</button>
+    {state.chores.length===0&&['today','calendar','list'].includes(viewMode)&&<section className="chore-welcome">
+      <div className="chore-welcome-content">
+        <p className="chore-eyebrow">WELCOME HOME</p>
+        <h1>A lighter home starts with one chore.</h1>
+        <p className="chore-welcome-description">Nesmi keeps the everyday things in one place. Start with one chore, then add the people who share the work.</p>
+        <div className="chore-welcome-actions">
+          <button className="chore-button primary" onClick={()=>handleAddClick()}>Add your first chore</button>
+          <button className="chore-button secondary" onClick={()=>setSidebarOpen(true)}>Set up household</button>
         </div>
-        <p className="text-xs text-content-secondary mt-5">A good first setup takes about two minutes: one chore, one other household member, and a clear owner.</p>
+        <div className="chore-welcome-starters">
+          <h2>Or start with something familiar</h2>
+          <div className="chore-starter-grid">{starterChores.map(suggestion=><button key={suggestion.label} className="chore-starter" onClick={()=>handleAddClick(suggestion.draft)} aria-label={`Start with ${suggestion.label}`}><strong>{suggestion.label}</strong><span>{suggestion.detail}</span><span className="chore-starter-arrow" aria-hidden="true">↗</span></button>)}</div>
+          <p className="chore-muted">Choose a suggestion to make it yours before saving.</p>
+        </div>
       </div>
     </section>}
     {sidebarOpen&&<div className="family-overlay"><button className="family-backdrop" aria-label="Close family menu" onClick={()=>setSidebarOpen(false)}/><aside className="family-panel"><TeamMemberList onClose={()=>setSidebarOpen(false)} onDateSelect={handleMiniCalendarDateSelect} eventDates={eventDates} hiddenMembers={hiddenMembers} onToggleMemberVisibility={handleToggleMemberVisibility} onProfileOpen={m=>{setSidebarOpen(false);setProfileMember(m);}} onAvailabilityOpen={m=>{setSidebarOpen(false);setAvailabilityMember(m);}}/></aside></div>}
     {state.chores.length>0&&viewMode==='calendar'&&<Calendar ref={calendarRef} onAddClick={handleAddClick} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers}/>}
-    {state.chores.length>0&&(viewMode==='today'||viewMode==='list')&&<ListView key={viewMode} todayView={viewMode==='today'} onAddClick={()=>handleAddClick()} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers}/>}
-    {state.chores.length>0&&viewMode==='dashboard'&&<Dashboard embedded onClose={()=>setViewMode('today')}/>}
+    {state.chores.length>0&&(viewMode==='today'||viewMode==='list')&&<ListView key={viewMode} todayView={viewMode==='today'} onAddClick={()=>handleAddClick()} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers} onClearFilters={()=>{setSearchQuery('');setHiddenMembers(new Set());}}/>}
+    {viewMode==='dashboard'&&(state.chores.length>0?<Dashboard embedded onClose={()=>setViewMode('today')}/>:<section className="chore-list-page"><div className="chore-empty"><h2>Small wins will show up here.</h2><p>Add your first chore to start seeing your household’s progress.</p><button className="chore-button primary" onClick={()=>handleAddClick()}>Add your first chore</button></div></section>)}
     {viewMode==='account'&&<AccountSettings embedded isOpen onClose={()=>setViewMode('today')}/>}
     </main>
-    {!modalOpen&&!profileMember&&!availabilityMember&&!sidebarOpen&&['today','calendar','list'].includes(viewMode)&&<QuickAddButton onClick={()=>handleAddClick()}/>}
+    {state.chores.length>0&&!modalOpen&&!profileMember&&!availabilityMember&&!sidebarOpen&&['today','calendar','list'].includes(viewMode)&&<QuickAddButton onClick={()=>handleAddClick()}/>}
     {viewMode==='calendar'&&!modalOpen&&<div className="chore-desktop-assistant"><AgentPanel/></div>}
    </div>
    <ChoreModal isOpen={modalOpen} onClose={handleCloseModal} editChore={editChore} instanceDate={instanceDate} defaultValues={defaultValues}/>
