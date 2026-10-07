@@ -255,3 +255,17 @@ test('a long phone Today list keeps the last chore completion control reachable'
  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();await expect(dialog).toHaveCount(0);
  expect(f.calls.filter(c=>c.method!=='GET')).toHaveLength(0);
 });
+
+
+test('selecting a family calendar date opens that date from Today',async({page})=>{
+ await fixture(page,390);
+ await page.getByRole('button',{name:'Open family menu',exact:true}).click();
+ const family=page.locator('.family-panel');
+ await family.getByRole('button',{name:'Next month',exact:true}).click();
+ await family.getByRole('button',{name:'Thursday, October 29, 2026',exact:true}).click();
+ await expect(family).toHaveCount(0);
+ const nav=page.getByRole('navigation',{name:'Primary navigation'});
+ await expect(nav.getByRole('button',{name:'Calendar',exact:true})).toHaveAttribute('aria-current','page');
+ await expect(page.locator('.fc-toolbar-title')).toHaveText('Oct 2026');
+ await expect(page.locator('.fc-list-empty')).toBeVisible();
+});

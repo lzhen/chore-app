@@ -14,6 +14,7 @@ import { Chore, ChoreInstance } from '../types';
 import { EventPopover } from './EventPopover';
 
 interface CalendarProps {
+  initialDate?: Date;
   onAddClick: (defaultValues?: { date?: string; startTime?: string; endTime?: string; allDay?: boolean }) => void;
   onEventClick: (chore: Chore, instanceDate: string) => void;
   searchQuery?: string;
@@ -29,7 +30,7 @@ export interface CalendarRef {
 }
 
 export const Calendar = forwardRef<CalendarRef, CalendarProps>(
-  ({ onAddClick, onEventClick, searchQuery, hiddenMembers = new Set() }, ref) => {
+  ({ onAddClick, onEventClick, searchQuery, initialDate, hiddenMembers = new Set() }, ref) => {
     const { state, updateChore } = useApp();
     const [completionInstance,setCompletionInstance] = useState<ChoreInstance|null>(null);
     const [operationError,setOperationError] = useState('');
@@ -270,6 +271,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
               plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
               initialView={window.innerWidth < 768 ? 'listWeek' : 'dayGridMonth'}
               datesSet={info => setVisibleRange(prev => dateKey(prev.start) === dateKey(info.start) && dateKey(prev.end) === dateKey(info.end) ? prev : { start: info.start, end: info.end })}
+              initialDate={initialDate}
               events={events}
               eventClick={handleEventClick}
               select={handleDateSelect}

@@ -31,6 +31,7 @@ export function App() {
   const { state, reload } = useApp();
   const { user, loading: authLoading, isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset } = useAuth();
   const calendarRef = useRef<CalendarRef>(null);
+  const [calendarDate, setCalendarDate] = useState<Date>();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editChore, setEditChore] = useState<Chore | null>(null);
@@ -62,6 +63,9 @@ export function App() {
 
   // Navigate calendar to a specific date
   const handleMiniCalendarDateSelect = useCallback((date: Date) => {
+    setCalendarDate(date);
+    setViewMode('calendar');
+    setSidebarOpen(false);
     calendarRef.current?.gotoDate(date);
   }, []);
 
@@ -252,7 +256,7 @@ export function App() {
     <Header onMenuClick={toggleSidebar} onDashboardClick={handleDashboardClick} viewMode={viewMode} onViewModeChange={mode=>{setViewMode(mode);setSidebarOpen(false);}} searchQuery={searchQuery} onSearchChange={setSearchQuery} searchInputRef={searchInputRef} searchOpen={searchOpen} onSearchOpenChange={setSearchOpen}/>
     <main id="main-content" className="chore-main">
     {sidebarOpen&&<div className="family-overlay"><button className="family-backdrop" aria-label="Close family menu" onClick={()=>setSidebarOpen(false)}/><aside className="family-panel"><TeamMemberList onClose={()=>setSidebarOpen(false)} onDateSelect={handleMiniCalendarDateSelect} eventDates={eventDates} hiddenMembers={hiddenMembers} onToggleMemberVisibility={handleToggleMemberVisibility} onProfileOpen={m=>{setSidebarOpen(false);setProfileMember(m);}} onAvailabilityOpen={m=>{setSidebarOpen(false);setAvailabilityMember(m);}}/></aside></div>}
-    {viewMode==='calendar'&&<Suspense fallback={<div className="chore-load-error" role="status">Loading calendar…</div>}><Calendar ref={calendarRef} onAddClick={handleAddClick} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers}/></Suspense>}
+    {viewMode==='calendar'&&<Suspense fallback={<div className="chore-load-error" role="status">Loading calendar…</div>}><Calendar ref={calendarRef} initialDate={calendarDate} onAddClick={handleAddClick} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers}/></Suspense>}
     {(viewMode==='today'||viewMode==='list')&&<ListView key={viewMode} todayView={viewMode==='today'} onAddClick={()=>handleAddClick()} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers} onCalendarClick={()=>setViewMode('calendar')} onFamilyClick={()=>setSidebarOpen(true)}/>}
     {viewMode==='dashboard'&&<Dashboard embedded onClose={()=>setViewMode('today')}/>}
     {viewMode==='account'&&<AccountSettings embedded isOpen onClose={()=>setViewMode('today')}/>}

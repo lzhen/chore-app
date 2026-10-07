@@ -1,3 +1,4 @@
+import { dateKey } from '../utils/dates';
 import { useState, useMemo } from 'react';
 
 interface MiniCalendarProps {
@@ -34,7 +35,7 @@ export function MiniCalendar({ onDateSelect, eventDates = new Set() }: MiniCalen
     today.setHours(0, 0, 0, 0);
 
     while (current <= endDate) {
-      const dateStr = current.toISOString().split('T')[0];
+      const dateStr = dateKey(current);
       days.push({
         date: new Date(current),
         isCurrentMonth: current.getMonth() === month,
@@ -50,6 +51,7 @@ export function MiniCalendar({ onDateSelect, eventDates = new Set() }: MiniCalen
   const navigateMonth = (delta: number) => {
     setViewDate(prev => {
       const newDate = new Date(prev);
+      newDate.setDate(1);
       newDate.setMonth(newDate.getMonth() + delta);
       return newDate;
     });
@@ -114,6 +116,8 @@ export function MiniCalendar({ onDateSelect, eventDates = new Set() }: MiniCalen
         {calendarDays.map((day, index) => (
           <button
             key={index}
+            aria-label={day.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+            style={day.isToday ? { color: 'var(--on-accent)' } : undefined}
             onClick={() => onDateSelect(day.date)}
             className={`
               relative aspect-square flex items-center justify-center text-[11px] rounded-fluent-sm
