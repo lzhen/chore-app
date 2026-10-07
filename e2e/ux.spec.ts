@@ -104,6 +104,8 @@ test('desktop Today progress and mobile starter drafts are usable', async ({page
   const taskBox = await firstTask.boundingBox();
   expect(taskBox!.y + taskBox!.height).toBeLessThan(844);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('button', {name: /^Theme:/}).click();
+  await page.getByRole('group', {name: 'Choose appearance'}).getByRole('button', {name: /Light/}).click();
   await page.screenshot({path: info.outputPath('today-desktop-light.png'), fullPage: true});
   await page.getByRole('button', {name: /^Theme:/}).click();
   await page.getByRole('group', {name: 'Choose appearance'}).getByRole('button', {name: /Dark/}).click();
@@ -113,6 +115,26 @@ test('desktop Today progress and mobile starter drafts are usable', async ({page
   expect(mobileTaskBox!.y + mobileTaskBox!.height).toBeLessThan(772);
   await page.screenshot({path: info.outputPath('today-mobile-dark.png'), fullPage: true});
   expect(f.db.chore_completions).toHaveLength(0);
+});
+
+test('direct dark appearance respects later choices and styles the browser chrome', async ({page}) => {
+  await page.emulateMedia({colorScheme: 'light'});
+  await page.goto('/chore-app/?theme=dark');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#080809');
+  expect(await page.locator('html').evaluate(el => getComputedStyle(el).colorScheme)).toBe('dark');
+  await page.getByRole('button', {name: /^Theme:/}).click();
+  await page.getByRole('group', {name: 'Choose appearance'}).getByRole('button', {name: /Light/}).click();
+  expect(new URL(page.url()).searchParams.has('theme')).toBe(false);
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#ffffff');
+  await page.getByRole('button', {name: /^Theme:/}).click();
+  await page.getByRole('group', {name: 'Choose appearance'}).getByRole('button', {name: /System/}).click();
+  await page.emulateMedia({colorScheme: 'dark'});
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.emulateMedia({colorScheme: 'light'});
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });
 
 test('starter suggestion waits for an edited explicit save', async ({page}, info) => {
