@@ -94,7 +94,7 @@
 .week-heading > .touch-button { font-size: 22px; }
 .week-today { font-size: 11px; padding: 0 8px; }
 .week-days { gap: 3px; }
-.week-days button { border-radius: 7px; min-height: 59px; padding: 7px 0; gap: 4px; }
+.week-days button { width: 100%; max-width: 44px; justify-self: center; border-radius: 7px; min-height: 59px; padding: 7px 0; gap: 4px; }
 .week-days small { color: var(--text-secondary); font-size: 10px; }
 .week-days b { font-size: 17px; font-weight: 500; }
 .week-days .selected small { color: #393f27; }

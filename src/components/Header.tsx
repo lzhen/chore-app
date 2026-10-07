@@ -12,7 +12,7 @@ const tabs:{id:ViewMode;name:string;path:string}[]=[
 ];
 export function Header({onMenuClick,viewMode,onViewModeChange,searchQuery,onSearchChange,searchInputRef}:HeaderProps){
  const [searchOpen,setSearchOpen]=useState(false);const tasks=['today','calendar','list'].includes(viewMode);
- return <><header className="chore-header">
+ return <><header className="chore-header" aria-label="Nesmi">
  <button className="touch-button" aria-label="Open family menu" onClick={onMenuClick}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 21v-3a5 5 0 0 1 10 0v3M17 21v-3a7 7 0 0 0-2-5M13 3a4 4 0 0 1 0 8"/><circle cx="8" cy="7" r="3"/></svg></button>
  <div className="chore-brand"><Logo size="sm"/><span className="chore-brand-byline">by Empathie</span></div>
  {tasks&&<button className="touch-button" aria-label={searchOpen?'Close search':'Search chores'} onClick={()=>{setSearchOpen(!searchOpen);if(searchOpen)onSearchChange('');}}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/></svg></button>}
