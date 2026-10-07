@@ -267,7 +267,7 @@ export function App() {
     {state.chores.length>0&&viewMode==='dashboard'&&<Dashboard embedded onClose={()=>setViewMode('today')}/>}
     {viewMode==='account'&&<AccountSettings embedded isOpen onClose={()=>setViewMode('today')}/>}
     </main>
-    {!modalOpen&&!profileMember&&!availabilityMember&&!sidebarOpen&&['today','calendar','list'].includes(viewMode)&&<QuickAddButton onClick={()=>handleAddClick()}/>}
+    {state.chores.length>0&&!modalOpen&&!profileMember&&!availabilityMember&&!sidebarOpen&&['today','calendar','list'].includes(viewMode)&&<QuickAddButton onClick={()=>handleAddClick()}/>}
     {viewMode==='calendar'&&!modalOpen&&<div className="chore-desktop-assistant"><AgentPanel/></div>}
    </div>
    <ChoreModal isOpen={modalOpen} onClose={handleCloseModal} editChore={editChore} instanceDate={instanceDate} defaultValues={defaultValues}/>

@@ -100,12 +100,17 @@ test('desktop Today progress and mobile starter drafts are usable', async ({page
   await expect(page.getByRole('progressbar')).toHaveAttribute('max', '2');
   await expect(page.getByRole('progressbar')).toHaveAttribute('value', '0');
   await expect(page.getByText('1 overdue chore · separate from today’s progress')).toBeVisible();
+  const firstTask = page.locator('.chore-task').first();
+  const taskBox = await firstTask.boundingBox();
+  expect(taskBox!.y + taskBox!.height).toBeLessThan(844);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({path: info.outputPath('today-desktop-light.png'), fullPage: true});
   await page.getByRole('button', {name: /^Theme:/}).click();
   await page.getByRole('group', {name: 'Choose appearance'}).getByRole('button', {name: /Dark/}).click();
   await page.screenshot({path: info.outputPath('today-desktop-dark.png'), fullPage: true});
   await page.setViewportSize({width: 390, height: 844});
+  const mobileTaskBox = await firstTask.boundingBox();
+  expect(mobileTaskBox!.y + mobileTaskBox!.height).toBeLessThan(772);
   await page.screenshot({path: info.outputPath('today-mobile-dark.png'), fullPage: true});
   expect(f.db.chore_completions).toHaveLength(0);
 });
@@ -116,7 +121,7 @@ test('starter suggestion waits for an edited explicit save', async ({page}, info
   await page.getByRole('button', {name: 'Start with Wash dishes'}).click();
   const dialog = page.getByRole('dialog', {name: 'Add a chore'});
   await expect(dialog.getByLabel('What needs doing?')).toHaveValue('Wash dishes');
-  await expect(dialog.getByLabel('Repeat', {exact: true})).toHaveValue('daily');
+  await expect(dialog.getByLabel('Repeat')).toHaveValue('daily');
   await expect(dialog.getByLabel('Estimated minutes · optional')).toHaveValue('15');
   expect(f.calls.filter(call => call.table === 'chores' && call.method === 'POST')).toHaveLength(0);
   await dialog.getByLabel('What needs doing?').fill('Put away our dishes');
