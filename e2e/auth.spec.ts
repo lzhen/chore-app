@@ -61,7 +61,7 @@ class AuthPage {
   }
 
   async expectForgotPasswordPage() {
-    await expect(this.page.getByText('Reset your password')).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'Reset your password', exact: true })).toBeVisible();
   }
 
   async expectErrorMessage(message: string | RegExp) {
@@ -93,7 +93,11 @@ test.describe('Authentication Page', () => {
   });
 
   test('has logo visible', async ({ page }) => {
-    await expect(page.locator('svg').first()).toBeVisible();
+    const logo = page.locator('.nesmi-logo');
+    await expect(logo.getByText('Nesmi', { exact: true })).toBeVisible();
+    const artwork = logo.locator('img:visible');
+    await expect(artwork).toBeVisible();
+    await expect.poll(() => artwork.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
   });
 });
 
