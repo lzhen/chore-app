@@ -1,0 +1,58 @@
+name: Chorely WebKit fixture validation
+on:
+  push:
+    branches: [ci/chorely-webkit-validation-20261007]
+    paths: ['.github/workflows/chorely-webkit-fixture-validation.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    name: Exact-head Safari and full browser validation
+    if: github.ref == 'refs/heads/ci/chorely-webkit-validation-20261007'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      HUSKY: '0'
+      CI: 'true'
+    steps:
+      - name: Check out exact fixture fix
+        uses: actions/checkout@v4
+        with:
+          ref: 7527e20eb9f8165965e65f1a13324c329cb3dbd4
+          persist-credentials: false
+      - name: Verify source identity
+        run: |
+          test "$(git rev-parse HEAD)" = '7527e20eb9f8165965e65f1a13324c329cb3dbd4'
+          git show --stat --oneline HEAD
+          echo 'Tested source: 7527e20eb9f8165965e65f1a13324c329cb3dbd4' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Typecheck, unit tests, and production build
+        run: |
+          npm run typecheck
+          npm run test:run
+          npm run build
+      - name: Install all Playwright browsers
+        run: npx playwright install --with-deps
+      - name: Focused WebKit and Mobile Safari UX without retries
+        run: npx playwright test e2e/ux.spec.ts --project=webkit --project='Mobile Safari' --retries=0
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report-safari
+      - name: Full five-project browser suite
+        run: npm run test:e2e
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report-all-browsers
+      - name: Preserve browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chorely-webkit-fixture-validation
+          path: |
+            playwright-report-safari/
+            playwright-report-all-browsers/
+            test-results/
+          retention-days: 14
