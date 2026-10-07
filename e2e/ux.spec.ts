@@ -31,7 +31,7 @@ async function fixture(page:Page,width=390,empty=false){
   const single=req.headers().accept?.includes('vnd.pgrst.object');if(single&&Array.isArray(result))result=result[0]||null;
   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(result)});
  });
- await page.goto('/chore-app/');await expect(page.getByRole('heading',{name:'Today',exact:true})).toBeVisible();
+ await page.goto('/chore-app/');await expect(page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Today',exact:true})).toHaveAttribute('aria-current','page');
  return {db,calls,failWrites:()=>{fail=true;},failReads:()=>{readsFail=true;},recover:()=>{fail=false;readsFail=false;}};
 }
 for(const width of [375,390,430])test(`normal save reachable; time and date survive reload at ${width}px`,async({page},info)=>{
@@ -99,7 +99,7 @@ test('desktop Today progress and mobile starter drafts are usable', async ({page
   const f = await fixture(page, 1440);
   await expect(page.getByRole('progressbar')).toHaveAttribute('max', '2');
   await expect(page.getByRole('progressbar')).toHaveAttribute('value', '0');
-  await expect(page.getByText('1 overdue chore · separate from today’s progress')).toBeVisible();
+  await expect(page.getByRole('heading', {name: /^Overdue\s+1$/})).toBeVisible();
   const firstTask = page.locator('.chore-task').first();
   const taskBox = await firstTask.boundingBox();
   expect(taskBox!.y + taskBox!.height).toBeLessThan(844);
