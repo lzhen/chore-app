@@ -72,6 +72,7 @@
 .dark .chore-button.danger { color: #ffb4b9; }
 .dark .chore-task.is-overdue .chore-task-date { color: #d5aaa1; }
 .dark .fluent-button-primary { color: var(--chore-on-accent); }
+.dark .bg-accent.text-white { color: var(--chore-on-accent); }
 
 .chore-header {
   min-height: 64px;
