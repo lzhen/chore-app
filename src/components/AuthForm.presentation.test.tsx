@@ -14,7 +14,7 @@ vi.mock('../context/AuthContext', () => ({
   }),
 }));
 vi.mock('./ThemeSelector', () => ({ ThemeSelector: () => null }));
-vi.mock('./Logo', () => ({ Logo: () => <span>Chorely</span> }));
+vi.mock('./Logo', () => ({ Logo: () => <span>Nesmi</span> }));
 
 afterEach(cleanup);
 

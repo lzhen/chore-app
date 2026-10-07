@@ -1,6 +1,6 @@
 {
-  "name": "Chorely - Family Chore Manager",
-  "short_name": "Chorely",
+  "name": "Nesmi - Family Chore Manager",
+  "short_name": "Nesmi",
   "start_url": "/chore-app/",
   "scope": "/chore-app/",
   "display": "standalone",

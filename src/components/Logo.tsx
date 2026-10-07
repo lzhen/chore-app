@@ -22,14 +22,14 @@ export function Logo({ size = 'md', showText = true }: LogoProps) {
       <div className={`${sizeClasses[size]} shrink-0 overflow-hidden rounded-xl`}>
         <img
           src={`${import.meta.env.BASE_URL}icons/chorely-light.png`}
-          alt={showText ? '' : 'Chorely'}
+          alt={showText ? '' : 'Nesmi'}
           className="block h-full w-full object-contain dark:hidden"
           width="64"
           height="64"
         />
         <img
           src={`${import.meta.env.BASE_URL}icons/chorely-dark.png`}
-          alt={showText ? '' : 'Chorely'}
+          alt={showText ? '' : 'Nesmi'}
           className="hidden h-full w-full object-contain dark:block"
           width="64"
           height="64"
@@ -48,7 +48,7 @@ export function Logo({ size = 'md', showText = true }: LogoProps) {
               backgroundClip: 'text',
             }}
           >
-            Chorely
+            Nesmi
           </span>
           {size === 'lg' && (
             <span className="text-xs text-content-secondary -mt-1">Family Chore Manager</span>

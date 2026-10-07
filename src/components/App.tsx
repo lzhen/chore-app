@@ -248,9 +248,9 @@ export function App() {
     <main id="main-content" className="chore-main">
     {state.chores.length===0&&<section className="min-h-[70vh] flex items-center justify-center p-4 sm:p-8">
       <div className="fluent-card w-full max-w-2xl p-6 sm:p-8 text-center">
-        <p className="text-sm font-semibold text-brand-primary mb-2">WELCOME TO CHORELY</p>
+        <p className="text-sm font-semibold text-brand-primary mb-2">WELCOME TO NESMI</p>
         <h1 className="text-2xl sm:text-3xl font-semibold text-content-primary">Start with one shared responsibility.</h1>
-        <p className="text-content-secondary mt-3 max-w-xl mx-auto">Add the first chore, then invite or add the people who share the work. Chorely will help everyone see what needs doing without relying on repeated reminders.</p>
+        <p className="text-content-secondary mt-3 max-w-xl mx-auto">Add the first chore, then invite or add the people who share the work. Nesmi will help everyone see what needs doing without relying on repeated reminders.</p>
         <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
           <button className="fluent-button fluent-button-primary px-5 py-3" onClick={()=>handleAddClick()}>Add first chore</button>
           <button className="fluent-button px-5 py-3 border border-border" onClick={()=>setSidebarOpen(true)}>Set up household</button>

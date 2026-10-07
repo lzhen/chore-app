@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Chorely",
+  "name": "Nesmi",
   "version": "1.0.0",
-  "description": "Open Chorely and keep household tasks within reach.",
+  "description": "Open Nesmi and keep household tasks within reach.",
   "action": {
-    "default_title": "Chorely",
+    "default_title": "Nesmi",
     "default_popup": "popup.html"
   },
   "permissions": []

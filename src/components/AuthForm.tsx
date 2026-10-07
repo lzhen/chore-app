@@ -196,7 +196,7 @@ export function AuthForm() {
             )}
           </div>
           <p className="mt-6 text-center text-xs text-content-secondary">
-            Your household data stays tied to your account. By continuing, you agree to Chorely's policies.{' '}
+            Your household data stays tied to your account. By continuing, you agree to Nesmi's policies.{' '}
             <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noreferrer" className="text-brand hover:underline">Privacy Policy</a>
           </p>
         </div>
