@@ -184,6 +184,18 @@
 }
 
 @media (max-width: 767px) {
+  .chore-list-page { padding-top: 20px; }
+  .today-intro { margin-bottom: 16px; }
+  .today-intro > div > p { margin-bottom: 6px; }
+  .today-intro h2 { font-size: 36px; line-height: 40px; }
+  .chore-day-tools > .chore-day-summary { margin-bottom: 8px; }
+  .chore-progress { margin-top: 8px; }
+  .week-heading { margin-bottom: 4px; }
+  .week-days button { min-height: 52px; padding: 5px 0; gap: 3px; }
+  .chore-day-tools > .chore-week { padding-bottom: 12px; }
+  .chore-task { min-height: 80px; padding-top: 12px; padding-bottom: 12px; }
+  .chore-task-meta, .chore-task-date, .chore-task-details { font-size: 12px; }
+  .chore-task-group { margin-bottom: 24px; }
   .chore-brand .nesmi-logo { display: flex; }
   .nesmi-auth-form { padding: 0; }
   .nesmi-auth-story h1 { font-size: 42px; }

@@ -39,7 +39,8 @@ describe('ListView day scope and progress', () => {
     expect(progress).toHaveAttribute('max', '3');
     expect(screen.getByText('~15 min')).toBeInTheDocument();
     expect(screen.getByText('Estimates set for 1 of 2 remaining chores.')).toBeInTheDocument();
-    expect(screen.getByText('1 overdue chore · separate from today’s progress')).toBeInTheDocument();
+    const overdueGroup = screen.getByRole('heading', {name: /^Overdue\s+1$/}).parentElement!;
+    expect(within(overdueGroup).getByRole('button', {name: 'Edit Laundry backlog'})).toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Edit Laundry'})).toHaveTextContent('Alex · Today');
     expect(screen.getByRole('button', {name: 'Edit Laundry'})).toHaveTextContent('Cleaning · 15 min');
     expect(screen.queryByRole('button', {name: 'Edit Laundry next week'})).not.toBeInTheDocument();

@@ -99,7 +99,7 @@ test('desktop Today progress and mobile starter drafts are usable', async ({page
   const f = await fixture(page, 1440);
   await expect(page.getByRole('progressbar')).toHaveAttribute('max', '2');
   await expect(page.getByRole('progressbar')).toHaveAttribute('value', '0');
-  await expect(page.getByText('1 overdue chore · separate from today’s progress')).toBeVisible();
+  await expect(page.getByRole('heading', {name: /^Overdue\s+1$/})).toBeVisible();
   const firstTask = page.locator('.chore-task').first();
   const taskBox = await firstTask.boundingBox();
   expect(taskBox!.y + taskBox!.height).toBeLessThan(844);
