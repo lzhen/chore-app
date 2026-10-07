@@ -1,7 +1,8 @@
-import { dateKey, parseDate } from '../utils/dates';
+import { dateKey, parseDate, shiftDate } from '../utils/dates';
 import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { MemberStats } from '../types';
+import { generateChoreInstances } from '../utils/recurrence';
 import { BADGES, getBadgeById } from '../data/badges';
 import { WorkloadChart } from './WorkloadChart';
 
@@ -40,29 +41,14 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
   // Calculate stats
   const stats = useMemo(() => {
     const today = dateKey();
-    const weekAgo = dateKey(new Date(Date.now() - 7 * 86400000));
-    const monthAgo = dateKey(new Date(Date.now() - 30 * 86400000));
-
-    // Get completions
-    const completedToday = state.completions.filter(c => c.instanceDate === today).length;
-    const completedThisWeek = state.completions.filter(c => c.instanceDate >= weekAgo).length;
-    const completedThisMonth = state.completions.filter(c => c.instanceDate >= monthAgo).length;
-
-    // Get pending today
-    const pendingToday = state.chores.filter(c => {
-      if (c.date === today && !state.completions.some(comp => comp.choreId === c.id && comp.instanceDate === today)) {
-        return true;
-      }
-      return false;
-    }).length;
-
-    // Get overdue (past due, not completed)
-    const overdue = state.chores.filter(c => {
-      if (c.date < today && c.recurrence === 'none') {
-        return !state.completions.some(comp => comp.choreId === c.id && comp.instanceDate === c.date);
-      }
-      return false;
-    }).length;
+    const weekAgo = shiftDate(today, -6);
+    const monthAgo = shiftDate(today, -29);
+    const todayInstances = generateChoreInstances(state.chores, state.teamMembers, state.completions, parseDate(today), parseDate(today));
+    const completedToday = todayInstances.filter(i => i.isCompleted).length;
+    const pendingToday = todayInstances.filter(i => !i.isCompleted).length;
+    const completedThisWeek = state.completions.filter(c => c.instanceDate >= weekAgo && c.instanceDate <= today).length;
+    const completedThisMonth = state.completions.filter(c => c.instanceDate >= monthAgo && c.instanceDate <= today).length;
+    const overdue = state.chores.filter(c => c.recurrence === 'none' && c.date < today && !state.completions.some(comp => comp.choreId === c.id && comp.instanceDate === c.date)).length;
 
     return {
       totalChores: state.chores.length,
@@ -72,12 +58,14 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
       pendingToday,
       overdue,
     };
-  }, [state.chores, state.completions]);
+  }, [state.chores, state.teamMembers, state.completions]);
 
   // Calculate member stats
   const memberStats: MemberStats[] = useMemo(() => {
-    const weekAgo = dateKey(new Date(Date.now() - 7 * 86400000));
-    const monthAgo = dateKey(new Date(Date.now() - 30 * 86400000));
+    const todayKey = dateKey();
+    const weekAgo = shiftDate(todayKey, -6);
+    const monthAgo = shiftDate(todayKey, -29);
+    const weekInstances = generateChoreInstances(state.chores, state.teamMembers, state.completions, parseDate(weekAgo), parseDate(todayKey));
 
     return state.teamMembers.map(member => {
       const memberCompletions = state.completions.filter(c => c.completedBy === member.id);
@@ -112,10 +100,10 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
       let checkDate = today;
       currentStreak = 0;
       for (let i = 0; i < 365; i++) {
-        const dateStr = checkDate.toISOString().split('T')[0];
+        const dateStr = dateKey(checkDate);
         if (completionDates.includes(dateStr)) {
           currentStreak++;
-          checkDate = new Date(checkDate.getTime() - 24 * 60 * 60 * 1000);
+          checkDate = parseDate(shiftDate(dateStr, -1));
         } else {
           break;
         }
@@ -127,27 +115,29 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
         memberColor: member.color,
         memberAvatar: member.avatarUrl,
         totalCompleted: memberCompletions.length,
-        completedThisWeek: memberCompletions.filter(c => c.instanceDate >= weekAgo).length,
-        completedThisMonth: memberCompletions.filter(c => c.instanceDate >= monthAgo).length,
+        completedThisWeek: memberCompletions.filter(c => c.instanceDate >= weekAgo && c.instanceDate <= todayKey).length,
+        completedThisMonth: memberCompletions.filter(c => c.instanceDate >= monthAgo && c.instanceDate <= todayKey).length,
         currentStreak,
         longestStreak,
-        completionRate: assignedChores.length > 0
-          ? Math.round((memberCompletions.length / Math.max(assignedChores.length, 1)) * 100)
+        completionRate: weekInstances.some(i => i.assigneeId === member.id)
+          ? Math.round(100 * weekInstances.filter(i => i.assigneeId === member.id && i.isCompleted).length / weekInstances.filter(i => i.assigneeId === member.id).length)
           : 0,
         totalAssigned: assignedChores.length,
         points: member.points || 0,
         badges: member.badges || [],
         workloadMinutes: assignedChores.reduce((sum, c) => sum + (c.estimatedMinutes || 0), 0),
       };
-    }).sort((a, b) => b.totalCompleted - a.totalCompleted);
+    });
   }, [state.teamMembers, state.completions, state.chores]);
 
   return (
     <div className={embedded?"chore-insights-page":"fixed inset-0 bg-overlay flex items-center justify-center z-50 p-4"}>
-      <div className="fluent-card w-full max-w-4xl max-h-[90vh] overflow-hidden animate-fluent-appear shadow-fluent-28">
+      <div className={embedded ? "chore-insights-content" : "fluent-card w-full max-w-4xl max-h-[90vh] overflow-hidden"}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2 className="fluent-title text-xl font-semibold text-content-primary">Insights</h2>
+        <div className="chore-page-heading insights-heading">
+          <p className="chore-eyebrow">Small steps, shared progress</p>
+          <h1>Insights</h1>
+          <p>See how your household is sharing the work.</p>
           <button
             hidden={embedded} onClick={onClose}
             className="text-content-secondary hover:text-content-primary hover:bg-subtle-background-hover rounded-fluent-sm transition-all duration-fast p-1.5"
@@ -159,7 +149,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-border px-6">
+        <div className="chore-insights-tabs flex border-b border-border">
           <button
             onClick={() => setActiveTab('overview')}
             className={`px-4 py-3 text-sm font-medium transition-colors ${
@@ -203,7 +193,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <div className={embedded ? "chore-insights-body" : "p-6 overflow-y-auto max-h-[calc(90vh-140px)]"}>
           {activeTab === 'overview' ? (
             <>
               {/* Summary Cards */}
@@ -217,34 +207,24 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                   <div className="text-sm text-content-secondary">Pending Today</div>
                 </div>
                 <div className="fluent-surface p-4 rounded-fluent-md border border-border">
-                  <div className="text-2xl font-bold text-yellow-500">{stats.overdue}</div>
-                  <div className="text-sm text-content-secondary">Overdue</div>
+                  <div className="text-2xl font-bold text-content-primary">{stats.overdue}</div>
+                  <div className="text-sm text-content-secondary">Past-due one-off chores</div>
                 </div>
                 <div className="fluent-surface p-4 rounded-fluent-md border border-border">
                   <div className="text-2xl font-bold text-content-primary">{stats.completedThisWeek}</div>
-                  <div className="text-sm text-content-secondary">This Week</div>
+                  <div className="text-sm text-content-secondary">Done in the last 7 days</div>
                 </div>
               </div>
 
               {/* Leaderboard */}
               <div className="mb-6">
-                <h3 className="fluent-title text-lg font-semibold text-content-primary mb-4">Leaderboard</h3>
+                <h3 className="fluent-title text-lg font-semibold text-content-primary mb-4">Household contributions</h3>
                 <div className="space-y-2">
-                  {memberStats.map((member, index) => (
+                  {memberStats.map((member) => (
                     <div
                       key={member.memberId}
-                      className="fluent-surface flex items-center gap-4 p-4 rounded-fluent-md border border-border"
+                      className="chore-contribution"
                     >
-                      {/* Rank */}
-                      <div className={`w-8 h-8 rounded-fluent-circle flex items-center justify-center font-bold text-sm ${
-                        index === 0 ? 'bg-yellow-500 text-white' :
-                        index === 1 ? 'bg-gray-400 text-white' :
-                        index === 2 ? 'bg-amber-700 text-white' :
-                        'bg-surface-tertiary text-content-secondary'
-                      }`}>
-                        {index + 1}
-                      </div>
-
                       {/* Member info */}
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         {member.memberAvatar ? (
@@ -282,31 +262,13 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                         </div>
                       </div>
 
-                      {/* Stats */}
-                      <div className="flex items-center gap-4 text-sm">
-                        <div className="text-center">
-                          <div className="font-bold text-brand-primary">{member.points}</div>
-                          <div className="text-xs text-content-secondary">Points</div>
-                        </div>
-                        <div className="text-center hidden sm:block">
-                          <div className="font-bold text-content-primary">{member.totalCompleted}</div>
-                          <div className="text-xs text-content-secondary">Total</div>
-                        </div>
-                        <div className="text-center hidden md:block">
-                          <div className="font-bold text-content-primary">{member.completedThisWeek}</div>
-                          <div className="text-xs text-content-secondary">Week</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-bold text-orange-500">{member.currentStreak}</div>
-                          <div className="text-xs text-content-secondary">Streak</div>
-                        </div>
-                      </div>
+                      <div className="chore-contribution-count"><strong>{member.completedThisWeek}</strong><span>in the last 7 days</span></div>
                     </div>
                   ))}
 
                   {memberStats.length === 0 && (
                     <p className="text-content-secondary text-center py-8">
-                      No team members yet. Add team members to see stats.
+                      Add family members to see how the work is shared.
                     </p>
                   )}
                 </div>

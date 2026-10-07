@@ -89,11 +89,14 @@ test.describe('Authentication Page', () => {
   });
 
   test('has theme selector visible', async ({ page }) => {
-    await expect(page.locator('[class*="theme"]').first()).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Appearance', exact: true })).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'System', exact: true })).toBeChecked();
   });
 
   test('has logo visible', async ({ page }) => {
-    await expect(page.locator('svg').first()).toBeVisible();
+    const logo = page.locator('.chore-auth-brand img:visible');
+    await expect(logo).toBeVisible();
+    await expect.poll(() => logo.evaluate(image => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   });
 });
 

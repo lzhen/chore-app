@@ -242,9 +242,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const usedColors = state.teamMembers.map(m => m.color);
     const color = getNextColor(usedColors);
     const newMember = await dbCreateTeamMember({ name, color, points: 0, badges: [] });
-    if (newMember) {
-      dispatch({ type: 'ADD_MEMBER', payload: newMember });
-    }
+    if (!newMember) throw new Error('This family member could not be saved. Please try again.');
+    dispatch({ type: 'ADD_MEMBER', payload: newMember });
   };
 
   const updateMember = async (member: TeamMember) => {
