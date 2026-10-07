@@ -80,7 +80,9 @@ function getSystemTheme(): 'light' | 'dark' {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   // User's theme selection (can be 'system' or a specific theme)
   const [themeSelection, setThemeSelection] = useState<ThemeSelection>(() => {
-    const saved = localStorage.getItem('theme') as ThemeSelection | null;
+    const requested = new URLSearchParams(window.location.search).get('theme');
+    const saved = (requested === 'light' || requested === 'dark' || requested === 'system'
+      ? requested : localStorage.getItem('theme')) as ThemeSelection | null;
     if (saved === 'system') return 'system';
     if (saved && THEMES.find((t) => t.id === saved)) {
       return saved as ThemeId;
@@ -133,6 +135,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     // Set data-theme attribute
     document.documentElement.setAttribute('data-theme', appliedTheme);
+    document.documentElement.style.backgroundColor = themeConfig.isDark ? '#080809' : '#ffffff';
+    document.documentElement.style.colorScheme = themeConfig.isDark ? 'dark' : 'light';
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', themeConfig.isDark ? '#080809' : '#ffffff');
 
     // Add 'dark' class for Tailwind dark: prefix compatibility
     if (themeConfig.isDark) {
@@ -146,6 +151,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [appliedTheme, themeSelection, themeConfig]);
 
   const setTheme = (newTheme: ThemeSelection) => {
+    // A direct appearance link applies on entry; later choices still survive reload.
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('theme')) {
+      url.searchParams.delete('theme');
+      window.history.replaceState(window.history.state, '', url);
+    }
     setThemeSelection(newTheme);
   };
 

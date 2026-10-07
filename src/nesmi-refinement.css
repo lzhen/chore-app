@@ -3,6 +3,7 @@
 [data-theme="light"],
 [data-theme="crystal-light"],
 [data-theme="aurora"] {
+  color-scheme: light;
   --surface-primary: #ffffff;
   --surface-secondary: #ffffff;
   --surface-tertiary: #f3f3f3;
@@ -28,18 +29,19 @@
 [data-theme="dark"],
 [data-theme="crystal-dark"],
 [data-theme="midnight"] {
-  --surface-primary: #111111;
-  --surface-secondary: #111111;
-  --surface-tertiary: #232323;
-  --theme-bg: #111111;
-  --text-primary: #f5f5f5;
-  --text-secondary: #a3a3a3;
-  --text-accent: #f5f5f5;
-  --border-default: #3b3b3b;
-  --border-subtle: #2a2a2a;
+  color-scheme: dark;
+  --surface-primary: #080809;
+  --surface-secondary: #080809;
+  --surface-tertiary: #19191c;
+  --theme-bg: #080809;
+  --text-primary: #f2f2f3;
+  --text-secondary: #a5a5ad;
+  --text-accent: #f2f2f3;
+  --border-default: #49494f;
+  --border-subtle: #28282d;
   --accent-primary: #d8ff63;
   --accent-hover: #e3ff8e;
-  --accent-subtle: #252525;
+  --accent-subtle: #22251b;
   --chore-blue: #d8ff63;
   --chore-on-accent: #141414;
   --chore-highlight: #d8ff63;
@@ -47,7 +49,29 @@
   --color-brand-background: #d8ff63;
   --color-brand-foreground: #d8ff63;
   --color-brand-stroke: #d8ff63;
+  --color-brand-background-hover: #e3ff8e;
+  --color-brand-background-pressed: #c6eb54;
+  --color-neutral-background-1: #080809;
+  --color-neutral-background-2: #131315;
+  --color-neutral-background-3: #19191c;
+  --color-neutral-background-4: #232326;
+  --color-neutral-background-subtle: #19191c;
+  --color-neutral-foreground-1: #f2f2f3;
+  --color-neutral-foreground-2: #a5a5ad;
+  --color-neutral-foreground-3: #a5a5ad;
+  --color-neutral-foreground-disabled: #707078;
+  --color-neutral-stroke-1: #49494f;
+  --color-neutral-stroke-2: #28282d;
+  --color-neutral-stroke-subtle: #28282d;
 }
+
+/* Elevated controls remain quiet; action and status colors carry meaning. */
+.dark .nesmi-theme-options, .dark .chore-dialog { background: #131315; }
+.dark .nesmi-theme-options { box-shadow: 0 12px 40px #0008; }
+.dark .chore-error { background: #281617; border-color: #784348; color: #ffb4b9; }
+.dark .chore-button.danger { color: #ffb4b9; }
+.dark .chore-task.is-overdue .chore-task-date { color: #d5aaa1; }
+.dark .fluent-button-primary { color: var(--chore-on-accent); }
 
 .chore-header {
   min-height: 64px;

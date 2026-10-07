@@ -7,8 +7,24 @@
     <link rel="apple-touch-icon" href="%BASE_URL%icons/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Nesmi helps families share household responsibilities, see what needs doing today, and keep routines fair without constant reminders." />
-    <meta name="theme-color" content="#f6f7f2" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#11150f" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#080809" />
+    <script>
+      // Apply the chosen appearance before the app loads to avoid a bright flash.
+      (() => {
+        const requested = new URLSearchParams(location.search).get('theme');
+        let saved;
+        try { saved = localStorage.getItem('theme'); } catch {}
+        const selection = ['light', 'dark', 'system'].includes(requested) ? requested : saved;
+        const isDark = ['dark', 'crystal-dark', 'midnight'].includes(selection) ||
+          ((!selection || selection === 'system' || !['light', 'crystal-light', 'aurora'].includes(selection)) && matchMedia('(prefers-color-scheme: dark)').matches);
+        const root = document.documentElement;
+        root.dataset.theme = isDark ? 'dark' : 'light';
+        root.classList.toggle('dark', isDark);
+        root.style.colorScheme = isDark ? 'dark' : 'light';
+        root.style.backgroundColor = isDark ? '#080809' : '#ffffff';
+        document.querySelector('meta[name="theme-color"]').content = isDark ? '#080809' : '#ffffff';
+      })();
+    </script>
     <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
     <meta name="apple-mobile-web-app-title" content="Nesmi" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
