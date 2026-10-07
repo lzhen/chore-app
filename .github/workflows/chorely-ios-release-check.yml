@@ -3,6 +3,9 @@ on:
   push:
     branches: [main, release/chorely-app-store, release/apple-readiness-20261003, release/chorely-appstore-rc-20261003]
     paths: ['ios/**', 'ci_scripts/**', 'src/**', 'public/**', 'package*.json', 'capacitor.config.ts', 'vite.config.ts', '.github/workflows/chorely-ios-release-check.yml']
+  pull_request:
+    branches: [main]
+    paths: ['ios/**', 'ci_scripts/**', 'src/**', 'public/**', 'package*.json', 'capacitor.config.ts', 'vite.config.ts', '.github/workflows/chorely-ios-release-check.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -39,7 +42,13 @@ jobs:
           test -d "$APP"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")" = 'com.pawssible.chorely'
           test -s "$APP/public/index.html"
-          printf '%s\n' 'PASS: unsigned device Release archive compiled with bundled app resources.' 'This is not an App Store upload. Signing and upload remain in the existing Xcode Cloud workflow.' > release-check/result.txt
+          swift ios/App/ci_scripts/verify_app_icon.swift ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png "$APP" > release-check/app-icon-result.txt
+          cat release-check/app-icon-result.txt
+          cp "$APP"/AppIcon*.png release-check/
+          plutil -convert json -o release-check/built-info.json "$APP/Info.plist"
+          shasum -a 256 "$APP/Assets.car" > release-check/compiled-assets-sha256.txt
+          ditto -c -k --sequesterRsrc --keepParent "$APP" release-check/chorely-unsigned-device-app.zip
+          printf '%s\n' 'PASS: unsigned device Release archive compiled with bundled app resources and approved nest icons.' 'This is not an App Store upload or an iPhone installer. Signing and upload remain in the existing Xcode Cloud workflow.' > release-check/result.txt
           cat release-check/result.txt >> "$GITHUB_STEP_SUMMARY"
       - name: Upload build verification logs
         if: always()
