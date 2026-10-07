@@ -1,4 +1,7 @@
 import {test,expect,Page} from '@playwright/test';
+// Keep mocked requests intercepted after reload; service workers can bypass page.route.
+test.use({ serviceWorkers: 'block' });
+
 const TODAY='2026-09-25';
 const OWNER='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', A='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', B='cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 async function fixture(page:Page,width=390,empty=false){
