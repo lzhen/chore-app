@@ -77,26 +77,27 @@ export function AuthForm() {
 
   return (
     <>
-      <div className="theme-background" />
-      <div className="chore-auth min-h-screen flex items-center justify-center relative px-4 py-8">
-        <div className="absolute top-3 right-3 sm:top-4 sm:right-4">
-          <ThemeSelector />
+      <div className="theme-background" aria-hidden="true" />
+      <main className="chore-auth">
+        <div className="chore-auth-tools">
+          <ThemeSelector compact />
         </div>
-        <div className="fluent-card p-6 sm:p-8 w-full max-w-md animate-fluent-appear">
-          {/* Logo */}
-          <div className="flex justify-center mb-6">
-            <Logo size="lg" showText={true} />
+        <div className="chore-auth-content">
+          <div className="chore-auth-brand">
+            <span aria-hidden="true"><Logo size="md" showText={false} /></span>
+            <span className="chore-wordmark">Chorely</span>
           </div>
 
-          <div className="text-center mb-5 sm:mb-6">
-            <p className="text-content-primary font-semibold text-base sm:text-lg">Share the work. Skip the nagging.</p>
-            <p className="text-content-secondary mt-1 text-sm">See what needs doing today, divide responsibilities clearly, and keep household routines moving together.</p>
-            <p className="text-content-secondary mt-3 text-sm sm:text-base">{getTitle()}</p>
+          <div className="chore-auth-intro">
+            <p className="chore-eyebrow">EVERYDAY LIFE, SHARED</p>
+            <h1>A lighter day,<br />together.</h1>
+            <p>See what needs doing. Share the responsibility.</p>
           </div>
+          <h2 className="chore-auth-mode">{getTitle()}</h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="chore-auth-form">
             <div>
-              <label htmlFor="email" className="fluent-label block text-sm font-medium text-content-primary mb-1">
+              <label htmlFor="email" className="chore-auth-label">
                 Email
               </label>
               <input
@@ -115,7 +116,7 @@ export function AuthForm() {
 
             {mode !== 'forgotPassword' && (
               <div>
-                <label htmlFor="password" className="fluent-label block text-sm font-medium text-content-primary mb-1">
+                <label htmlFor="password" className="chore-auth-label">
                   Password
                 </label>
                 <div className="relative">
@@ -145,13 +146,13 @@ export function AuthForm() {
             )}
 
             {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-fluent-sm text-red-500 text-sm">
+              <div className="chore-auth-feedback is-error" role="alert">
                 {error}
               </div>
             )}
 
             {message && (
-              <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-fluent-sm text-green-500 text-sm">
+              <div className="chore-auth-feedback is-success" role="status">
                 {message}
               </div>
             )}
@@ -166,28 +167,28 @@ export function AuthForm() {
           </form>
 
           {mode === 'signIn' && (
-            <div className="mt-3 text-center">
+            <div className="chore-auth-recovery">
               <button
                 onClick={() => switchMode('forgotPassword')}
-                className="text-content-secondary hover:text-brand text-sm transition-colors duration-fast"
+                className="chore-auth-link"
               >
                 Forgot your password?
               </button>
             </div>
           )}
 
-          <div className="mt-4 text-center">
+          <div className="chore-auth-switch">
             {mode === 'forgotPassword' ? (
               <button
                 onClick={() => switchMode('signIn')}
-                className="text-brand hover:underline text-sm transition-colors duration-fast"
+                className="chore-auth-link"
               >
                 Back to sign in
               </button>
             ) : (
               <button
                 onClick={() => switchMode(mode === 'signUp' ? 'signIn' : 'signUp')}
-                className="text-brand hover:underline text-sm transition-colors duration-fast"
+                className="chore-auth-link"
               >
                 {mode === 'signUp'
                   ? 'Already have an account? Sign in'
@@ -195,12 +196,12 @@ export function AuthForm() {
               </button>
             )}
           </div>
-          <p className="mt-6 text-center text-xs text-content-secondary">
+          <p className="chore-auth-policy">
             Your household data stays tied to your account. By continuing, you agree to Chorely's policies.{' '}
-            <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noreferrer" className="text-brand hover:underline">Privacy Policy</a>
+            <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noreferrer" className="chore-auth-link">Privacy Policy</a>
           </p>
         </div>
-      </div>
+      </main>
     </>
   );
 }

@@ -8,7 +8,7 @@ interface AccountSettingsProps {
   embedded?: boolean;
 }
 
-export function AccountSettings({ isOpen, onClose, embedded=false }: AccountSettingsProps) {
+export function AccountSettings({ isOpen, onClose, embedded = false }: AccountSettingsProps) {
   const { user, signOut, deleteAccount } = useAuth();
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -26,60 +26,52 @@ export function AccountSettings({ isOpen, onClose, embedded=false }: AccountSett
     }
   };
 
-  return (
-    <div className={embedded?"chore-account-page":"fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4"}>
-      <section
-        className="fluent-card w-full sm:max-w-md max-h-[90dvh] overflow-y-auto rounded-t-fluent-xl sm:rounded-fluent-lg p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
-        role={embedded?undefined:"dialog"}
-        aria-modal={embedded?undefined:true}
-        aria-labelledby="account-settings-title"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 id="account-settings-title" className="text-xl font-semibold text-content-primary">Account</h2>
-            <p className="mt-1 text-sm text-content-secondary">{user?.email}</p>
-          </div>
-          <button hidden={embedded} onClick={onClose} className="p-2 text-content-secondary hover:text-content-primary" aria-label="Close account settings">✕</button>
+  return <div className={embedded ? 'chore-account-page' : 'chore-account-backdrop'}>
+    <section className="chore-account-content" role={embedded ? undefined : 'dialog'} aria-modal={embedded ? undefined : true} aria-labelledby="account-settings-title">
+      <div className="chore-page-heading chore-account-heading">
+        <div>
+          <p className="chore-eyebrow">YOUR SPACE</p>
+          <h1 id="account-settings-title" className="chore-page-title">Account</h1>
+          <p className="chore-muted chore-account-email">{user?.email}</p>
         </div>
+        <button hidden={embedded} type="button" onClick={onClose} className="touch-button" aria-label="Close account settings">✕</button>
+      </div>
 
-        <div className="mt-6 border-t border-border pt-5">
-          <h3 className="font-medium text-content-primary">Appearance</h3>
-          <p className="mt-1 text-sm text-content-secondary">Choose how Chorely looks on this device.</p>
-          <div className="mt-3 inline-flex rounded-fluent-md border border-border">
-            <ThemeSelector />
-          </div>
+      <section className="chore-settings-section" aria-labelledby="appearance-title">
+        <div className="chore-setting-copy">
+          <h3 id="appearance-title">Appearance</h3>
+          <p>Choose a light or dark space, or follow your device.</p>
         </div>
-
-        <div className="mt-6 border-t border-border pt-5">
-          <h3 className="font-medium text-content-primary">Privacy</h3>
-          <p className="mt-1 text-sm text-content-secondary">Learn what information Chorely stores and how it is used.</p>
-          <a className="mt-2 inline-block text-sm text-brand hover:underline" href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noreferrer">View Privacy Policy</a>
-        </div>
-
-        <button
-          onClick={signOut}
-          className="mt-6 w-full rounded-fluent-sm border border-border px-4 py-2.5 text-sm font-medium text-content-primary hover:bg-subtle-background-hover"
-        >
-          Sign Out
-        </button>
-
-        <div className="mt-6 border-t border-border pt-5">
-          <h3 className="font-medium text-red-500">Delete account</h3>
-          <p className="mt-1 text-sm text-content-secondary">Permanently deletes your sign-in and profile. This cannot be undone.</p>
-          {error && <p className="mt-3 text-sm text-red-500" role="alert">{error}</p>}
-          {!confirming ? (
-            <button onClick={() => setConfirming(true)} className="mt-4 rounded-fluent-sm border border-red-500 px-4 py-2 text-sm text-red-500 hover:bg-red-500/10">Delete my account</button>
-          ) : (
-            <div className="mt-4 rounded-fluent-sm border border-red-500/40 bg-red-500/10 p-4">
-              <p className="text-sm text-content-primary">Are you sure you want to permanently delete your account?</p>
-              <div className="mt-3 flex gap-3">
-                <button onClick={handleDelete} disabled={deleting} className="rounded-fluent-sm bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-60">{deleting ? 'Deleting…' : 'Delete permanently'}</button>
-                <button onClick={() => setConfirming(false)} disabled={deleting} className="rounded-fluent-sm border border-border px-4 py-2 text-sm text-content-primary">Cancel</button>
-              </div>
-            </div>
-          )}
-        </div>
+        <ThemeSelector />
       </section>
-    </div>
-  );
+
+      <section className="chore-settings-section" aria-labelledby="privacy-title">
+        <div className="chore-setting-copy">
+          <h3 id="privacy-title">Privacy</h3>
+          <p>How your household information is stored and used.</p>
+        </div>
+        <a className="chore-text-link" href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noreferrer">Privacy Policy <span aria-hidden="true">↗</span></a>
+      </section>
+
+      <section className="chore-settings-section chore-account-session" aria-label="Session">
+        <div className="chore-setting-copy"><h3>Signing out</h3><p>Your household will be here when you return.</p></div>
+        <button type="button" onClick={signOut} className="chore-button secondary">Sign Out</button>
+      </section>
+
+      <section className="chore-settings-section chore-account-danger" aria-labelledby="delete-account-title">
+        <div className="chore-setting-copy">
+          <h3 id="delete-account-title">Delete account</h3>
+          <p>Permanently deletes your sign-in and profile. This cannot be undone.</p>
+        </div>
+        {error && <p className="chore-error" role="alert">{error}</p>}
+        {!confirming ? <button type="button" onClick={() => setConfirming(true)} className="chore-button danger">Delete my account</button> : <div className="chore-delete-confirmation">
+          <p>Are you sure you want to permanently delete your account?</p>
+          <div className="chore-account-confirm-actions">
+            <button type="button" onClick={() => setConfirming(false)} disabled={deleting} className="chore-button secondary">Cancel</button>
+            <button type="button" onClick={handleDelete} disabled={deleting} className="chore-button danger">{deleting ? 'Deleting…' : 'Delete permanently'}</button>
+          </div>
+        </div>}
+      </section>
+    </section>
+  </div>;
 }

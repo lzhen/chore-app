@@ -39,15 +39,7 @@ export function Logo({ size = 'md', showText = true }: LogoProps) {
       {/* Logo Text */}
       {showText && (
         <div className="flex flex-col">
-          <span
-            className={`${textSizeClasses[size]} font-bold`}
-            style={{
-              background: 'linear-gradient(to right, #3b82f6, #8b5cf6, #ec4899)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}
-          >
+          <span className={`${textSizeClasses[size]} chore-wordmark`}>
             Chorely
           </span>
           {size === 'lg' && (

@@ -1,5 +1,54 @@
-/* App Store RC: reduce focus-triggered iPhone zoom while preserving user zoom. */
+.chore-auth {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 104px 24px 48px;
+  color: var(--text-primary);
+  background: var(--theme-bg);
+}
+.chore-auth-tools { position: absolute; top: 24px; right: 24px; }
+.chore-auth-content { width: 100%; max-width: 420px; }
+.chore-auth-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 44px; }
+.chore-auth-brand .chore-wordmark { font: 400 30px/1 Georgia, 'Times New Roman', serif; letter-spacing: -.045em; }
+.chore-auth-intro { margin-bottom: 32px; }
+.chore-auth-intro .chore-eyebrow { margin: 0 0 16px; font: 400 10px/1.6 monospace; letter-spacing: .13em; color: var(--text-secondary); }
+.chore-auth-intro h1 { margin: 0 0 16px; font: 400 48px/1.08 Georgia, 'Times New Roman', serif; letter-spacing: -.045em; }
+.chore-auth-intro > p:last-child { margin: 0; font-size: 15px; line-height: 1.7; color: var(--text-secondary); }
+.chore-auth-mode { margin: 0 0 22px; font-size: 17px; line-height: 1.5; font-weight: 500; }
+.chore-auth-form { display: grid; gap: 20px; }
+.chore-auth-label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 500; line-height: 1.5; }
+/* Preserve the verified iPhone input size and allow larger user text. */
 .chore-auth .fluent-input {
   font-size: max(16px, 1rem);
   min-height: 48px;
+  padding: 13px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  color: var(--text-primary);
+  background: var(--surface-primary);
+  box-shadow: none;
 }
+.chore-auth .fluent-input.pr-16 { padding-right: 64px; }
+.chore-auth .fluent-input:focus { border-color: var(--text-primary); outline: 2px solid var(--focus-color, #a4b3ff); outline-offset: 3px; }
+.chore-auth-form button[aria-label="Reveal"], .chore-auth-form button[aria-label="Conceal"] { min-width: 56px; min-height: 48px; }
+.chore-auth .chore-button.primary { min-height: 50px; margin-top: 4px; border-radius: 8px; font-size: 15px; }
+.chore-auth .chore-button.primary:disabled { opacity: .55; cursor: wait; }
+.chore-auth-recovery { margin-top: 10px; }
+.chore-auth-switch { margin-top: 22px; padding-top: 22px; border-top: 1px solid var(--border-subtle); }
+.chore-auth-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.6; }
+.chore-auth-link:hover { color: var(--text-primary); text-decoration: underline; text-underline-offset: 4px; }
+.chore-auth-policy { margin: 24px 0 0; color: var(--text-secondary); font-size: 11px; line-height: 1.8; }
+.chore-auth-policy .chore-auth-link { min-height: 32px; font-size: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.chore-auth-feedback { padding: 12px 14px; border: 1px solid var(--border-default); border-radius: 8px; font-size: 13px; line-height: 1.6; }
+.chore-auth-feedback.is-error { color: #b33f32; border-color: #b33f3266; }
+.chore-auth-feedback.is-success { color: var(--text-primary); }
+[data-theme="dark"] .chore-auth-feedback.is-error { color: #f2a599; border-color: #f2a59966; }
+@media (max-width: 640px) {
+  .chore-auth { padding: 100px 24px 36px; align-items: flex-start; }
+  .chore-auth-tools { top: 20px; right: 20px; }
+  .chore-auth-brand { margin-bottom: 32px; }
+  .chore-auth-intro h1 { font-size: 40px; }
+}
+@media (prefers-reduced-motion: reduce) { .chore-auth * { animation: none !important; transition: none !important; } }
