@@ -3,16 +3,29 @@ import { useApp } from '../context/AppContext';
 import { Chore, RecurrenceType, Priority } from '../types';
 import { dateKey } from '../utils/dates';
 import { Dialog } from './Dialog';
-interface Defaults {date?:string;startTime?:string;endTime?:string;allDay?:boolean;}
-interface Props {isOpen:boolean;onClose:()=>void;editChore?:Chore|null;defaultDate?:string;instanceDate?:string;defaultValues?:Defaults;}
+export interface ChoreDefaultValues {
+ title?:string;
+ date?:string;
+ startTime?:string;
+ endTime?:string;
+ allDay?:boolean;
+ assigneeId?:string|null;
+ description?:string;
+ recurrence?:RecurrenceType;
+ priority?:Priority;
+ categoryId?:string;
+ estimatedMinutes?:number;
+}
+interface Props {isOpen:boolean;onClose:()=>void;editChore?:Chore|null;defaultDate?:string;instanceDate?:string;defaultValues?:ChoreDefaultValues;}
 export function ChoreModal(props:Props){return props.isOpen?<ChoreEditor {...props}/>:null;}
 function ChoreEditor({onClose,editChore,defaultDate,defaultValues,instanceDate}:Props){
  const {state,addChore,updateChore,deleteChore}=useApp();
- const [title,setTitle]=useState(editChore?.title||'');const [date,setDate]=useState(editChore?.date||defaultValues?.date||defaultDate||dateKey());
- const [member,setMember]=useState(editChore?.assigneeId||'');const [start,setStart]=useState(editChore?.dueTime||defaultValues?.startTime||'');const [end,setEnd]=useState(editChore?.endTime||defaultValues?.endTime||'');
- const [description,setDescription]=useState(editChore?.description||'');const [repeat,setRepeat]=useState<RecurrenceType>(editChore?.recurrence||'none');const [priority,setPriority]=useState<Priority>(editChore?.priority||'medium');
- const [category,setCategory]=useState(editChore?.categoryId||'');const [estimate,setEstimate]=useState(editChore?.estimatedMinutes?.toString()||'');
+ const [title,setTitle]=useState(editChore?.title??defaultValues?.title??'');const [date,setDate]=useState(editChore?.date||defaultValues?.date||defaultDate||dateKey());
+ const [member,setMember]=useState((editChore?editChore.assigneeId:defaultValues?.assigneeId)||'');const [start,setStart]=useState(editChore?.dueTime||defaultValues?.startTime||'');const [end,setEnd]=useState(editChore?.endTime||defaultValues?.endTime||'');
+ const [description,setDescription]=useState(editChore?.description??defaultValues?.description??'');const [repeat,setRepeat]=useState<RecurrenceType>(editChore?.recurrence??defaultValues?.recurrence??'none');const [priority,setPriority]=useState<Priority>(editChore?.priority??defaultValues?.priority??'medium');
+ const [category,setCategory]=useState(editChore?.categoryId??defaultValues?.categoryId??'');const [estimate,setEstimate]=useState((editChore?.estimatedMinutes??defaultValues?.estimatedMinutes)?.toString()||'');
  const [busy,setBusy]=useState(false);const [error,setError]=useState('');const [dirty,setDirty]=useState(false);const [confirmDelete,setConfirmDelete]=useState(false);const [confirmDiscard,setConfirmDiscard]=useState(false);
+ const hasDefaultDetails=!!defaultValues?.startTime||(!!defaultValues?.recurrence&&defaultValues.recurrence!=='none')||!!defaultValues?.estimatedMinutes;
  useEffect(()=>{const prevent=(e:BeforeUnloadEvent)=>{if(dirty){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',prevent);return ()=>window.removeEventListener('beforeunload',prevent);},[dirty]);
  function close(){if(busy)return;if(dirty)setConfirmDiscard(true);else onClose();}
  async function save(event:React.FormEvent){event.preventDefault();if(busy)return;setError('');if(!title.trim()||!date){setError('Enter a task name and date.');return;}if(end&&(!start||end<=start)){setError('Choose an end time after the start time, on the same day.');return;}if(estimate&&(!Number.isInteger(Number(estimate))||Number(estimate)<1)){setError('Estimated minutes must be a positive whole number.');return;}
@@ -25,7 +38,7 @@ function ChoreEditor({onClose,editChore,defaultDate,defaultValues,instanceDate}:
  {input('What needs doing?','chore-title',title,setTitle,'text',true)}
  <label className="chore-label" htmlFor="chore-member">Who’s responsible?<select id="chore-member" className="chore-input" value={member} onChange={e=>setMember(e.target.value)}><option value="">Unassigned — decide later</option>{state.teamMembers.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
  {input('When?','chore-date',date,setDate,'date',true)}
- <details className="chore-more" open={!!editChore||!!defaultValues?.startTime||undefined}><summary>More options <small>Time, repeat, notes</small></summary>
+ <details className="chore-more" open={!!editChore||hasDefaultDetails||undefined}><summary>More options <small>Repeat, time estimate, notes</small></summary>
  <div className="chore-time-row">{input('Start time · optional','chore-start',start,setStart,'time')}{input('End time · optional','chore-end',end,setEnd,'time')}</div><p className="chore-muted">Leave times blank for an all-day chore. End times must be on the same day.</p>
  <label className="chore-label" htmlFor="chore-repeat">Repeat<select id="chore-repeat" className="chore-input" value={repeat} onChange={e=>setRepeat(e.target.value as RecurrenceType)}><option value="none">Does not repeat</option><option value="daily">Every day</option><option value="weekly">Every week</option><option value="monthly">Every month</option></select></label>
  <label className="chore-label" htmlFor="chore-priority">Priority<select id="chore-priority" className="chore-input" value={priority} onChange={e=>setPriority(e.target.value as Priority)}><option value="low">Low</option><option value="medium">Normal</option><option value="high">High</option></select></label>

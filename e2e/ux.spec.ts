@@ -74,3 +74,56 @@ test('dialog isolates background controls, keeps focus and confirms draft discar
 test('data load failure has retry, not a misleading empty family',async({page})=>{
  const f=await fixture(page);f.failReads();await page.reload();await expect(page.getByRole('alert')).toContainText('could not be loaded');f.recover();await page.getByRole('button',{name:'Retry',exact:true}).click();await expect(page.getByRole('button',{name:'Edit Water the plants'})).toBeVisible();
 });
+
+for (const width of [375, 1440]) test(`sign-in fits ${width}px and appearance persists`, async ({page}, info) => {
+  await page.setViewportSize({width, height: 900});
+  await page.goto('/chore-app/');
+  await expect(page.getByRole('heading', {name: 'Sign in to your account', exact: true})).toBeVisible();
+  for (const theme of ['Light', 'Dark']) {
+    await page.getByRole('button', {name: /^Theme:/}).click();
+    await page.getByRole('group', {name: 'Choose appearance'}).getByRole('button', {name: new RegExp(theme)}).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme.toLowerCase());
+    const email = page.getByLabel('Email', {exact: true});
+    expect(await email.evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+    const submit = page.getByRole('button', {name: 'Sign In', exact: true});
+    await expect(submit).toBeVisible();
+    expect(await submit.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({path: info.outputPath(`sign-in-${theme.toLowerCase()}-${width}.png`), fullPage: true});
+  }
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+});
+
+test('desktop Today progress and mobile starter drafts are usable', async ({page}, info) => {
+  const f = await fixture(page, 1440);
+  await expect(page.getByRole('progressbar')).toHaveAttribute('max', '2');
+  await expect(page.getByRole('progressbar')).toHaveAttribute('value', '0');
+  await expect(page.getByText('1 overdue chore · separate from today’s progress')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({path: info.outputPath('today-desktop-light.png'), fullPage: true});
+  await page.getByRole('button', {name: /^Theme:/}).click();
+  await page.getByRole('group', {name: 'Choose appearance'}).getByRole('button', {name: /Dark/}).click();
+  await page.screenshot({path: info.outputPath('today-desktop-dark.png'), fullPage: true});
+  await page.setViewportSize({width: 390, height: 844});
+  await page.screenshot({path: info.outputPath('today-mobile-dark.png'), fullPage: true});
+  expect(f.db.chore_completions).toHaveLength(0);
+});
+
+test('starter suggestion waits for an edited explicit save', async ({page}, info) => {
+  const f = await fixture(page, 390, true);
+  await page.screenshot({path: info.outputPath('first-chore-mobile.png'), fullPage: true});
+  await page.getByRole('button', {name: 'Start with Wash dishes'}).click();
+  const dialog = page.getByRole('dialog', {name: 'Add a chore'});
+  await expect(dialog.getByLabel('What needs doing?')).toHaveValue('Wash dishes');
+  await expect(dialog.getByLabel('Repeat', {exact: true})).toHaveValue('daily');
+  await expect(dialog.getByLabel('Estimated minutes · optional')).toHaveValue('15');
+  expect(f.calls.filter(call => call.table === 'chores' && call.method === 'POST')).toHaveLength(0);
+  await dialog.getByLabel('What needs doing?').fill('Put away our dishes');
+  await dialog.getByLabel('Estimated minutes · optional').fill('10');
+  await dialog.getByRole('button', {name: 'Add chore', exact: true}).click();
+  await expect(dialog).toHaveCount(0);
+  expect(f.db.chores[0].title).toBe('Put away our dishes');
+  expect(f.db.chores[0].estimated_minutes).toBe(10);
+  expect(f.calls.filter(call => call.table === 'chores' && call.method === 'POST')).toHaveLength(1);
+});
