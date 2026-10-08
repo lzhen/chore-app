@@ -3,14 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { Logo } from './Logo';
 
 describe('approved Nesmi web artwork', () => {
-  it('uses the exact light and dark wreath assets with theme-aware visibility', () => {
+  it('uses the approved black icon in every theme', () => {
     const { container } = render(<Logo />);
     const images = container.querySelectorAll('img');
-    expect(images).toHaveLength(2);
-    expect(images[0].getAttribute('src')).toBe(`${import.meta.env.BASE_URL}icons/chorely-light.png`);
-    expect(images[1].getAttribute('src')).toBe(`${import.meta.env.BASE_URL}icons/chorely-dark.png`);
-    expect(images[0].className).toContain('dark:hidden');
-    expect(images[1].className).toContain('dark:block');
+    expect(images).toHaveLength(1);
+    expect(images[0].getAttribute('src')).toBe(`${import.meta.env.BASE_URL}icons/nesmi-1024-20261008.png`);
+    expect(images[0].className).not.toContain('dark:');
     expect(container.querySelector('svg')).toBeNull();
   });
 

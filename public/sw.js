@@ -1,4 +1,4 @@
-const CACHE = 'nesmi-20261008';
+const CACHE = 'nesmi-icons-20261008';
 const APP_URL = self.registration.scope;
 const MANIFEST_URL = new URL('manifest.webmanifest', APP_URL).href;
 

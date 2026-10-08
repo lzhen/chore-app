@@ -18,19 +18,12 @@ export function Logo({ size = 'md', showText = true }: LogoProps) {
 
   return (
     <div className="nesmi-logo flex items-center gap-2">
-      {/* Approved product artwork follows the active app theme. */}
+      {/* Approved black-background Nesmi artwork stays consistent in every theme. */}
       <div className={`${sizeClasses[size]} shrink-0 overflow-hidden rounded-xl`}>
         <img
-          src={`${import.meta.env.BASE_URL}icons/chorely-light.png`}
+          src={`${import.meta.env.BASE_URL}icons/nesmi-1024-20261008.png`}
           alt={showText ? '' : 'Nesmi'}
-          className="block h-full w-full object-contain dark:hidden"
-          width="64"
-          height="64"
-        />
-        <img
-          src={`${import.meta.env.BASE_URL}icons/chorely-dark.png`}
-          alt={showText ? '' : 'Nesmi'}
-          className="hidden h-full w-full object-contain dark:block"
+          className="block h-full w-full object-contain"
           width="64"
           height="64"
         />

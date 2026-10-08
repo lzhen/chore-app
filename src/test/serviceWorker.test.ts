@@ -7,7 +7,7 @@ function worker(scope: string) {
   const cache = { addAll: vi.fn().mockResolvedValue(undefined), put: vi.fn().mockResolvedValue(undefined) };
   const caches = {
     open: vi.fn().mockResolvedValue(cache),
-    keys: vi.fn().mockResolvedValue(['chorely-design-20261007', 'nesmi-20261008', 'movelight-cache', 'care-cache']),
+    keys: vi.fn().mockResolvedValue(['chorely-design-20261007', 'nesmi-20261008', 'nesmi-icons-20261008', 'movelight-cache', 'care-cache']),
     delete: vi.fn().mockResolvedValue(true),
     match: vi.fn().mockResolvedValue(undefined),
   };
@@ -39,7 +39,7 @@ describe('PWA route compatibility', () => {
     let pending: Promise<unknown>;
     handlers.activate({ waitUntil: (promise: Promise<unknown>) => { pending = promise; } });
     await pending!;
-    expect(caches.delete.mock.calls).toEqual([['chorely-design-20261007']]);
+    expect(caches.delete.mock.calls).toEqual([['chorely-design-20261007'], ['nesmi-20261008']]);
     const respondWith = vi.fn();
     handlers.fetch({ request: { method: 'GET', url: 'https://empathie.ai/movelight/' }, respondWith });
     expect(fetch).not.toHaveBeenCalled();

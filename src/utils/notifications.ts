@@ -35,8 +35,8 @@ export function sendNotification(title: string, options?: NotificationOptions): 
   if (!areNotificationsEnabled()) return;
 
   const notification = new Notification(title, {
-    icon: `${import.meta.env.BASE_URL}icons/chorely-light-192.png`,
-    badge: `${import.meta.env.BASE_URL}icons/chorely-light-192.png`,
+    icon: `${import.meta.env.BASE_URL}icons/nesmi-192-20261008.png`,
+    badge: `${import.meta.env.BASE_URL}icons/nesmi-192-20261008.png`,
     ...options,
   });
 

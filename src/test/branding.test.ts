@@ -14,7 +14,7 @@ describe('Nesmi public identity', () => {
     expect(manifest.id).toBe('/chore-app/');
     expect(manifest.start_url).toBe('./');
     expect(manifest.scope).toBe('./');
-    expect(manifest.icons[0].src).toBe('icons/chorely-light-192.png');
+    expect(manifest.icons[0].src).toBe('icons/nesmi-192-20261008.png');
   });
 
   it('keeps user-visible copy and privacy labels consistent', () => {

@@ -9,13 +9,13 @@
   "description": "Family chore planning, assignments, and routines.",
   "icons": [
     {
-      "src": "icons/chorely-light-192.png",
+      "src": "icons/nesmi-192-20261008.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/chorely-light-512.png",
+      "src": "icons/nesmi-512-20261008.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
