@@ -144,10 +144,10 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
 
   return (
     <div className={embedded?"chore-insights-page":"fixed inset-0 bg-overlay flex items-center justify-center z-50 p-4"}>
-      <div className="fluent-card w-full max-w-4xl max-h-[90vh] overflow-hidden animate-fluent-appear shadow-fluent-28">
+      <div className={embedded ? "nesmi-page-content nesmi-insights" : "fluent-card nesmi-insights w-full max-w-4xl max-h-[90vh] overflow-hidden"}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2 className="fluent-title text-xl font-semibold text-content-primary">Insights</h2>
+        <div className="nesmi-insights-heading flex items-center justify-between">
+          <h2 className="nesmi-page-title">Insights</h2>
           <button
             hidden={embedded} onClick={onClose}
             className="text-content-secondary hover:text-content-primary hover:bg-subtle-background-hover rounded-fluent-sm transition-all duration-fast p-1.5"
@@ -159,9 +159,9 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-border px-6">
+        <div className="nesmi-section-tabs flex border-b border-border" aria-label="Insights sections">
           <button
-            onClick={() => setActiveTab('overview')}
+            aria-pressed={activeTab === 'overview'} onClick={() => setActiveTab('overview')}
             className={`px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === 'overview'
                 ? 'text-brand-primary border-b-2 border-brand-primary'
@@ -171,7 +171,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
             Overview
           </button>
           <button
-            onClick={() => setActiveTab('activity')}
+            aria-pressed={activeTab === 'activity'} onClick={() => setActiveTab('activity')}
             className={`px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === 'activity'
                 ? 'text-brand-primary border-b-2 border-brand-primary'
@@ -181,7 +181,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
             Activity
           </button>
           <button
-            onClick={() => setActiveTab('workload')}
+            aria-pressed={activeTab === 'workload'} onClick={() => setActiveTab('workload')}
             className={`px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === 'workload'
                 ? 'text-brand-primary border-b-2 border-brand-primary'
@@ -191,7 +191,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
             Workload
           </button>
           <button
-            onClick={() => setActiveTab('achievements')}
+            aria-pressed={activeTab === 'achievements'} onClick={() => setActiveTab('achievements')}
             className={`px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === 'achievements'
                 ? 'text-brand-primary border-b-2 border-brand-primary'
@@ -203,11 +203,11 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <div className="nesmi-insights-content">
           {activeTab === 'overview' ? (
             <>
               {/* Summary Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="nesmi-metrics grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="fluent-surface p-4 rounded-fluent-md border border-border">
                   <div className="text-2xl font-bold text-content-primary">{stats.completedToday}</div>
                   <div className="text-sm text-content-secondary">Completed Today</div>
@@ -217,7 +217,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                   <div className="text-sm text-content-secondary">Pending Today</div>
                 </div>
                 <div className="fluent-surface p-4 rounded-fluent-md border border-border">
-                  <div className="text-2xl font-bold text-yellow-500">{stats.overdue}</div>
+                  <div className="text-2xl font-bold text-content-primary">{stats.overdue}</div>
                   <div className="text-sm text-content-secondary">Overdue</div>
                 </div>
                 <div className="fluent-surface p-4 rounded-fluent-md border border-border">
@@ -233,15 +233,10 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                   {memberStats.map((member, index) => (
                     <div
                       key={member.memberId}
-                      className="fluent-surface flex items-center gap-4 p-4 rounded-fluent-md border border-border"
+                      className="nesmi-member-row flex items-center gap-4"
                     >
                       {/* Rank */}
-                      <div className={`w-8 h-8 rounded-fluent-circle flex items-center justify-center font-bold text-sm ${
-                        index === 0 ? 'bg-yellow-500 text-white' :
-                        index === 1 ? 'bg-gray-400 text-white' :
-                        index === 2 ? 'bg-amber-700 text-white' :
-                        'bg-surface-tertiary text-content-secondary'
-                      }`}>
+                      <div className="nesmi-member-rank">
                         {index + 1}
                       </div>
 
@@ -297,7 +292,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                           <div className="text-xs text-content-secondary">Week</div>
                         </div>
                         <div className="text-center">
-                          <div className="font-bold text-orange-500">{member.currentStreak}</div>
+                          <div className="font-medium text-content-primary">{member.currentStreak}</div>
                           <div className="text-xs text-content-secondary">Streak</div>
                         </div>
                       </div>
@@ -372,7 +367,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                   return (
                     <div
                       key={completion.id}
-                      className="fluent-surface flex items-center gap-4 p-4 rounded-fluent-md border border-border hover:shadow-fluent-4 transition-all"
+                      className="nesmi-activity-row flex items-center gap-4"
                     >
                       {/* Member avatar */}
                       {member?.avatarUrl ? (

@@ -28,12 +28,6 @@ export interface CalendarRef {
   prev: () => void;
 }
 
-const priorityIndicators = {
-  low: '🔵',
-  medium: '🟡',
-  high: '🔴',
-};
-
 export const Calendar = forwardRef<CalendarRef, CalendarProps>(
   ({ onAddClick, onEventClick, searchQuery, hiddenMembers = new Set() }, ref) => {
     const { state, updateChore } = useApp();
@@ -132,8 +126,9 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
           start,
           end,
           allDay,
-          backgroundColor: instance.isCompleted ? '#10B981' : instance.color,
-          borderColor: instance.isCompleted ? '#10B981' : instance.color,
+          backgroundColor: 'var(--surface-tertiary)',
+          borderColor: 'var(--border-subtle)',
+          textColor: 'var(--text-primary)',
           classNames: [
             instance.isCompleted ? 'event-completed' : '',
             `priority-${instance.priority}`,
@@ -145,6 +140,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
             priority: instance.priority,
             instanceDate: instance.date,
             assigneeName: instance.assigneeName,
+            memberColor: instance.color,
             description: instance.description,
             dueTime: instance.dueTime,
             endTime: instance.endTime,
@@ -263,9 +259,9 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
     };
 
     return (
-      <div className="chore-calendar-page flex-1 p-0 sm:p-6 overflow-hidden">{operationError&&<p className="chore-error" role="alert">{operationError}<button onClick={()=>setOperationError('')}>Dismiss</button></p>}{completionInstance&&<CompletionDialog instance={completionInstance} onClose={()=>setCompletionInstance(null)}/>}
-        <div className="mobile-calendar-shell fluent-card p-2 sm:p-4 h-full flex flex-col">
-          <div className="flex-1 min-h-0 calendar-container">
+      <div className="chore-calendar-page">{operationError&&<p className="chore-error" role="alert">{operationError}<button onClick={()=>setOperationError('')}>Dismiss</button></p>}{completionInstance&&<CompletionDialog instance={completionInstance} onClose={()=>setCompletionInstance(null)}/>}
+        <div className="mobile-calendar-shell">
+          <div className="calendar-container">
             <FullCalendar
               ref={calendarRef}
               plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
@@ -304,7 +300,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
               allDayText="All day"
               // Formatting
               titleFormat={{ year: 'numeric', month: 'short' }}
-              dayHeaderFormat={{ weekday: 'short', day: 'numeric' }}
+              dayHeaderFormat={{ weekday: 'short' }}
               slotLabelFormat={{ hour: 'numeric', minute: '2-digit', hour12: true }}
               eventTimeFormat={{ hour: 'numeric', minute: '2-digit', hour12: true }}
               // Custom event content
@@ -318,16 +314,14 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
                   return (
                     <div className={`flex items-center gap-1 px-1 py-0.5 overflow-hidden ${isCompleted ? 'line-through opacity-70' : ''}`}>
                       {!isCompleted && priority && (
-                        <span className="text-[10px] flex-shrink-0">
-                          {priorityIndicators[priority as keyof typeof priorityIndicators]}
-                        </span>
+                        <span className="nesmi-calendar-dot" style={{ backgroundColor: arg.event.extendedProps.memberColor }} aria-hidden="true" />
                       )}
                       {isCompleted && (
                         <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       )}
-                      <span className="truncate text-xs">{arg.event.title}</span>
+                      <span className="truncate text-xs">{arg.event.title}</span>{priority === 'high' && <span className="nesmi-calendar-priority" title="High priority" aria-label="High priority">!</span>}
                     </div>
                   );
                 }
@@ -337,16 +331,14 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
                   <div className={`flex flex-col h-full px-1 py-0.5 overflow-hidden ${isCompleted ? 'line-through opacity-70' : ''}`}>
                     <div className="flex items-center gap-1">
                       {!isCompleted && priority && (
-                        <span className="text-[10px] flex-shrink-0">
-                          {priorityIndicators[priority as keyof typeof priorityIndicators]}
-                        </span>
+                        <span className="nesmi-calendar-dot" style={{ backgroundColor: arg.event.extendedProps.memberColor }} aria-hidden="true" />
                       )}
                       {isCompleted && (
                         <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       )}
-                      <span className="truncate text-xs font-medium">{arg.event.title}</span>
+                      <span className="truncate text-xs font-medium">{arg.event.title}</span>{priority === 'high' && <span className="nesmi-calendar-priority" title="High priority" aria-label="High priority">!</span>}
                     </div>
                     {arg.event.extendedProps.assigneeName && (
                       <span className="text-[10px] opacity-80 truncate">

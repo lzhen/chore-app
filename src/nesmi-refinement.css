@@ -226,3 +226,100 @@
   .nesmi-auth-story h1 { font-size: 42px; }
   .chore-welcome-actions > * { flex: initial; }
 }
+
+/* Shared product-page contract: the same canvas, width and rhythm as Chores. */
+.chore-account-page, .chore-insights-page { padding: 28px 24px 110px; }
+.nesmi-page-content { width: 100%; max-width: 760px; margin: 0 auto; }
+.chore-account-page > .nesmi-page-content { max-width: 760px; border: 0; border-radius: 0; }
+.nesmi-page-title { margin: 0; font-size: 36px; line-height: 1.12; font-weight: 550; letter-spacing: -.045em; color: var(--text-primary); }
+.nesmi-account > div:first-child { margin-bottom: 32px; }
+.nesmi-account > .border-t { border-color: var(--border-subtle); padding-top: 24px; margin-top: 28px; }
+.nesmi-account h3 { font-size: 15px; }
+.nesmi-account p { line-height: 1.65; overflow-wrap: anywhere; }
+.nesmi-account button { border-radius: 8px; }
+.nesmi-insights-heading { margin-bottom: 28px; }
+.nesmi-section-tabs { gap: 24px; overflow-x: auto; border-color: var(--border-subtle); }
+.nesmi-section-tabs button { padding: 14px 0; white-space: nowrap; font-weight: 500; font-size: 13px; min-height: 48px; }
+.nesmi-section-tabs button[aria-pressed=true] { border-color: var(--text-primary); color: var(--text-primary); }
+.nesmi-insights-content { padding: 28px 0; }
+.nesmi-insights-content h3 { font-size: 16px; font-weight: 550; }
+.nesmi-metrics { gap: 0; margin-bottom: 36px; border-bottom: 1px solid var(--border-subtle); }
+.nesmi-metrics > div { background: transparent; border: 0; border-radius: 0; padding: 0 16px 24px 0; }
+.nesmi-metrics > div > div:first-child { font-size: 32px; font-weight: 500; letter-spacing: -.035em; }
+.nesmi-metrics > div > div:last-child { font-size: 12px; margin-top: 5px; }
+.nesmi-member-row, .nesmi-activity-row { padding: 18px 0; border-bottom: 1px solid var(--border-subtle); margin-top: 0 !important; }
+.nesmi-member-rank { width: 24px; flex-shrink: 0; text-align: center; color: var(--text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; }
+.nesmi-activity-row > .min-w-0 > div:first-child { flex-wrap: wrap; }
+.nesmi-insights .fluent-surface { box-shadow: none; background: transparent; border-color: var(--border-subtle); }
+.nesmi-insights:not(.nesmi-page-content) { padding: 24px; overflow-y: auto; }
+
+/* Calendar uses quiet secondary controls, reserving lime for the add action. */
+.chore-calendar-page { padding: 28px 24px 110px !important; overflow: auto; }
+.mobile-calendar-shell { background: var(--surface-primary); height: 100%; min-height: 540px; max-width: 1200px; margin: auto; }
+.calendar-container { height: 100%; min-height: 540px; }
+.chore-calendar-page .fc { --fc-border-color: var(--border-subtle); --fc-page-bg-color: var(--surface-primary); --fc-neutral-bg-color: var(--surface-tertiary); --fc-list-event-hover-bg-color: var(--surface-tertiary); }
+.chore-calendar-page .fc .fc-toolbar { gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+.chore-calendar-page .fc .fc-toolbar-title { font-size: 26px; letter-spacing: -.035em; font-weight: 550; }
+.chore-calendar-page .fc .fc-button { min-height: 44px; padding: 8px 12px; font-size: 12px; font-weight: 500 !important; background: transparent !important; border-color: var(--border-subtle) !important; color: var(--text-secondary); border-radius: 7px !important; box-shadow: none !important; }
+.chore-calendar-page .fc .fc-button:hover, .chore-calendar-page .fc .fc-button-primary:not(:disabled).fc-button-active { background: var(--surface-tertiary) !important; border-color: var(--border-default) !important; color: var(--text-primary); }
+.chore-calendar-page .fc .fc-button:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 3px; }
+.chore-calendar-page .fc .fc-button:disabled { opacity: .5; }
+.chore-calendar-page .fc .fc-button-group { gap: 4px; }
+.chore-calendar-page .fc .fc-col-header-cell-cushion { font-size: 10px; font-weight: 500; letter-spacing: .04em; padding: 12px 2px; }
+.chore-calendar-page .fc .fc-daygrid-day-number { font-size: 12px; padding: 8px; }
+.chore-calendar-page .fc .fc-daygrid-day.fc-day-today { background: var(--surface-primary) !important; }
+.chore-calendar-page .fc .fc-day-today .fc-daygrid-day-number { background: var(--chore-highlight); color: var(--chore-highlight-ink); border-radius: 50%; margin: 3px; min-width: 30px; height: 30px; text-align: center; padding: 6px; }
+.chore-calendar-page .fc .fc-event { padding: 3px 2px !important; border: 1px solid var(--border-subtle) !important; border-radius: 4px !important; }
+.chore-calendar-page .fc .fc-event-main { color: var(--text-primary); }
+.nesmi-calendar-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.chore-calendar-page .fc .fc-scrollgrid { border-radius: 0; }
+.chore-calendar-page .fc .fc-list-day-cushion { background: var(--surface-tertiary); }
+.chore-dialog .chore-input { border-color: var(--border-subtle); }
+.chore-dialog .chore-label { font-size: 13px; }
+@media (min-width: 768px) {
+  .chore-account-page, .chore-insights-page { padding: 52px 48px 90px; }
+  .nesmi-page-title { font-size: 48px; }
+  .chore-calendar-page { padding: 40px 32px 90px !important; }
+}
+@media (max-width: 767px) {
+  .nesmi-section-tabs { gap: 22px; }
+  .nesmi-metrics { row-gap: 22px; }
+  .nesmi-member-row { gap: 8px; }
+  .chore-calendar-page { padding: 20px 12px 100px !important; }
+  .chore-calendar-page .fc .fc-toolbar { flex-direction: row; gap: 12px; }
+  .chore-calendar-page .fc .fc-toolbar-chunk:nth-child(2) { order: -1; width: 100%; }
+  .chore-calendar-page .fc .fc-toolbar-title { font-size: 32px; }
+  .chore-calendar-page .fc .fc-button { padding: 7px 8px; font-size: 11px; }
+  .chore-calendar-page .fc .fc-toolbar-chunk:last-child { width: 100%; }
+  .chore-calendar-page .fc .fc-toolbar-chunk:last-child .fc-button-group { display: flex; }
+  .chore-calendar-page .fc .fc-toolbar-chunk:last-child .fc-button { flex: 1; }
+}
+/* Keep native select behavior; give every closed chevron a consistent inset. */
+.chore-app select.chore-input,
+.chore-dialog select.chore-input {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-inline-end: 44px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='m4 6 4 4 4-4' stroke='%23555b60' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px 16px;
+}
+[data-theme='dark'] .chore-app select.chore-input,
+[data-theme='dark'] .chore-dialog select.chore-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='m4 6 4 4 4-4' stroke='%23c6c9cd' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+.chore-app select.chore-input:dir(rtl),
+.chore-dialog select.chore-input:dir(rtl) { background-position: left 14px center; }
+@media (forced-colors: active) {
+  .chore-app select.chore-input,
+  .chore-dialog select.chore-input {
+    -webkit-appearance: auto;
+    appearance: auto;
+    background-image: none;
+    padding-inline-end: 13px;
+  }
+}
+
+.chore-calendar-page .fc .fc-event { box-shadow: none; }
+.nesmi-calendar-priority { margin-left: auto; font-size: 10px; font-weight: 600; padding: 0 3px; border: 1px solid var(--border-default); border-radius: 3px; }

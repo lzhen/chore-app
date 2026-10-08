@@ -29,14 +29,14 @@ export function AccountSettings({ isOpen, onClose, embedded=false }: AccountSett
   return (
     <div className={embedded?"chore-account-page":"fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4"}>
       <section
-        className="fluent-card w-full sm:max-w-md max-h-[90dvh] overflow-y-auto rounded-t-fluent-xl sm:rounded-fluent-lg p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+        className={embedded ? "nesmi-page-content nesmi-account" : "fluent-card nesmi-account w-full sm:max-w-md max-h-[90dvh] overflow-y-auto rounded-t-fluent-xl sm:rounded-fluent-lg p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]"}
         role={embedded?undefined:"dialog"}
         aria-modal={embedded?undefined:true}
         aria-labelledby="account-settings-title"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 id="account-settings-title" className="text-xl font-semibold text-content-primary">Account</h2>
+            <h2 id="account-settings-title" className="nesmi-page-title">Account</h2>
             <p className="mt-1 text-sm text-content-secondary">{user?.email}</p>
           </div>
           <button hidden={embedded} onClick={onClose} className="p-2 text-content-secondary hover:text-content-primary" aria-label="Close account settings">✕</button>
@@ -58,7 +58,7 @@ export function AccountSettings({ isOpen, onClose, embedded=false }: AccountSett
 
         <button
           onClick={signOut}
-          className="mt-6 w-full rounded-fluent-sm border border-border px-4 py-2.5 text-sm font-medium text-content-primary hover:bg-subtle-background-hover"
+          className="chore-button secondary mt-6"
         >
           Sign Out
         </button>
