@@ -323,3 +323,14 @@
 
 .chore-calendar-page .fc .fc-event { box-shadow: none; }
 .nesmi-calendar-priority { margin-left: auto; font-size: 10px; font-weight: 600; padding: 0 3px; border: 1px solid var(--border-default); border-radius: 3px; }
+
+
+/* Header artwork has no tile. Use the approved image's luminance, not its canvas. */
+.nesmi-logo-mark { display: block; background-color: var(--text-primary); mask-mode: luminance; mask-size: contain; mask-position: center; mask-repeat: no-repeat; -webkit-mask-size: contain; -webkit-mask-position: center; -webkit-mask-repeat: no-repeat; }
+/* Keep the established width. Long forms scroll inside a bounded dialog;
+   the title and action footer remain outside that scrolling region. */
+.chore-dialog { max-height: min(720px, calc(100dvh - 32px)); }
+.chore-dialog-body { overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--border-default) transparent; }
+@media (min-width: 768px) {
+  .chore-dialog { max-height: min(720px, 80dvh); }
+}

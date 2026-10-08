@@ -13,7 +13,7 @@ async function fixture(page:Page,width=390,empty=false){
   {id:'11111111-1111-4111-8111-111111111111',title:'Take out the recycling',date:TODAY,due_time:'18:00:00',end_time:'19:00:00',assignee_id:A,recurrence:'none',priority:'medium'},
   {id:'22222222-2222-4222-8222-222222222222',title:'Clean the kitchen counters',date:'2026-09-24',assignee_id:B,recurrence:'none',priority:'medium'},
   {id:'33333333-3333-4333-8333-333333333333',title:'Vacuum common areas',date:'2026-09-27',assignee_id:null,recurrence:'none',priority:'high'},
-  {id:'44444444-4444-4444-8444-444444444444',title:'Water the plants',date:TODAY,assignee_id:null,recurrence:'none',priority:'medium'},
+  {id:'44444444-4444-4444-8444-444444444444',title:'Water the plants',date:TODAY,assignee_id:null,recurrence:'daily',priority:'medium'},
  ]};
  const calls:{method:string;table:string;body:any}[]=[];let fail=false;let readsFail=false;
  await page.route('**/*.supabase.co/**',async route=>{
@@ -39,6 +39,9 @@ for(const theme of ['light','dark']) for(const width of [390,1440]) test(`unifie
  const {calls}=await fixture(page,width);
  await page.getByRole('button',{name:/Theme:/}).click();
  await page.getByRole('button',{name:theme==='dark'?/Dark A quieter/:/Light A brighter/}).click();
+ const mark=page.locator('.chore-brand .nesmi-logo-mark');
+ await expect(mark).toHaveCSS('mask-mode','luminance');
+ await expect(mark).toHaveCSS('background-color',theme==='dark'?'rgb(242, 242, 243)':'rgb(20, 20, 20)');
  const nav=page.getByRole('navigation',{name:'Primary navigation'});
  for(const view of ['Calendar','Insights','Account']) {
   await nav.getByRole('button',{name:view,exact:true}).click();
@@ -67,13 +70,40 @@ for(const theme of ['light','dark']) for(const width of [390,1440]) test(`unifie
  await nav.getByRole('button',{name:'Calendar',exact:true}).click();
  await page.getByRole('button',{name:'Add new chore',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Add a chore'});
+ const box=await dialog.boundingBox();expect(box).not.toBeNull();expect(box!.width).toBeLessThanOrEqual(width);if(width>=768){expect(box!.width).toBe(530);expect(box!.height).toBeLessThanOrEqual(844*.8+1);}
  await dialog.locator('summary').click();
- await dialog.getByLabel('Repeat',{exact:true}).selectOption('weekly');
- await dialog.getByLabel('Priority',{exact:true}).selectOption('high');
+ await dialog.getByRole('combobox',{name:'Repeat',exact:true}).selectOption('weekly');
+ await dialog.getByRole('combobox',{name:'Priority',exact:true}).selectOption('high');
  await dialog.getByLabel('Notes · optional').fill('Fictional preview only');
  await page.screenshot({path:info.outputPath(`form-${theme}-${width}.png`),fullPage:true});
  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
  await dialog.getByRole('button',{name:'Discard changes',exact:true}).click();
  await expect(dialog).toHaveCount(0);
+ await nav.getByRole('button',{name:'Chores',exact:true}).click();
+ await page.getByRole('button',{name:'Edit Clean the kitchen counters',exact:true}).first().click();
+ const editor=page.getByRole('dialog',{name:'Edit chore'});
+ await page.screenshot({path:info.outputPath(`edit-single-${theme}-${width}.png`),fullPage:true});
+ await editor.getByRole('button',{name:'Cancel',exact:true}).click();
+ await expect(editor).toHaveCount(0);
+ await page.getByRole('button',{name:'Edit Water the plants',exact:true}).first().click();
+ await expect(editor.getByText(/You are editing the repeating series/)).toBeVisible();
+ await editor.getByRole('button',{name:'Delete series',exact:true}).click();
+ await expect(editor.getByText('Delete the entire repeating series? This cannot be undone.')).toBeVisible();
+ const body=editor.locator('.chore-dialog-body');
+ expect(await body.evaluate(el=>el.scrollHeight>el.clientHeight)).toBe(true);
+ const footer=await editor.locator('.chore-dialog-footer').boundingBox();
+ const header=await editor.locator('.chore-dialog-header').boundingBox();
+ expect(footer!.y+footer!.height).toBeLessThanOrEqual(844);expect(header!.y).toBeGreaterThanOrEqual(0);
+ expect(await page.evaluate(()=>document.body.style.overflow)).toBe('hidden');
+ await page.screenshot({path:info.outputPath(`repeat-confirm-${theme}-${width}.png`),fullPage:true});
+ await page.setViewportSize({width,height:560});
+ const shortFooter=await editor.locator('.chore-dialog-footer').boundingBox();
+ expect(shortFooter!.y+shortFooter!.height).toBeLessThanOrEqual(560);
+ await page.screenshot({path:info.outputPath(`repeat-short-${theme}-${width}.png`),fullPage:true});
+ await editor.getByRole('button',{name:'Keep chore',exact:true}).click();
+ await editor.getByRole('button',{name:'Cancel',exact:true}).click();
+ await expect(editor).toHaveCount(0);
+ expect(await page.evaluate(()=>document.body.style.overflow)).not.toBe('hidden');
+ await expect(page.getByRole('button',{name:'Edit Water the plants',exact:true}).first()).toBeFocused();
  expect(calls.filter(c=>c.method!=='GET')).toHaveLength(0);
 });

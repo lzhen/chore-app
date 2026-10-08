@@ -18,16 +18,18 @@ export function Logo({ size = 'md', showText = true }: LogoProps) {
 
   return (
     <div className="nesmi-logo flex items-center gap-2">
-      {/* Approved black-background Nesmi artwork stays consistent in every theme. */}
-      <div className={`${sizeClasses[size]} shrink-0 overflow-hidden rounded-xl`}>
-        <img
-          src={`${import.meta.env.BASE_URL}icons/nesmi-1024-20261008.png`}
-          alt={showText ? '' : 'Nesmi'}
-          className="block h-full w-full object-contain"
-          width="64"
-          height="64"
-        />
-      </div>
+      {/* Use the approved artwork as a luminance mask: the exact nest silhouette,
+          with theme-aware ink and a transparent canvas. App/store icons stay unchanged. */}
+      <span
+        className={`${sizeClasses[size]} nesmi-logo-mark shrink-0`}
+        role={showText ? undefined : 'img'}
+        aria-label={showText ? undefined : 'Nesmi'}
+        aria-hidden={showText ? true : undefined}
+        style={{
+          maskImage: `url("${import.meta.env.BASE_URL}icons/nesmi-1024-20261008.png")`,
+          WebkitMaskImage: `url("${import.meta.env.BASE_URL}icons/nesmi-1024-20261008.png")`,
+        }}
+      />
 
       {/* Logo Text */}
       {showText && (

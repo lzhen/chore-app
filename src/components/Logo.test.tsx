@@ -3,13 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { Logo } from './Logo';
 
 describe('approved Nesmi web artwork', () => {
-  it('uses the approved black icon in every theme', () => {
+  it('uses the approved silhouette as a theme-aware mask without a background tile', () => {
     const { container } = render(<Logo />);
-    const images = container.querySelectorAll('img');
-    expect(images).toHaveLength(1);
-    expect(images[0].getAttribute('src')).toBe(`${import.meta.env.BASE_URL}icons/nesmi-1024-20261008.png`);
-    expect(images[0].className).not.toContain('dark:');
-    expect(container.querySelector('svg')).toBeNull();
+    const mark = container.querySelector<HTMLElement>('.nesmi-logo-mark');
+    expect(mark).not.toBeNull();
+    expect(mark?.style.maskImage).toContain('icons/nesmi-1024-20261008.png');
+    expect(mark?.getAttribute('aria-hidden')).toBe('true');
+    expect(container.querySelector('img')).toBeNull();
   });
 
   it('preserves the existing text and large-size subtitle', () => {
@@ -21,8 +21,6 @@ describe('approved Nesmi web artwork', () => {
   it('labels the icon when it is displayed without text', () => {
     const { container, queryByText } = render(<Logo size="sm" showText={false} />);
     expect(queryByText('Nesmi')).toBeNull();
-    for (const image of container.querySelectorAll('img')) {
-      expect(image.getAttribute('alt')).toBe('Nesmi');
-    }
+    expect(container.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe('Nesmi');
   });
 });
