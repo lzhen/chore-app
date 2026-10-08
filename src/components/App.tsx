@@ -1,3 +1,4 @@
+import { LoadingScreen } from './LoadingScreen';
 import { useState, useRef, useMemo, useCallback } from 'react';
 import { Header } from './Header';
 import { TeamMemberList } from './TeamMemberList';
@@ -196,19 +197,7 @@ export function App() {
   };
 
   // Show loading while checking auth
-  if (authLoading) {
-    return (
-      <>
-        <div className="theme-background" />
-        <div className="h-screen flex items-center justify-center">
-          <div className="text-center glass-card p-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto"></div>
-            <p className="mt-4 text-content-secondary">Loading...</p>
-          </div>
-        </div>
-      </>
-    );
-  }
+  if (authLoading) return <LoadingScreen phase="session" />;
 
   // Show email verification page
   if (isEmailVerification) {
@@ -225,20 +214,8 @@ export function App() {
     return <AuthForm />;
   }
 
-  // Show loading while fetching data
-  if (state.loading) {
-    return (
-      <>
-        <div className="theme-background" />
-        <div className="h-screen flex items-center justify-center">
-          <div className="text-center glass-card p-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto"></div>
-            <p className="mt-4 text-content-secondary">Loading chores...</p>
-          </div>
-        </div>
-      </>
-    );
-  }
+  // Keep the incoming Today layout stable while its data arrives.
+  if (state.loading) return <LoadingScreen phase="chores" />;
 
   if(state.error) return <div className="chore-load-error"><h1>Let’s try that again.</h1><p role="alert">{state.error}</p><button className="chore-button primary" onClick={reload}>Retry</button></div>;
   return <><div className="theme-background" aria-hidden="true"/><a className="skip-link" href="#main-content">Skip to main content</a>
