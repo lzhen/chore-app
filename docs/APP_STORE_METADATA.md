@@ -1,30 +1,30 @@
-# NestMe — App Store submission metadata
+# Nesmi — App Store submission metadata
 
 ## Identity
-- App Store Connect target name: NestMe (verify after saving the existing record)
+- App Store Connect record: Nesmi
 - Apple App ID: 6805738533
 - Bundle ID: com.pawssible.chorely
 - Marketing version: 1.0
 
 ## Suggested customer-facing metadata
-- Name: NestMe
-- Subtitle: Family Chores, Shared Life
-- Promotional text: Share the work, skip the nagging. NestMe helps households see what needs doing, divide responsibilities clearly, and keep routines moving together.
+- Name: Nesmi
+- Subtitle: (empty; preserved from the existing record)
+- Promotional text: Share the work, skip the nagging. Nesmi helps households see what needs doing, divide responsibilities clearly, and keep routines moving together.
 - Keywords: chores,family,household,tasks,calendar,routines,sharing,reminders,home
-- Support URL: https://empathie.ai/nestme/
-- Privacy URL: https://empathie.ai/nestme/privacy.html
+- Support URL: https://empathie.ai/nesmi/
+- Privacy URL: https://empathie.ai/nesmi/privacy.html
 
 ## Description
-NestMe helps households share everyday responsibilities with less reminding and less ambiguity.
+Nesmi helps households share everyday responsibilities with less reminding and less ambiguity.
 
-Use NestMe to:
+Use Nesmi to:
 - see what needs doing today;
 - assign chores clearly across household members;
 - schedule recurring household routines;
 - mark work complete and keep a shared view of progress;
 - review workload and activity without turning home life into a competition.
 
-NestMe is designed around shared ownership and clarity. The goal is not to rank family members, but to make routines easier to coordinate.
+Nesmi is designed around shared ownership and clarity. The goal is not to rank family members, but to make routines easier to coordinate.
 
 ## App Review notes
 The app requires an account. Provide App Review with a working demo account containing representative household members and chores. Review should verify sign-in, creating and assigning a chore, marking it complete, calendar/list views, password reset, and account deletion.

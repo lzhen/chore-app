@@ -7,7 +7,7 @@ function worker(scope: string) {
   const cache = { addAll: vi.fn().mockResolvedValue(undefined), put: vi.fn().mockResolvedValue(undefined) };
   const caches = {
     open: vi.fn().mockResolvedValue(cache),
-    keys: vi.fn().mockResolvedValue(['chorely-design-20261007', 'nestme-20261008', 'movelight-cache', 'care-cache']),
+    keys: vi.fn().mockResolvedValue(['chorely-design-20261007', 'nesmi-20261008', 'movelight-cache', 'care-cache']),
     delete: vi.fn().mockResolvedValue(true),
     match: vi.fn().mockResolvedValue(undefined),
   };
@@ -20,14 +20,14 @@ function worker(scope: string) {
 }
 
 describe('PWA route compatibility', () => {
-  for (const scope of ['https://empathie.ai/nestme/', 'https://lzhen.github.io/chore-app/']) {
+  for (const scope of ['https://empathie.ai/nesmi/', 'https://lzhen.github.io/chore-app/']) {
     it(`installs and falls back within ${scope}`, async () => {
       const { handlers, cache, caches } = worker(scope);
       let pending: Promise<unknown>;
       handlers.install({ waitUntil: (promise: Promise<unknown>) => { pending = promise; } });
       await pending!;
       expect(cache.addAll).toHaveBeenCalledWith([scope, `${scope}manifest.webmanifest`]);
-      const offlinePage = new Response('NestMe offline');
+      const offlinePage = new Response('Nesmi offline');
       caches.match.mockImplementation(async (url: unknown) => url === scope ? offlinePage : undefined);
       handlers.fetch({ request: { method: 'GET', url: `${scope}?view=today`, mode: 'navigate' }, respondWith: (promise: Promise<unknown>) => { pending = promise; } });
       expect(await pending!).toBe(offlinePage);
@@ -35,7 +35,7 @@ describe('PWA route compatibility', () => {
   }
 
   it('leaves other product caches and requests alone', async () => {
-    const { handlers, caches, fetch } = worker('https://empathie.ai/nestme/');
+    const { handlers, caches, fetch } = worker('https://empathie.ai/nesmi/');
     let pending: Promise<unknown>;
     handlers.activate({ waitUntil: (promise: Promise<unknown>) => { pending = promise; } });
     await pending!;

@@ -1,4 +1,4 @@
-const CACHE = 'nestme-20261008';
+const CACHE = 'nesmi-20261008';
 const APP_URL = self.registration.scope;
 const MANIFEST_URL = new URL('manifest.webmanifest', APP_URL).href;
 
@@ -8,7 +8,7 @@ self.addEventListener('install', event => {
 
 self.addEventListener('activate', event => {
   event.waitUntil(caches.keys().then(keys => Promise.all(
-    keys.filter(key => key !== CACHE && /^(?:nestme-|chorely-design-)/.test(key))
+    keys.filter(key => key !== CACHE && /^(?:nesmi-|nestme-|chorely-design-)/.test(key))
       .map(key => caches.delete(key))
   )));
 });

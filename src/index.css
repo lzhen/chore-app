@@ -1252,7 +1252,7 @@ textarea:focus-visible {
   }
 }
 
-/* NestMe: a quiet, task-first household workspace. */
+/* Nesmi: a quiet, task-first household workspace. */
 :root,[data-theme="light"],[data-theme="crystal-light"],[data-theme="aurora"] {
   --chore-blue:#293527;--chore-on-accent:#fff;--chore-highlight:#e2ecbc;--chore-highlight-ink:#334026;
   --chore-bar:72px;--font-family-base:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;

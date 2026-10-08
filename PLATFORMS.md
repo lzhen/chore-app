@@ -1,6 +1,6 @@
-# NestMe platform delivery
+# Nesmi platform delivery
 
-- Web app: https://empathie.ai/nestme/ (routes to the live NestMe app)
+- Web app: https://empathie.ai/nesmi/ (routes to the live Nesmi app)
 - PWA: manifest + service worker in `public/`.
 - Chrome extension: source in `chrome-extension/` for unpacked testing and later Chrome Web Store submission.
 - iOS: existing Capacitor project/tooling in this repository.

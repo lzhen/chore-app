@@ -249,7 +249,7 @@ export function App() {
       <div className="chore-welcome-content">
         <p className="chore-eyebrow">WELCOME HOME</p>
         <h1>A lighter home starts with one chore.</h1>
-        <p className="chore-welcome-description">NestMe keeps the everyday things in one place. Start with one chore, then add the people who share the work.</p>
+        <p className="chore-welcome-description">Nesmi keeps the everyday things in one place. Start with one chore, then add the people who share the work.</p>
         <div className="chore-welcome-actions">
           <button className="chore-button primary" onClick={()=>handleAddClick()}>Add your first chore</button>
           <button className="chore-button secondary" onClick={()=>setSidebarOpen(true)}>Set up household</button>

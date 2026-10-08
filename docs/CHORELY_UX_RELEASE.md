@@ -1,4 +1,4 @@
-> Historical release record. The current customer-facing name is **NestMe** and the canonical URL is https://empathie.ai/nestme/.
+> Historical release record. The current customer-facing name is **Nesmi** and the canonical URL is https://empathie.ai/nesmi/.
 
 # Chorely mobile UX release — 25 September 2026
 

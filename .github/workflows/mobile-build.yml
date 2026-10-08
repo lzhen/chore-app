@@ -1,4 +1,4 @@
-name: NestMe - Native Builds
+name: Nesmi - Native Builds
 on:
   push:
     branches: [main]

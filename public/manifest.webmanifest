@@ -1,6 +1,6 @@
 {
-  "name": "NestMe - Family Chore Manager",
-  "short_name": "NestMe",
+  "name": "Nesmi - Family Chore Manager",
+  "short_name": "Nesmi",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

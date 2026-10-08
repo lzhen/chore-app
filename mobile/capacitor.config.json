@@ -1,9 +1,9 @@
 {
   "appId": "com.pawssible.chorely",
-  "appName": "NestMe",
+  "appName": "Nesmi",
   "webDir": "www",
   "server": {
-    "url": "https://empathie.ai/nestme/",
+    "url": "https://empathie.ai/nesmi/",
     "cleartext": false
   },
   "android": {

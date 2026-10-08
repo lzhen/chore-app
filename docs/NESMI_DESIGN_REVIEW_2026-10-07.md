@@ -1,4 +1,4 @@
-> Historical release record. The current customer-facing name is **NestMe** and the canonical URL is https://empathie.ai/nestme/.
+> Historical release record. The current customer-facing name is **Nesmi** and the canonical URL is https://empathie.ai/nesmi/.
 
 # Nesmi 设计评估与竞品分析 — 2026-10-07
 
