@@ -334,3 +334,20 @@
 @media (min-width: 768px) {
   .chore-dialog { max-height: min(720px, 80dvh); }
 }
+
+
+/* One shared anchor owns all floating actions, so labels and badges cannot collide. */
+.chore-floating-actions { --floating-bottom: calc(var(--chore-bar) + env(safe-area-inset-bottom) + 16px); position: fixed; right: max(20px, env(safe-area-inset-right)); bottom: var(--floating-bottom); display: flex; align-items: center; gap: 16px; max-width: calc(100vw - 40px); z-index: 40; }
+.chore-floating-actions:empty { display: none; }
+.chore-floating-actions > .chore-fab { position: static; min-width: 0; padding-top: 12px; padding-bottom: 12px; line-height: 1.3; flex: 0 1 auto; }
+.chore-floating-actions .chore-desktop-assistant { display: block; flex: 0 0 auto; }
+.nesmi-agent-trigger { position: relative; width: 52px; height: 52px; flex-shrink: 0; color: var(--chore-on-accent); background: var(--chore-blue); }
+.nesmi-agent-trigger:hover { filter: brightness(.94); }
+.nesmi-agent-badge { min-width: 20px; height: 20px; padding: 0 4px; font-size: 10px; }
+.nesmi-agent-panel { position: absolute; right: 0; bottom: calc(100% + 16px); width: min(320px, calc(100vw - 40px)); max-height: calc(100dvh - var(--floating-bottom) - 84px); display: flex; flex-direction: column; overflow: hidden; }
+.nesmi-agent-panel > div:first-child { flex-shrink: 0; color: var(--text-primary); background: var(--surface-tertiary); }
+.nesmi-agent-close { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; color: inherit; }
+.nesmi-agent-content { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+@media (min-width: 768px) {
+  .chore-floating-actions { --floating-bottom: max(28px, env(safe-area-inset-bottom)); right: max(32px, env(safe-area-inset-right)); }
+}

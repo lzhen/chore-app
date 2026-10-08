@@ -106,7 +106,8 @@ export function AgentPanel() {
       {/* Floating Agent Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 w-12 h-12 sm:w-14 sm:h-14 bg-accent hover:bg-accent-hover text-white rounded-full shadow-lg flex items-center justify-center z-40 transition-transform hover:scale-105"
+        className="nesmi-agent-trigger rounded-full flex items-center justify-center"
+        aria-label="Calendar Agent" aria-expanded={isOpen} aria-controls="nesmi-agent-panel"
         title="Calendar Agent"
       >
         <svg className="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -118,15 +119,15 @@ export function AgentPanel() {
           />
         </svg>
         {(unassignedCount > 0 || !analysis.isBalanced) && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-            {unassignedCount > 0 ? unassignedCount : '!'}
+          <span className="nesmi-agent-badge absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+            {unassignedCount > 99 ? '99+' : unassignedCount > 0 ? unassignedCount : '!'}
           </span>
         )}
       </button>
 
       {/* Agent Panel */}
       {isOpen && (
-        <div className="fixed bottom-20 sm:bottom-24 right-2 sm:right-6 left-2 sm:left-auto sm:w-80 fluent-card overflow-hidden animate-slide-up z-40">
+        <div id="nesmi-agent-panel" className="nesmi-agent-panel fluent-card" aria-label="Calendar Agent panel">
           <div className="bg-accent text-white px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -141,7 +142,7 @@ export function AgentPanel() {
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-white/80 hover:text-white"
+              aria-label="Close Calendar Agent" className="nesmi-agent-close"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -149,7 +150,7 @@ export function AgentPanel() {
             </button>
           </div>
 
-          <div className="p-4 space-y-4 max-h-96 overflow-y-auto">
+          <div className="nesmi-agent-content p-4 space-y-4">
             {/* Chat Assistant Button */}
             <button
               onClick={() => {
