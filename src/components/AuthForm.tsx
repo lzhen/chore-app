@@ -208,7 +208,7 @@ export function AuthForm() {
           </p>
           </section>
         </main>
-        <footer className="nesmi-auth-footer"><span>Nesmi · A little more together.</span><span>Made by Empathie</span></footer>
+        <footer className="nesmi-auth-footer"><span>NestMe · A little more together.</span><span>Made by Empathie</span></footer>
       </div>
     </>
   );

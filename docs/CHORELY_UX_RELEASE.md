@@ -1,3 +1,5 @@
+> Historical release record. The current customer-facing name is **NestMe** and the canonical URL is https://empathie.ai/nestme/.
+
 # Chorely mobile UX release — 25 September 2026
 
 This release keeps the existing app identity `com.pawssible.chorely` and signing setup.

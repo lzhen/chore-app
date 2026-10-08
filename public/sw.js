@@ -1,13 +1,34 @@
-const CACHE='chorely-design-20261007';
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/chore-app/','/chore-app/manifest.webmanifest']))));
-self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))));
-self.addEventListener('fetch',e=>{
-  if(e.request.method!=='GET') return;
-  const url=new URL(e.request.url);
-  if(url.origin!==self.location.origin) return;
-  e.respondWith(fetch(e.request).then(r=>{
-    if(r.ok && r.type==='basic'){const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy));}
-    return r;
-  }).catch(()=>caches.match(e.request).then(r=>r||caches.match('/chore-app/'))));
+const CACHE = 'nestme-20261008';
+const APP_URL = self.registration.scope;
+const MANIFEST_URL = new URL('manifest.webmanifest', APP_URL).href;
+
+self.addEventListener('install', event => {
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll([APP_URL, MANIFEST_URL])));
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(caches.keys().then(keys => Promise.all(
+    keys.filter(key => key !== CACHE && /^(?:nestme-|chorely-design-)/.test(key))
+      .map(key => caches.delete(key))
+  )));
+});
+
+self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  // Keep other Empathie products outside this worker's cache.
+  if (!url.href.startsWith(APP_URL)) return;
+  event.respondWith(fetch(event.request).then(response => {
+    if (response.ok && response.type === 'basic') {
+      const copy = response.clone();
+      event.waitUntil(caches.open(CACHE).then(cache => cache.put(event.request, copy)));
+    }
+    return response;
+  }).catch(async () => {
+    const cached = await caches.match(event.request);
+    if (cached) return cached;
+    if (event.request.mode === 'navigate') return (await caches.match(APP_URL)) || Response.error();
+    return Response.error();
+  }));
 });
 

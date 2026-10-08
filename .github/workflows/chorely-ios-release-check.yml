@@ -1,4 +1,4 @@
-name: Chorely iOS Release Check
+name: NestMe iOS Release Check
 on:
   push:
     branches: [main, release/chorely-app-store, release/apple-readiness-20261003, release/chorely-appstore-rc-20261003]
@@ -37,8 +37,8 @@ jobs:
         run: |
           mkdir -p release-check
           xcodebuild -version > release-check/xcode-version.txt
-          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Pawssible-Chorely.xcarchive" CODE_SIGNING_ALLOWED=NO archive > release-check/archive.log 2>&1 || { tail -120 release-check/archive.log; exit 1; }
-          APP="$RUNNER_TEMP/Pawssible-Chorely.xcarchive/Products/Applications/Pawssible Chorely.app"
+          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/NestMe.xcarchive" CODE_SIGNING_ALLOWED=NO archive > release-check/archive.log 2>&1 || { tail -120 release-check/archive.log; exit 1; }
+          APP="$RUNNER_TEMP/NestMe.xcarchive/Products/Applications/NestMe.app"
           test -d "$APP"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")" = 'com.pawssible.chorely'
           test -s "$APP/public/index.html"

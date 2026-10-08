@@ -2,7 +2,7 @@ import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { Logo } from './Logo';
 
-describe('approved Nesmi web artwork', () => {
+describe('approved NestMe web artwork', () => {
   it('uses the exact light and dark wreath assets with theme-aware visibility', () => {
     const { container } = render(<Logo />);
     const images = container.querySelectorAll('img');
@@ -16,15 +16,15 @@ describe('approved Nesmi web artwork', () => {
 
   it('preserves the existing text and large-size subtitle', () => {
     const { getByText } = render(<Logo size="lg" />);
-    expect(getByText('Nesmi')).toBeInTheDocument();
+    expect(getByText('NestMe')).toBeInTheDocument();
     expect(getByText('Family Chore Manager')).toBeInTheDocument();
   });
 
   it('labels the icon when it is displayed without text', () => {
     const { container, queryByText } = render(<Logo size="sm" showText={false} />);
-    expect(queryByText('Nesmi')).toBeNull();
+    expect(queryByText('NestMe')).toBeNull();
     for (const image of container.querySelectorAll('img')) {
-      expect(image.getAttribute('alt')).toBe('Nesmi');
+      expect(image.getAttribute('alt')).toBe('NestMe');
     }
   });
 });

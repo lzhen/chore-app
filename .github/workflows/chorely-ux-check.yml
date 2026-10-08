@@ -1,4 +1,4 @@
-name: Chorely UX verification
+name: NestMe UX verification
 on:
   push:
     branches: [main, fix/chorely-mobile-ux, release/chorely-app-store]

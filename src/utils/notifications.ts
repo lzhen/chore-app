@@ -35,8 +35,8 @@ export function sendNotification(title: string, options?: NotificationOptions): 
   if (!areNotificationsEnabled()) return;
 
   const notification = new Notification(title, {
-    icon: '/chore-app/favicon.ico',
-    badge: '/chore-app/favicon.ico',
+    icon: `${import.meta.env.BASE_URL}icons/chorely-light-192.png`,
+    badge: `${import.meta.env.BASE_URL}icons/chorely-light-192.png`,
     ...options,
   });
 

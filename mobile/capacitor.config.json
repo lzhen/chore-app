@@ -1,9 +1,9 @@
 {
   "appId": "com.pawssible.chorely",
-  "appName": "Chorely",
+  "appName": "NestMe",
   "webDir": "www",
   "server": {
-    "url": "https://lzhen.github.io/chore-app/",
+    "url": "https://empathie.ai/nestme/",
     "cleartext": false
   },
   "android": {

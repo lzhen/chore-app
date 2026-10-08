@@ -150,7 +150,7 @@ export async function createCalendarEvent(
   try {
     const event = {
       summary: chore.title,
-      description: assignee ? `Assigned to: ${assignee.name}` : 'Chore from Nesmi',
+      description: assignee ? `Assigned to: ${assignee.name}` : 'Chore from NestMe',
       start: {
         date: chore.date,
       },

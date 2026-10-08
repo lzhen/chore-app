@@ -11,4 +11,4 @@ fi
 test -s "$REPOSITORY_ROOT/ios/App/App/public/index.html"
 node "$SCRIPT_DIR/verify_deployment_targets.mjs"
 swift "$SCRIPT_DIR/verify_app_icon.swift" "$REPOSITORY_ROOT/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png"
-echo 'Pawssible Chorely pre-archive check passed.'
+echo 'NestMe pre-archive check passed.'

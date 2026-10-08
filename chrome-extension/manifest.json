@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Nesmi",
+  "name": "NestMe",
   "version": "1.0.0",
-  "description": "Open Nesmi and keep household tasks within reach.",
+  "description": "Open NestMe and keep household tasks within reach.",
   "action": {
-    "default_title": "Nesmi",
+    "default_title": "NestMe",
     "default_popup": "popup.html"
   },
   "permissions": []

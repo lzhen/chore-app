@@ -1,4 +1,4 @@
-# Nesmi GTM success metrics
+# NestMe GTM success metrics
 
 ## Product promise
 Help households share routine work with less reminding, less ambiguity, and a fairer sense of ownership.
@@ -43,7 +43,7 @@ Target: < 20% of active households with one member carrying >70% of weekly assig
 ## Commercial validation
 Before broad paid acquisition:
 - >= 20 target households complete a 2-week pilot;
-- >= 40% say they would be disappointed if Nesmi disappeared;
+- >= 40% say they would be disappointed if NestMe disappeared;
 - >= 30% indicate willingness to pay for the proposed premium tier or family plan;
 - at least 5 verbatim user stories confirm reduced reminding / coordination friction.
 

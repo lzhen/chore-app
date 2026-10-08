@@ -22,14 +22,14 @@ export function Logo({ size = 'md', showText = true }: LogoProps) {
       <div className={`${sizeClasses[size]} shrink-0 overflow-hidden rounded-xl`}>
         <img
           src={`${import.meta.env.BASE_URL}icons/chorely-light.png`}
-          alt={showText ? '' : 'Nesmi'}
+          alt={showText ? '' : 'NestMe'}
           className="block h-full w-full object-contain dark:hidden"
           width="64"
           height="64"
         />
         <img
           src={`${import.meta.env.BASE_URL}icons/chorely-dark.png`}
-          alt={showText ? '' : 'Nesmi'}
+          alt={showText ? '' : 'NestMe'}
           className="hidden h-full w-full object-contain dark:block"
           width="64"
           height="64"
@@ -40,7 +40,7 @@ export function Logo({ size = 'md', showText = true }: LogoProps) {
       {showText && (
         <div className="flex flex-col">
           <span className={`${textSizeClasses[size]} nesmi-wordmark`}>
-            Nesmi
+            NestMe
           </span>
           {size === 'lg' && (
             <span className="text-xs text-content-secondary -mt-1">Family Chore Manager</span>

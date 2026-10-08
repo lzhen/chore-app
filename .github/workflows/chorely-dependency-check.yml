@@ -1,4 +1,4 @@
-name: Chorely production dependency report
+name: NestMe production dependency report
 on:
   push:
     branches: [main, release/chorely-app-store]

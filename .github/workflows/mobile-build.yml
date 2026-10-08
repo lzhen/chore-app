@@ -1,4 +1,4 @@
-name: Chorely - Native Builds
+name: NestMe - Native Builds
 on:
   push:
     branches: [main]

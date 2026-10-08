@@ -1,3 +1,5 @@
+> Historical release record. The current customer-facing name is **NestMe** and the canonical URL is https://empathie.ai/nestme/.
+
 # Nesmi 设计评估与竞品分析 — 2026-10-07
 
 ## 目标与证据边界

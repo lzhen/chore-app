@@ -21,7 +21,7 @@ if ! command -v pod >/dev/null 2>&1; then
   command -v brew >/dev/null 2>&1 || { echo 'error: CocoaPods is required.' >&2; exit 1; }
   brew install cocoapods
 fi
-printf '\nPreparing Pawssible Chorely for iOS\n'
+printf '\nPreparing NestMe for iOS\n'
 node --version
 npm --version
 pod --version
@@ -39,5 +39,5 @@ for path in \
   test -s "$path" || { echo "error: iOS preparation did not generate $path" >&2; exit 1; }
 done
 cmp ios/App/Podfile.lock ios/App/Pods/Manifest.lock
-printf '\nPawssible Chorely dependencies and bundled web assets are ready.\n'
+printf '\nNestMe dependencies and bundled web assets are ready.\n'
 printf 'Archive the App scheme in ios/App/App.xcworkspace (not App.xcodeproj alone).\n'

@@ -1,8 +1,8 @@
 {
-  "name": "Nesmi - Family Chore Manager",
-  "short_name": "Nesmi",
-  "start_url": "/chore-app/",
-  "scope": "/chore-app/",
+  "name": "NestMe - Family Chore Manager",
+  "short_name": "NestMe",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#f6f7f2",
   "theme_color": "#f6f7f2",
@@ -20,5 +20,6 @@
       "type": "image/png",
       "purpose": "any"
     }
-  ]
+  ],
+  "id": "/chore-app/"
 }

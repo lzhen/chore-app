@@ -1,8 +1,8 @@
-# Nesmi — existing App Store release
+# NestMe — existing App Store release
 
-- App Store Connect app: **Nesmi**, ID `6805738533`.
+- App Store Connect target name: **NestMe** (save on the existing app record), ID `6805738533`.
 - Existing Bundle ID: `com.pawssible.chorely`.
-- Existing Xcode Cloud workflow: **Chorely TestFlight**.
+- Existing Xcode Cloud workflow: **Chorely TestFlight** (rename its display title to **NestMe TestFlight** in App Store Connect; keep its workflow ID).
 - Current Xcode marketing version: `1.0`; Xcode Cloud manages its build number.
 - Existing application: https://appstoreconnect.apple.com/apps/6805738533
 
