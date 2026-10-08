@@ -58,6 +58,7 @@ for(const width of [375,768,1440]) for(const theme of ['light','dark']) test(`fl
  await page.screenshot({path:info.outputPath(`floating-${theme}-${width}.png`),fullPage:true});
  await agent.click();await expect(agent).toHaveAttribute('aria-expanded','true');
  const panel=page.locator('#nesmi-agent-panel');await expect(panel).toBeVisible();
+ await expect(panel.locator('.nesmi-agent-heading')).toHaveCSS('color',theme==='dark'?'rgb(242, 242, 243)':'rgb(20, 20, 20)');
  const p=await panel.boundingBox();expect(p!.y).toBeGreaterThanOrEqual(0);expect(p!.y+p!.height+12).toBeLessThanOrEqual(a!.y);
  await page.screenshot({path:info.outputPath(`agent-open-${theme}-${width}.png`),fullPage:true});
  await page.getByRole('button',{name:'Close Calendar Agent',exact:true}).click();await expect(panel).toHaveCount(0);
