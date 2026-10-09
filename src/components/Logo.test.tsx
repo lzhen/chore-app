@@ -3,13 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { Logo } from './Logo';
 
 describe('approved Nesmi web artwork', () => {
-  it('uses the approved silhouette as a theme-aware mask without a background tile', () => {
+  it('uses the approved black icon for the product header', () => {
     const { container } = render(<Logo />);
-    const mark = container.querySelector<HTMLElement>('.nesmi-logo-mark');
-    expect(mark).not.toBeNull();
-    expect(mark?.style.maskImage).toContain('icons/nesmi-1024-20261008.png');
-    expect(mark?.getAttribute('aria-hidden')).toBe('true');
-    expect(container.querySelector('img')).toBeNull();
+    const icon = container.querySelector<HTMLImageElement>('.nesmi-header-icon img');
+    expect(icon).not.toBeNull();
+    expect(icon?.getAttribute('src')).toBe(`${import.meta.env.BASE_URL}icons/nesmi-1024-20261008.png`);
+    expect(icon?.getAttribute('alt')).toBe('');
+    expect(container.querySelector('.nesmi-logo-mark')).toBeNull();
   });
 
   it('preserves the existing text and large-size subtitle', () => {

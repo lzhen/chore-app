@@ -388,3 +388,8 @@
 @media (prefers-reduced-motion: reduce) {
   .nesmi-loading-line > span { animation: none; transform: translateX(30px); }
 }
+
+
+/* Shared Empathie product brand lockup. */
+.chore-brand .nesmi-logo,.nesmi-auth-header .nesmi-logo{gap:12px;min-height:44px;flex-shrink:0}.nesmi-header-icon{display:block;width:32px;height:32px;flex:0 0 32px;border-radius:8px;background:#000;filter:none}.chore-brand .nesmi-wordmark,.nesmi-auth-header .nesmi-wordmark{font-family:Inter,"Helvetica Neue",Arial,sans-serif;font-size:20px;font-weight:600;line-height:1.2;letter-spacing:-.02em;white-space:nowrap}.chore-brand .nesmi-logo>div:first-child,.nesmi-auth-header .nesmi-logo>div:first-child{width:auto;height:auto}
+@media(max-width:640px){.chore-brand .nesmi-wordmark,.nesmi-auth-header .nesmi-wordmark{font-size:18px}}

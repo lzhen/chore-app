@@ -80,7 +80,7 @@ export function AuthForm() {
       <div className="theme-background" />
       <div className="chore-auth">
         <header className="nesmi-auth-header">
-          <div><Logo size="md" /><span className="nesmi-byline">by Empathie</span></div>
+          <div><Logo size="md" /></div>
           <ThemeSelector />
         </header>
         <main className="nesmi-auth-layout">
@@ -213,3 +213,4 @@ export function AuthForm() {
     </>
   );
 }
+

@@ -18,9 +18,12 @@ export function Logo({ size = 'md', showText = true }: LogoProps) {
 
   return (
     <div className="nesmi-logo flex items-center gap-2">
-      {/* Use the approved artwork as a luminance mask: the exact nest silhouette,
-          with theme-aware ink and a transparent canvas. App/store icons stay unchanged. */}
-      <span
+      {showText && size !== 'lg' ? (
+        <span className="nesmi-header-icon shrink-0 overflow-hidden">
+          <img src={`${import.meta.env.BASE_URL}icons/nesmi-1024-20261008.png`} alt="" width="32" height="32" className="block h-full w-full object-contain" />
+        </span>
+      ) : (
+        <span
         className={`${sizeClasses[size]} nesmi-logo-mark shrink-0`}
         role={showText ? undefined : 'img'}
         aria-label={showText ? undefined : 'Nesmi'}
@@ -30,6 +33,7 @@ export function Logo({ size = 'md', showText = true }: LogoProps) {
           WebkitMaskImage: `url("${import.meta.env.BASE_URL}icons/nesmi-1024-20261008.png")`,
         }}
       />
+      )}
 
       {/* Logo Text */}
       {showText && (
@@ -45,4 +49,5 @@ export function Logo({ size = 'md', showText = true }: LogoProps) {
     </div>
   );
 }
+
 
