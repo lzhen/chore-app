@@ -39,9 +39,20 @@ for(const theme of ['light','dark']) for(const width of [390,1440]) test(`unifie
  const {calls}=await fixture(page,width);
  await page.getByRole('button',{name:/Theme:/}).click();
  await page.getByRole('button',{name:theme==='dark'?/Dark A quieter/:/Light A brighter/}).click();
- const mark=page.locator('.chore-brand .nesmi-logo-mark');
- await expect(mark).toHaveCSS('mask-mode','luminance');
- await expect(mark).toHaveCSS('background-color',theme==='dark'?'rgb(242, 242, 243)':'rgb(20, 20, 20)');
+ const brand=page.locator('.chore-brand .nesmi-logo');
+ const mark=brand.locator('.nesmi-header-icon');
+ await expect(mark).toBeVisible();
+ await expect(mark).toHaveCSS('width','32px');
+ await expect(mark).toHaveCSS('height','32px');
+ await expect(mark).toHaveCSS('background-color','rgb(0, 0, 0)');
+ const icon=mark.locator('img');
+ await expect(icon).toHaveAttribute('src',/icons\/nesmi-1024-20261008\.png$/);
+ await expect(icon).toHaveAttribute('alt','');
+ expect(await icon.evaluate(el=>(el as HTMLImageElement).complete&&(el as HTMLImageElement).naturalWidth>0)).toBe(true);
+ await expect(brand).toHaveCSS('gap','12px');
+ await expect(brand.locator('.nesmi-wordmark')).toHaveText('Nesmi');
+ await expect(brand.locator('.nesmi-wordmark')).toHaveCSS('font-size',width<=640?'18px':'20px');
+ await expect(brand.locator('.nesmi-wordmark')).toHaveCSS('font-weight','600');
  const nav=page.getByRole('navigation',{name:'Primary navigation'});
  for(const view of ['Calendar','Insights','Account']) {
   await nav.getByRole('button',{name:view,exact:true}).click();
