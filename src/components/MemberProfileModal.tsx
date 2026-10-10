@@ -1,3 +1,4 @@
+import { memberAvatarStyle } from '../utils/colors';
 import { useState, useRef } from 'react';
 import { TeamMember } from '../types';
 import { useApp } from '../context/AppContext';
@@ -139,7 +140,7 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
                   ) : (
                     <div
                       className="w-24 h-24 rounded-fluent-circle flex items-center justify-center text-3xl font-bold text-white"
-                      style={{ backgroundColor: member.color }}
+                      style={memberAvatarStyle(member.color)}
                     >
                       {formData.name.charAt(0).toUpperCase()}
                     </div>

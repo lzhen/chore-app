@@ -63,7 +63,7 @@ test('search filters the Chores view and exposes an empty state',async({page})=>
  await fixture(page);await page.getByRole('navigation').getByRole('button',{name:'Chores',exact:true}).click();await page.getByRole('button',{name:'Search chores',exact:true}).click();await page.getByLabel('Search chores',{exact:true}).fill('nothing-matches');await expect(page.getByText('No matching chores')).toBeVisible();await expect(page.locator('.chore-task')).toHaveCount(0);await page.getByLabel('Search chores',{exact:true}).fill('Vacuum');await expect(page.locator('.chore-task')).toHaveCount(1);
 });
 test('unassigned completion requires explicit member; selection determines credit',async({page})=>{
- const f=await fixture(page);await page.getByRole('button',{name:'Complete: Water the plants',exact:true}).click();await expect(page.getByLabel('Who completed it?')).toHaveValue('');await expect(page.getByRole('button',{name:'Mark done',exact:true})).toBeDisabled();expect(f.db.chore_completions).toHaveLength(0);await page.getByLabel('Who completed it?').selectOption(B);await page.getByRole('button',{name:'Mark done',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);expect(f.db.chore_completions[0].completed_by).toBe(B);
+ const f=await fixture(page);await page.getByRole('button',{name:'Complete: Water the plants',exact:true}).click();await expect(page.getByLabel('Who completed it?')).toContainText('Choose a family member');await expect(page.getByRole('button',{name:'Mark done',exact:true})).toBeDisabled();expect(f.db.chore_completions).toHaveLength(0);await page.getByLabel('Who completed it?').click();await page.getByRole('option',{name:'Jamie',exact:true}).click();await page.getByRole('button',{name:'Mark done',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);expect(f.db.chore_completions[0].completed_by).toBe(B);
 });
 test('Insights and Account are top-level pages, with the correct selected tab',async({page})=>{
  await fixture(page);const nav=page.getByRole('navigation',{name:'Primary navigation'});for(const name of ['Insights','Account','Calendar','Today']){await nav.getByRole('button',{name,exact:true}).click();await expect(nav.getByRole('button',{name,exact:true})).toHaveAttribute('aria-current','page');await expect(page.getByRole('dialog')).toHaveCount(0);}
@@ -80,8 +80,8 @@ for (const width of [375, 1440]) test(`sign-in fits ${width}px and appearance pe
   await page.goto('/chore-app/');
   await expect(page.getByRole('heading', {name: 'Sign in to your account', exact: true})).toBeVisible();
   for (const theme of ['Light', 'Dark']) {
-    await page.getByRole('button', {name: /^Theme:/}).click();
-    await page.getByRole('group', {name: 'Choose appearance'}).getByRole('button', {name: new RegExp(theme)}).click();
+    await page.getByRole('combobox', {name: /^Theme:/}).click();
+    await page.getByRole('listbox').getByRole('option', {name: new RegExp(theme)}).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme.toLowerCase());
     const email = page.getByLabel('Email', {exact: true});
     expect(await email.evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
@@ -104,11 +104,11 @@ test('desktop Today progress and mobile starter drafts are usable', async ({page
   const taskBox = await firstTask.boundingBox();
   expect(taskBox!.y + taskBox!.height).toBeLessThan(844);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.getByRole('button', {name: /^Theme:/}).click();
-  await page.getByRole('group', {name: 'Choose appearance'}).getByRole('button', {name: /Light/}).click();
+  await page.getByRole('combobox', {name: /^Theme:/}).click();
+  await page.getByRole('listbox').getByRole('option', {name: /Light/}).click();
   await page.screenshot({path: info.outputPath('today-desktop-light.png'), fullPage: true});
-  await page.getByRole('button', {name: /^Theme:/}).click();
-  await page.getByRole('group', {name: 'Choose appearance'}).getByRole('button', {name: /Dark/}).click();
+  await page.getByRole('combobox', {name: /^Theme:/}).click();
+  await page.getByRole('listbox').getByRole('option', {name: /Dark/}).click();
   await page.screenshot({path: info.outputPath('today-desktop-dark.png'), fullPage: true});
   await page.setViewportSize({width: 390, height: 844});
   const mobileTaskBox = await firstTask.boundingBox();
@@ -123,14 +123,14 @@ test('direct dark appearance respects later choices and styles the browser chrom
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#080809');
   expect(await page.locator('html').evaluate(el => getComputedStyle(el).colorScheme)).toBe('dark');
-  await page.getByRole('button', {name: /^Theme:/}).click();
-  await page.getByRole('group', {name: 'Choose appearance'}).getByRole('button', {name: /Light/}).click();
+  await page.getByRole('combobox', {name: /^Theme:/}).click();
+  await page.getByRole('listbox').getByRole('option', {name: /Light/}).click();
   expect(new URL(page.url()).searchParams.has('theme')).toBe(false);
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#ffffff');
-  await page.getByRole('button', {name: /^Theme:/}).click();
-  await page.getByRole('group', {name: 'Choose appearance'}).getByRole('button', {name: /System/}).click();
+  await page.getByRole('combobox', {name: /^Theme:/}).click();
+  await page.getByRole('listbox').getByRole('option', {name: /System/}).click();
   await page.emulateMedia({colorScheme: 'dark'});
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.emulateMedia({colorScheme: 'light'});

@@ -1,3 +1,4 @@
+import { memberAvatarStyle } from '../utils/colors';
 import { dateKey } from '../utils/dates';
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
@@ -128,7 +129,7 @@ export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMember
                         <button
                           onClick={() => onProfileOpen?.(member)}
                           className={`w-6 h-6 rounded-fluent-circle flex-shrink-0 transition-opacity flex items-center justify-center text-white text-xs font-bold ${!isVisible ? 'opacity-40' : ''}`}
-                          style={{ backgroundColor: member.color }}
+                          style={memberAvatarStyle(member.color)}
                         >
                           {member.name.charAt(0).toUpperCase()}
                         </button>

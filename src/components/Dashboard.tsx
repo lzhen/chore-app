@@ -1,3 +1,4 @@
+import { memberAvatarStyle } from '../utils/colors';
 import { dateKey, parseDate } from '../utils/dates';
 import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
@@ -251,7 +252,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                         ) : (
                           <div
                             className="w-8 h-8 rounded-fluent-circle flex-shrink-0 flex items-center justify-center text-white text-sm font-bold"
-                            style={{ backgroundColor: member.memberColor }}
+                            style={memberAvatarStyle(member.memberColor)}
                           >
                             {member.memberName.charAt(0).toUpperCase()}
                           </div>
@@ -379,7 +380,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                       ) : (
                         <div
                           className="w-10 h-10 rounded-fluent-circle flex-shrink-0 flex items-center justify-center text-white font-bold"
-                          style={{ backgroundColor: member?.color || '#888' }}
+                          style={memberAvatarStyle(member?.color || '#888')}
                         >
                           {member?.name?.charAt(0).toUpperCase() || '?'}
                         </div>
@@ -469,7 +470,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                                   <div
                                     key={m.id}
                                     className="w-5 h-5 rounded-full text-white text-xs flex items-center justify-center"
-                                    style={{ backgroundColor: m.color }}
+                                    style={memberAvatarStyle(m.color)}
                                     title={m.name}
                                   >
                                     {m.name.charAt(0)}

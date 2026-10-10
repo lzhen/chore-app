@@ -1,3 +1,4 @@
+import { memberAvatarStyle } from '../utils/colors';
 import { useMemo } from 'react';
 import { TeamMember, Chore } from '../types';
 
@@ -125,7 +126,7 @@ export function WorkloadChart({ members, chores, dateRange }: WorkloadChartProps
                 ) : (
                   <div
                     className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                    style={{ backgroundColor: member.color }}
+                    style={memberAvatarStyle(member.color)}
                   >
                     {member.name.charAt(0).toUpperCase()}
                   </div>

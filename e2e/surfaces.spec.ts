@@ -37,8 +37,8 @@ async function fixture(page:Page,width=390,empty=false){
 
 for(const theme of ['light','dark']) for(const width of [390,1440]) test(`unified product surfaces ${theme} ${width}`,async({page},info)=>{
  const {calls}=await fixture(page,width);
- await page.getByRole('button',{name:/Theme:/}).click();
- await page.getByRole('button',{name:theme==='dark'?/Dark A quieter/:/Light A brighter/}).click();
+ await page.getByRole('combobox',{name:/Theme:/}).click();
+ await page.getByRole('option',{name:theme==='dark'?/Dark A quieter/:/Light A brighter/}).click();
  const brand=page.locator('.chore-brand .nesmi-logo');
  const mark=brand.locator('.nesmi-header-icon');
  await expect(mark).toBeVisible();

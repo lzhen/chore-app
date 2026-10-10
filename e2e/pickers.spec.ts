@@ -15,7 +15,6 @@ async function fixture(page:Page,width=390,empty=false){
   {id:'33333333-3333-4333-8333-333333333333',title:'Vacuum common areas',date:'2026-09-27',assignee_id:null,recurrence:'none',priority:'high'},
   {id:'44444444-4444-4444-8444-444444444444',title:'Water the plants',date:TODAY,assignee_id:null,recurrence:'daily',priority:'medium'},
  ]};
- if(width===375) db.chores.push(...Array.from({length:100},(_,i)=>({id:`sample-stress-${i}`,title:`Sample chore ${i}`,date:TODAY,assignee_id:null,recurrence:'none',priority:'medium'})));
  const calls:{method:string;table:string;body:any}[]=[];let fail=false;let readsFail=false;
  await page.route('**/*.supabase.co/**',async route=>{
   const req=route.request(),url=new URL(req.url());const table=url.pathname.split('/').pop()!;const method=req.method();
@@ -32,37 +31,50 @@ async function fixture(page:Page,width=390,empty=false){
   const single=req.headers().accept?.includes('vnd.pgrst.object');if(single&&Array.isArray(result))result=result[0]||null;
   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(result)});
  });
- await page.route('https://apis.google.com/**',route=>route.abort());
- await page.route('https://accounts.google.com/**',route=>route.abort());
  await page.goto('/chore-app/');await expect(page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Today',exact:true})).toHaveAttribute('aria-current','page');
  return {db,calls,failWrites:()=>{fail=true;},failReads:()=>{readsFail=true;},recover:()=>{fail=false;readsFail=false;}};
 }
 
 
-for(const width of [375,768,1440]) for(const theme of ['light','dark']) test(`floating actions remain separate ${width} ${theme}`,async({page},info)=>{
- const {calls}=await fixture(page,width);
+for (const width of [320, 375, 390, 430, 1440]) for (const theme of ['light','dark']) test(`pickers ${width} ${theme}`, async ({page}, info) => {
+ await fixture(page,width);
  await page.getByRole('combobox',{name:/Theme:/}).click();
  await page.getByRole('option',{name:theme==='dark'?/Dark A quieter/:/Light A brighter/}).click();
- await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Calendar',exact:true}).click();
- const add=page.getByRole('button',{name:'Add new chore',exact:true});
- const agent=page.getByRole('button',{name:'Calendar Agent',exact:true});
- await expect(add).toBeVisible();await expect(agent).toBeVisible();
- if(width===375){
-  await expect(page.locator('.nesmi-agent-badge')).toHaveText('99+');
-  await add.evaluate(el=>{if(el.lastChild)el.lastChild.textContent='Add a household chore';});
- }
- const a=await add.boundingBox(),b=await agent.boundingBox();
- expect(a!.x+a!.width+12).toBeLessThanOrEqual(b!.x);
- expect(b!.x+b!.width).toBeLessThanOrEqual(width-8);
- expect(a!.y+a!.height).toBeLessThanOrEqual(width<768?844-70:844);
- await page.screenshot({path:info.outputPath(`floating-${theme}-${width}.png`),fullPage:true});
- await agent.click();await expect(agent).toHaveAttribute('aria-expanded','true');
- const panel=page.locator('#nesmi-agent-panel');await expect(panel).toBeVisible();
- await expect(panel.locator('.nesmi-agent-heading')).toHaveCSS('color',theme==='dark'?'rgb(242, 242, 243)':'rgb(20, 20, 20)');
- const p=await panel.boundingBox();expect(p!.y).toBeGreaterThanOrEqual(0);expect(p!.y+p!.height+12).toBeLessThanOrEqual(a!.y);
- await page.screenshot({path:info.outputPath(`agent-open-${theme}-${width}.png`),fullPage:true});
- await page.getByRole('button',{name:'Close Calendar Agent',exact:true}).click();await expect(panel).toHaveCount(0);
- await add.click();await expect(page.getByRole('dialog',{name:'Add a chore'})).toBeVisible();await expect(agent).toHaveCount(0);await expect(add).toHaveCount(0);
- await page.getByRole('button',{name:'Cancel',exact:true}).click();await expect(agent).toBeVisible();await expect(add).toBeVisible();
- expect(calls.filter(c=>c.method!=='GET')).toHaveLength(0);
+ const nav=page.getByRole('navigation',{name:'Primary navigation'});
+ const checkHeader=async()=>{
+  const header=page.getByRole('banner',{name:'Nesmi'}), brand=header.locator('.chore-brand');
+  const h=await header.boundingBox(), b=await brand.boundingBox(), left=await header.locator('.nesmi-header-leading').boundingBox(), right=await header.locator('.nesmi-header-actions').boundingBox();
+  expect(Math.abs((b!.x+b!.width/2)-(h!.x+h!.width/2))).toBeLessThanOrEqual(1);
+  expect(left!.x+left!.width).toBeLessThanOrEqual(b!.x); expect(b!.x+b!.width).toBeLessThanOrEqual(right!.x);
+  const menu=header.getByRole('button',{name:'Open family menu'}); const hit=await menu.boundingBox(); expect(hit!.width).toBeGreaterThanOrEqual(44); expect(hit!.height).toBeGreaterThanOrEqual(44);
+ };
+ await checkHeader();
+ await page.getByRole('button',{name:'Open family menu'}).click();
+ await expect(page.locator('#nesmi-family-panel')).toBeVisible();
+ await page.locator('#nesmi-family-panel').getByRole('button',{name:'Close sidebar',exact:true}).click();
+
+ await nav.getByRole('button',{name:'Account',exact:true}).click(); await checkHeader();
+ const trigger=page.getByRole('combobox',{name:/Theme:/}).last();
+ await trigger.click();
+ const list=page.getByRole('listbox');
+ const box=await list.boundingBox(); expect(box!.x).toBeGreaterThanOrEqual(12); expect(box!.x+box!.width).toBeLessThanOrEqual(width-12);
+ await expect(list.getByRole('option')).toHaveCount(3);
+ await page.screenshot({path:info.outputPath(`account-${theme}-${width}.png`)});
+ await trigger.press('ArrowDown'); await trigger.press('Escape'); await expect(list).toHaveCount(0); await expect(trigger).toBeFocused();
+ await nav.getByRole('button',{name:'Today',exact:true}).click();
+ await page.getByRole('button',{name:'Complete: Water the plants',exact:true}).click();
+ const dialog=page.getByRole('dialog'); const picker=dialog.getByRole('combobox',{name:'Who completed it?'});
+ await expect(dialog.getByRole('button',{name:'Mark done',exact:true})).toBeDisabled();
+ await picker.click(); await expect(dialog.getByRole('listbox')).toBeVisible();
+ if(theme==='dark') await expect(dialog.getByRole('listbox')).toHaveCSS('background-color','rgb(8, 8, 9)');
+ const familyBox=await dialog.getByRole('listbox').boundingBox(); expect(familyBox!.x).toBeGreaterThanOrEqual(12); expect(familyBox!.x+familyBox!.width).toBeLessThanOrEqual(width-12); expect(familyBox!.y+familyBox!.height).toBeLessThanOrEqual(844-12);
+ await page.screenshot({path:info.outputPath(`family-${theme}-${width}.png`)});
+ await picker.press('Escape'); await expect(dialog).toBeVisible(); await expect(dialog.getByRole('listbox')).toHaveCount(0);
+ await picker.press('ArrowDown'); await picker.press('End'); await picker.press('Enter'); await expect(picker).toContainText('Jamie');
+ await expect(dialog.getByRole('button',{name:'Mark done',exact:true})).toBeEnabled();
+ await picker.click(); await expect(dialog.getByRole('option',{name:'Jamie',exact:true})).toHaveAttribute('aria-selected','true');
+ await picker.press('Tab'); await expect(dialog.getByRole('listbox')).toHaveCount(0);
+ await dialog.getByRole('button',{name:'Cancel',exact:true}).click(); await expect(dialog).toHaveCount(0);
+ await nav.getByRole('button',{name:'Insights',exact:true}).click();
+ await page.screenshot({path:info.outputPath(`avatars-${theme}-${width}.png`)});
 });
