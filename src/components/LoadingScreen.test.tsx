@@ -22,7 +22,7 @@ it('replaces the skeleton on success and preserves data-error retry',async()=>{
  expect(screen.queryByRole('status')).not.toBeInTheDocument();expect(screen.getByRole('alert')).toHaveTextContent('Synthetic offline error');
  await userEvent.setup().click(screen.getByRole('button',{name:'Retry'}));expect(app.reload).toHaveBeenCalledOnce();
  app.state.error=null;app.state.loading=true;rerender(<App/>);expect(screen.getByRole('status')).toBeInTheDocument();
- app.state.loading=false;rerender(<App/>);expect(screen.queryByRole('status')).not.toBeInTheDocument();expect(screen.getByRole('heading',{name:'A lighter home starts with one chore.'})).toBeVisible();
+ app.state.loading=false;rerender(<App/>);expect(screen.queryByRole('status')).not.toBeInTheDocument();expect(screen.getByRole('heading',{name:'Start with one small chore.'})).toBeVisible();
 });
 it('has no synthetic progress percentage or timer to keep a dismissed loader alive',()=>{
  const {unmount}=render(<LoadingScreen phase="chores"/>);

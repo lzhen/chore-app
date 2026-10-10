@@ -1,9 +1,12 @@
-import { useState, KeyboardEvent } from 'react';
+import '../styles/nesmi-secondary-surfaces.css';
+import { useState, useRef, KeyboardEvent } from 'react';
 
 interface SkillTagInputProps {
   skills: string[];
   onChange: (skills: string[]) => void;
   placeholder?: string;
+  id?: string;
+  disabled?: boolean;
 }
 
 const SUGGESTED_SKILLS = [
@@ -19,8 +22,9 @@ const SUGGESTED_SKILLS = [
   'Childcare',
 ];
 
-export function SkillTagInput({ skills, onChange, placeholder = 'Add a skill...' }: SkillTagInputProps) {
+export function SkillTagInput({ skills, onChange, placeholder = 'Add a skill...', id, disabled = false }: SkillTagInputProps) {
   const [inputValue, setInputValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const addSkill = (skill: string) => {
@@ -50,19 +54,30 @@ export function SkillTagInput({ skills, onChange, placeholder = 'Add a skill...'
   );
 
   return (
-    <div className="relative">
+    <div className="nesmi-skill-input nesmi-secondary-surface relative"
+      data-open-picker={!disabled && showSuggestions && filteredSuggestions.length > 0 ? true : undefined}
+      onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setShowSuggestions(false); }}
+      onKeyDown={event => {
+        if (event.key === 'Escape' && showSuggestions && filteredSuggestions.length > 0) {
+          event.preventDefault();
+          event.stopPropagation();
+          inputRef.current?.focus();
+          setShowSuggestions(false);
+        }
+      }}
+    >
       {/* Tags display */}
       <div className="flex flex-wrap gap-2 mb-2">
         {skills.map(skill => (
           <span
             key={skill}
-            className="inline-flex items-center gap-1 px-2 py-1 bg-brand-primary/10 text-brand-primary rounded-fluent-sm text-sm"
+            className="nesmi-skill-tag inline-flex items-center gap-1"
           >
             {skill}
             <button
-              type="button"
+              type="button" disabled={disabled} aria-label={`Remove ${skill} skill`}
               onClick={() => removeSkill(skill)}
-              className="hover:bg-brand-primary/20 rounded-full p-0.5 transition-colors"
+              className="nesmi-skill-remove"
             >
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -74,7 +89,7 @@ export function SkillTagInput({ skills, onChange, placeholder = 'Add a skill...'
 
       {/* Input */}
       <input
-        type="text"
+        ref={inputRef} type="text" id={id} aria-label={id ? undefined : 'Skills'} disabled={disabled}
         value={inputValue}
         onChange={(e) => {
           setInputValue(e.target.value);
@@ -82,20 +97,19 @@ export function SkillTagInput({ skills, onChange, placeholder = 'Add a skill...'
         }}
         onKeyDown={handleKeyDown}
         onFocus={() => setShowSuggestions(true)}
-        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
         placeholder={placeholder}
-        className="w-full px-3 py-2 border border-border rounded-fluent-md bg-input-background text-content-primary placeholder-content-disabled focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all"
+        className="nesmi-secondary-field w-full"
       />
 
       {/* Suggestions dropdown */}
-      {showSuggestions && filteredSuggestions.length > 0 && (
-        <div className="absolute z-10 w-full mt-1 bg-surface-primary border border-border rounded-fluent-md shadow-fluent-16 max-h-40 overflow-y-auto">
+      {!disabled && showSuggestions && filteredSuggestions.length > 0 && (
+        <div className="nesmi-skill-suggestions absolute z-10 w-full mt-1 max-h-40 overflow-y-auto">
           {filteredSuggestions.map(suggestion => (
             <button
               key={suggestion}
-              type="button"
-              onClick={() => addSkill(suggestion)}
-              className="w-full px-3 py-2 text-left text-content-primary hover:bg-subtle-background-hover transition-colors text-sm"
+              type="button" disabled={disabled}
+              onClick={() => { inputRef.current?.focus(); addSkill(suggestion); }}
+              className="nesmi-skill-suggestion w-full text-left"
             >
               {suggestion}
             </button>

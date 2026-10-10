@@ -1,4 +1,7 @@
-import { useState, useRef } from 'react';
+import '../styles/nesmi-secondary-surfaces.css';
+import { memberAvatarStyle } from '../utils/colors';
+import { useState, useRef, useId, useEffect } from 'react';
+import { Dialog } from './Dialog';
 import { TeamMember } from '../types';
 import { useApp } from '../context/AppContext';
 import { SkillTagInput } from './SkillTagInput';
@@ -22,6 +25,10 @@ const DAYS_OF_WEEK = [
 export function MemberProfileModal({ member, onClose }: MemberProfileModalProps) {
   const { updateMember, getMemberStats } = useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const keepEditingRef = useRef<HTMLButtonElement>(null);
+  const savingRef = useRef(false);
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  const formId = useId();
 
   const [formData, setFormData] = useState({
     name: member.name,
@@ -36,12 +43,36 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
 
   const [activeTab, setActiveTab] = useState<'profile' | 'badges'>('profile');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  useEffect(() => {
+    if (error) {
+      errorRef.current?.focus({ preventScroll: true });
+      errorRef.current?.scrollIntoView?.({ block: 'nearest' });
+    }
+  }, [error]);
+  const originalForm = useRef(formData);
+  const changedFields = (Object.keys(formData) as (keyof typeof formData)[])
+    .filter(key => JSON.stringify(formData[key]) !== JSON.stringify(originalForm.current[key]));
+  const fieldNames: Record<keyof typeof formData, string> = {
+    name: 'Name', email: 'Email', avatarUrl: 'Photo', skills: 'Skills',
+    workingHoursStart: 'Working hours start', workingHoursEnd: 'Working hours end',
+    workingDays: 'Working days', weeklyCapacityMinutes: 'Weekly capacity',
+  };
+  const requestClose = () => {
+    if (savingRef.current) return;
+    if (changedFields.length) setConfirmDiscard(true);
+    else onClose();
+  };
 
   const stats = getMemberStats(member.id);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
+    setError('');
 
     const updatedMember: TeamMember = {
       ...member,
@@ -57,9 +88,15 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
       weeklyCapacityMinutes: formData.weeklyCapacityMinutes,
     };
 
-    await updateMember(updatedMember);
-    setSaving(false);
-    onClose();
+    try {
+      await updateMember(updatedMember);
+      onClose();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Could not save this profile. Please try again.');
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
   };
 
   const toggleWorkingDay = (day: number) => {
@@ -74,7 +111,7 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFormData({ ...formData, avatarUrl: reader.result as string });
+        setFormData(current => ({ ...current, avatarUrl: reader.result as string }));
       };
       reader.readAsDataURL(file);
     }
@@ -84,51 +121,36 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
   const allBadges = BADGES;
 
   return (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-50 p-4">
-      <div className="fluent-card w-full max-w-4xl max-h-[90vh] overflow-hidden animate-fluent-appear shadow-fluent-28">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2 className="fluent-title text-xl font-semibold text-content-primary">Member Profile</h2>
-          <button
-            onClick={onClose}
-            className="text-content-secondary hover:text-content-primary hover:bg-subtle-background-hover rounded-fluent-sm transition-all duration-fast p-1.5"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
+    <>
+    <Dialog title="Member Profile" onClose={requestClose} busy={saving} footer={activeTab === 'profile' ? <>
+      <button type="button" onClick={requestClose} disabled={saving} className="chore-button secondary">Cancel</button>
+      <button type="submit" form={formId} disabled={saving} className="chore-button primary">{saving ? 'Saving...' : 'Save Profile'}</button>
+    </> : undefined}>
+      <div className="nesmi-member-editor nesmi-secondary-surface">
         {/* Tabs */}
-        <div className="flex border-b border-border">
+        <div className="nesmi-profile-tabs flex border-b border-border" aria-label="Member profile sections">
           <button
-            onClick={() => setActiveTab('profile')}
-            className={`px-6 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'profile'
-                ? 'text-brand-primary border-b-2 border-brand-primary'
-                : 'text-content-secondary hover:text-content-primary'
-            }`}
+            onClick={() => setActiveTab('profile')} aria-pressed={activeTab === 'profile'} disabled={saving}
+            className="nesmi-secondary-tab"
           >
             Profile
           </button>
           <button
-            onClick={() => setActiveTab('badges')}
-            className={`px-6 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'badges'
-                ? 'text-brand-primary border-b-2 border-brand-primary'
-                : 'text-content-secondary hover:text-content-primary'
-            }`}
+            onClick={() => setActiveTab('badges')} aria-pressed={activeTab === 'badges'} disabled={saving}
+            className="nesmi-secondary-tab"
           >
             Badges & Stats
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-160px)]">
+        <div className="nesmi-profile-content">
           {activeTab === 'profile' ? (
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form id={formId} onSubmit={handleSubmit}>
+              <fieldset disabled={saving} className="nesmi-profile-fields space-y-6">
+              {error && <p ref={errorRef} tabIndex={-1} className="chore-error nesmi-secondary-support" role="alert">{error} Your entries are still here.</p>}
               {/* Avatar Section */}
-              <div className="flex items-center gap-6">
+              <div className="nesmi-profile-avatar-row flex items-center gap-6">
                 <div className="relative">
                   {formData.avatarUrl ? (
                     <img
@@ -139,24 +161,24 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
                   ) : (
                     <div
                       className="w-24 h-24 rounded-fluent-circle flex items-center justify-center text-3xl font-bold text-white"
-                      style={{ backgroundColor: member.color }}
+                      style={memberAvatarStyle(member.color)}
                     >
                       {formData.name.charAt(0).toUpperCase()}
                     </div>
                   )}
                   <input
                     ref={fileInputRef}
-                    type="file"
+                    type="file" aria-label="Upload member photo"
                     accept="image/*"
                     onChange={handleAvatarUpload}
                     className="hidden"
                   />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-4 py-2 bg-surface-secondary hover:bg-surface-tertiary text-content-primary rounded-fluent-md transition-colors text-sm"
+                    className="chore-button secondary"
                   >
                     Upload Photo
                   </button>
@@ -164,58 +186,59 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
                     <button
                       type="button"
                       onClick={() => setFormData({ ...formData, avatarUrl: '' })}
-                      className="ml-2 px-4 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-fluent-md transition-colors text-sm"
+                      className="chore-button danger"
                     >
                       Remove
                     </button>
                   )}
-                  <p className="text-xs text-content-secondary mt-2">
+                  <p className="nesmi-secondary-support mt-2">
                     Or paste an image URL below
                   </p>
                   <input
-                    type="url"
+                    type="url" aria-label="Photo URL"
                     value={formData.avatarUrl}
                     onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
                     placeholder="https://example.com/avatar.jpg"
-                    className="mt-2 w-full px-3 py-2 border border-border rounded-fluent-md bg-input-background text-content-primary placeholder-content-disabled focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all text-sm"
+                    className="nesmi-secondary-field mt-2 w-full"
                   />
                 </div>
               </div>
 
               {/* Name */}
               <div>
-                <label className="block text-sm font-medium text-content-primary mb-2">
+                <label htmlFor={`${formId}-name`} className="nesmi-secondary-label block mb-2">
                   Name
                 </label>
                 <input
-                  type="text"
+                  type="text" id={`${formId}-name`}
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-border rounded-fluent-md bg-input-background text-content-primary placeholder-content-disabled focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all"
+                  className="nesmi-secondary-field w-full"
                 />
               </div>
 
               {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-content-primary mb-2">
+                <label htmlFor={`${formId}-email`} className="nesmi-secondary-label block mb-2">
                   Email
                 </label>
                 <input
-                  type="email"
+                  type="email" id={`${formId}-email`}
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="member@example.com"
-                  className="w-full px-3 py-2 border border-border rounded-fluent-md bg-input-background text-content-primary placeholder-content-disabled focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all"
+                  className="nesmi-secondary-field w-full"
                 />
               </div>
 
               {/* Skills */}
               <div>
-                <label className="block text-sm font-medium text-content-primary mb-2">
+                <label htmlFor={`${formId}-skills`} className="nesmi-secondary-label block mb-2">
                   Skills
                 </label>
                 <SkillTagInput
+                  id={`${formId}-skills`} disabled={saving}
                   skills={formData.skills}
                   onChange={(skills) => setFormData({ ...formData, skills })}
                 />
@@ -223,42 +246,34 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
 
               {/* Working Hours */}
               <div>
-                <label className="block text-sm font-medium text-content-primary mb-2">
-                  Working Hours
-                </label>
-                <div className="flex items-center gap-2">
+                <p className="nesmi-secondary-label mb-2">Working Hours</p>
+                <div className="nesmi-profile-time-row flex items-center gap-2">
                   <input
                     type="time"
-                    value={formData.workingHoursStart}
+                    aria-label="Working hours start" value={formData.workingHoursStart}
                     onChange={(e) => setFormData({ ...formData, workingHoursStart: e.target.value })}
-                    className="px-3 py-2 border border-border rounded-fluent-md bg-input-background text-content-primary focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all"
+                    className="nesmi-secondary-field"
                   />
                   <span className="text-content-secondary">to</span>
                   <input
                     type="time"
-                    value={formData.workingHoursEnd}
+                    aria-label="Working hours end" value={formData.workingHoursEnd}
                     onChange={(e) => setFormData({ ...formData, workingHoursEnd: e.target.value })}
-                    className="px-3 py-2 border border-border rounded-fluent-md bg-input-background text-content-primary focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all"
+                    className="nesmi-secondary-field"
                   />
                 </div>
               </div>
 
               {/* Working Days */}
               <div>
-                <label className="block text-sm font-medium text-content-primary mb-2">
-                  Working Days
-                </label>
-                <div className="flex gap-2">
+                <p id={`${formId}-days`} className="nesmi-secondary-label mb-2">Working Days</p>
+                <div className="nesmi-profile-days flex flex-wrap gap-2" role="group" aria-labelledby={`${formId}-days`}>
                   {DAYS_OF_WEEK.map(day => (
                     <button
                       key={day.value}
                       type="button"
                       onClick={() => toggleWorkingDay(day.value)}
-                      className={`w-10 h-10 rounded-fluent-sm text-sm font-medium transition-colors ${
-                        formData.workingDays.includes(day.value)
-                          ? 'bg-brand-primary text-white'
-                          : 'bg-surface-secondary text-content-secondary hover:bg-surface-tertiary'
-                      }`}
+                      className="nesmi-profile-day" aria-pressed={formData.workingDays.includes(day.value)}
                     >
                       {day.label}
                     </button>
@@ -268,42 +283,26 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
 
               {/* Weekly Capacity */}
               <div>
-                <label className="block text-sm font-medium text-content-primary mb-2">
+                <label htmlFor={`${formId}-capacity`} className="nesmi-secondary-label block mb-2">
                   Weekly Capacity: {Math.floor(formData.weeklyCapacityMinutes / 60)}h {formData.weeklyCapacityMinutes % 60}m
                 </label>
                 <input
-                  type="range"
+                  type="range" id={`${formId}-capacity`}
                   min={0}
                   max={2400}
                   step={30}
                   value={formData.weeklyCapacityMinutes}
                   onChange={(e) => setFormData({ ...formData, weeklyCapacityMinutes: parseInt(e.target.value) })}
-                  className="w-full accent-brand-primary"
+                  className="nesmi-profile-capacity w-full"
                 />
-                <div className="flex justify-between text-xs text-content-secondary mt-1">
+                <div className="flex justify-between nesmi-secondary-label mt-1">
                   <span>0h</span>
                   <span>20h</span>
                   <span>40h</span>
                 </div>
               </div>
 
-              {/* Submit */}
-              <div className="flex justify-end gap-2 pt-4 border-t border-border">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 text-content-primary hover:bg-subtle-background-hover rounded-fluent-md transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-4 py-2 bg-brand-primary text-white rounded-fluent-md hover:bg-brand-primary/90 transition-colors disabled:opacity-50"
-                >
-                  {saving ? 'Saving...' : 'Save Profile'}
-                </button>
-              </div>
+              </fieldset>
             </form>
           ) : (
             /* Badges & Stats Tab */
@@ -311,30 +310,30 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
               {/* Stats Summary */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="fluent-surface p-4 rounded-fluent-md border border-border text-center">
-                  <div className="text-2xl font-bold text-brand-primary">{member.points || 0}</div>
-                  <div className="text-sm text-content-secondary">Points</div>
+                  <div className="text-2xl font-bold text-content-primary">{member.points || 0}</div>
+                  <div className="nesmi-secondary-label">Points</div>
                 </div>
                 <div className="fluent-surface p-4 rounded-fluent-md border border-border text-center">
                   <div className="text-2xl font-bold text-content-primary">{stats.totalCompleted}</div>
-                  <div className="text-sm text-content-secondary">Completed</div>
+                  <div className="nesmi-secondary-label">Completed</div>
                 </div>
                 <div className="fluent-surface p-4 rounded-fluent-md border border-border text-center">
-                  <div className="text-2xl font-bold text-orange-500">{stats.currentStreak}</div>
-                  <div className="text-sm text-content-secondary">Current Streak</div>
+                  <div className="text-2xl font-bold text-content-primary">{stats.currentStreak}</div>
+                  <div className="nesmi-secondary-label">Current Streak</div>
                 </div>
                 <div className="fluent-surface p-4 rounded-fluent-md border border-border text-center">
                   <div className="text-2xl font-bold text-content-primary">{stats.longestStreak}</div>
-                  <div className="text-sm text-content-secondary">Best Streak</div>
+                  <div className="nesmi-secondary-label">Best Streak</div>
                 </div>
               </div>
 
               {/* Earned Badges */}
               <div>
-                <h3 className="text-lg font-semibold text-content-primary mb-3">
+                <h3 className="nesmi-secondary-title mb-3">
                   Earned Badges ({earnedBadges.length})
                 </h3>
                 {earnedBadges.length > 0 ? (
-                  <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
+                  <div className="nesmi-profile-badges-grid grid grid-cols-3 md:grid-cols-4 gap-3">
                     {earnedBadges.map(badgeId => {
                       const badge = getBadgeById(badgeId);
                       if (!badge) return null;
@@ -344,8 +343,8 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
                           className="fluent-surface p-3 rounded-fluent-md border border-border text-center hover:shadow-fluent-8 transition-shadow"
                         >
                           <div className="text-3xl mb-1">{badge.icon}</div>
-                          <div className="text-sm font-medium text-content-primary">{badge.name}</div>
-                          <div className="text-xs text-content-secondary">{badge.description}</div>
+                          <div className="nesmi-secondary-body font-medium">{badge.name}</div>
+                          <div className="nesmi-secondary-support">{badge.description}</div>
                         </div>
                       );
                     })}
@@ -359,18 +358,18 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
 
               {/* Available Badges */}
               <div>
-                <h3 className="text-lg font-semibold text-content-primary mb-3">
+                <h3 className="nesmi-secondary-title mb-3">
                   Available Badges
                 </h3>
-                <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
+                <div className="nesmi-profile-badges-grid grid grid-cols-3 md:grid-cols-4 gap-3">
                   {allBadges.filter(b => !earnedBadges.includes(b.id)).map(badge => (
                     <div
                       key={badge.id}
-                      className="fluent-surface p-3 rounded-fluent-md border border-border text-center opacity-50"
+                      className="fluent-surface p-3 rounded-fluent-md border border-border text-center nesmi-secondary-unearned"
                     >
                       <div className="text-3xl mb-1 grayscale">{badge.icon}</div>
-                      <div className="text-sm font-medium text-content-secondary">{badge.name}</div>
-                      <div className="text-xs text-content-disabled">{badge.description}</div>
+                      <div className="nesmi-secondary-body font-medium text-content-secondary">{badge.name}</div>
+                      <div className="nesmi-secondary-support">{badge.description}</div>
                     </div>
                   ))}
                 </div>
@@ -379,6 +378,16 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
           )}
         </div>
       </div>
-    </div>
+    </Dialog>
+    {confirmDiscard && <Dialog title="Discard profile changes?" variant="centered" onClose={() => setConfirmDiscard(false)} initialFocusRef={keepEditingRef} footer={<>
+      <button ref={keepEditingRef} type="button" onClick={() => setConfirmDiscard(false)} className="chore-button secondary">Keep editing</button>
+      <button type="button" onClick={onClose} className="chore-button secondary">Discard changes</button>
+    </>}>
+      <div className="nesmi-profile-discard nesmi-secondary-surface">
+        <p className="nesmi-secondary-body">Your changes to <strong>{member.name}</strong>’s profile haven’t been saved.</p>
+        <p className="nesmi-secondary-support">Changed: {changedFields.map(key => fieldNames[key]).join(', ')}.</p>
+      </div>
+    </Dialog>}
+    </>
   );
 }

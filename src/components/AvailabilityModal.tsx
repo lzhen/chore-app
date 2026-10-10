@@ -1,7 +1,9 @@
+import { useId, useRef, useState } from 'react';
 import { parseDate } from '../utils/dates';
-import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { TeamMember } from '../types';
+import { Dialog } from './Dialog';
+import './AvailabilityModal.css';
 
 interface AvailabilityModalProps {
   member: TeamMember;
@@ -10,142 +12,153 @@ interface AvailabilityModalProps {
 
 export function AvailabilityModal({ member, onClose }: AvailabilityModalProps) {
   const { state, addAvailability, deleteAvailability } = useApp();
+  const id = useId();
+  const pendingRef = useRef(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [reason, setReason] = useState('');
-
-  // Get this member's availability records
+  const [pending, setPending] = useState<string | null>(null);
+  const [formError, setFormError] = useState('');
+  const [deleteError, setDeleteError] = useState<{ id: string; message: string } | null>(null);
   const memberAvailability = state.availability.filter(a => a.memberId === member.id);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (startDate && endDate) {
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (pendingRef.current) return;
+    if (!startDate || !endDate) {
+      setFormError('Choose a start and end date.');
+      return;
+    }
+    if (endDate < startDate) {
+      setFormError('End date must be on or after the start date.');
+      return;
+    }
+    pendingRef.current = true;
+    setPending('add');
+    setFormError('');
+    try {
       await addAvailability(member.id, startDate, endDate, reason || undefined);
       setStartDate('');
       setEndDate('');
       setReason('');
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Could not save availability. Please try again.');
+    } finally {
+      pendingRef.current = false;
+      setPending(null);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    await deleteAvailability(id);
+  const handleDelete = async (periodId: string) => {
+    if (pendingRef.current) return;
+    pendingRef.current = true;
+    setPending(periodId);
+    setDeleteError(null);
+    try {
+      await deleteAvailability(periodId);
+    } catch (error) {
+      setDeleteError({ id: periodId, message: error instanceof Error ? error.message : 'Could not remove these dates. Please try again.' });
+    } finally {
+      pendingRef.current = false;
+      setPending(null);
+    }
   };
 
-  const formatDate = (dateStr: string) => {
-    return parseDate(dateStr).toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
+  const formatDate = (dateStr: string) => parseDate(dateStr).toLocaleDateString(undefined, {
+    month: 'short', day: 'numeric', year: 'numeric',
+  });
 
   return (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-50 p-4">
-      <div className="fluent-card w-full max-w-md max-h-[90vh] overflow-hidden animate-fluent-appear shadow-fluent-28">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-4 h-4 rounded-fluent-circle"
-              style={{ backgroundColor: member.color }}
-            />
-            <h2 className="fluent-title text-lg font-semibold text-content-primary">
-              {member.name}'s Availability
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-content-secondary hover:text-content-primary hover:bg-subtle-background-hover rounded-fluent-sm transition-all duration-fast p-1.5"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
-          {/* Add new unavailability */}
-          <form onSubmit={handleSubmit} className="mb-6">
-            <h3 className="text-sm font-medium text-content-primary mb-3">Set Unavailable Period</h3>
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <div>
-                <label className="block text-xs text-content-secondary mb-1">Start Date</label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="fluent-input text-sm w-full"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-content-secondary mb-1">End Date</label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  min={startDate}
-                  className="fluent-input text-sm w-full"
-                  required
-                />
-              </div>
-            </div>
-            <div className="mb-3">
-              <label className="block text-xs text-content-secondary mb-1">Reason (optional)</label>
+    <Dialog title={`${member.name}’s availability`} onClose={onClose} busy={pending !== null} variant="centered">
+      <div className="nesmi-availability">
+        <form onSubmit={handleSubmit} noValidate aria-labelledby={`${id}-add-title`} className="nesmi-availability-form" aria-busy={pending === 'add'}>
+          <h3 id={`${id}-add-title`}>Add unavailable dates</h3>
+          <div className="nesmi-availability-dates">
+            <div className="nesmi-availability-field">
+              <label htmlFor={`${id}-start`}>Start date</label>
               <input
-                type="text"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="e.g., Vacation, Sick leave..."
-                className="fluent-input text-sm w-full"
+                id={`${id}-start`}
+                type="date"
+                value={startDate}
+                onChange={event => { setStartDate(event.target.value); setFormError(''); }}
+                className="chore-input"
+                required
+                disabled={pending !== null}
+                aria-describedby={formError ? `${id}-form-error` : undefined}
               />
             </div>
-            <button type="submit" className="fluent-button w-full py-2 text-sm">
-              Add Unavailable Period
-            </button>
-          </form>
-
-          {/* Existing unavailability periods */}
-          <div>
-            <h3 className="text-sm font-medium text-content-primary mb-3">Unavailable Periods</h3>
-            {memberAvailability.length === 0 ? (
-              <p className="text-sm text-content-secondary italic text-center py-4">
-                No unavailable periods set
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {memberAvailability.map((period) => (
-                  <li
-                    key={period.id}
-                    className="flex items-center justify-between p-3 rounded-fluent-sm bg-surface-tertiary border border-border"
-                  >
-                    <div>
-                      <div className="text-sm text-content-primary">
-                        {formatDate(period.startDate)} - {formatDate(period.endDate)}
-                      </div>
-                      {period.reason && (
-                        <div className="text-xs text-content-secondary mt-0.5">
-                          {period.reason}
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleDelete(period.id)}
-                      className="text-content-secondary hover:text-red-500 hover:bg-red-500/10 rounded-fluent-sm p-1.5 transition-all duration-fast"
-                      title="Remove period"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <div className="nesmi-availability-field">
+              <label htmlFor={`${id}-end`}>End date</label>
+              <input
+                id={`${id}-end`}
+                type="date"
+                value={endDate}
+                onChange={event => { setEndDate(event.target.value); setFormError(''); }}
+                min={startDate || undefined}
+                className="chore-input"
+                required
+                disabled={pending !== null}
+                aria-invalid={!!endDate && !!startDate && endDate < startDate}
+                aria-describedby={formError ? `${id}-form-error` : undefined}
+              />
+            </div>
           </div>
-        </div>
+          <div className="nesmi-availability-field">
+            <label htmlFor={`${id}-reason`}>Reason <span>(optional)</span></label>
+            <input
+              id={`${id}-reason`}
+              type="text"
+              value={reason}
+              onChange={event => setReason(event.target.value)}
+              placeholder="Optional note"
+              className="chore-input"
+              disabled={pending !== null}
+            />
+          </div>
+          {formError && <p id={`${id}-form-error`} className="chore-error" role="alert">{formError}</p>}
+          <button type="submit" className="chore-button secondary nesmi-availability-submit" disabled={pending !== null}>
+            {pending === 'add' ? 'Adding…' : 'Add dates'}
+          </button>
+        </form>
+
+        <section className="nesmi-availability-existing" aria-labelledby={`${id}-existing-title`}>
+          <h3 id={`${id}-existing-title`}>Unavailable dates</h3>
+          {memberAvailability.length === 0 ? (
+            <p className="nesmi-availability-empty">No unavailable dates yet.</p>
+          ) : (
+            <ul className="nesmi-availability-list">
+              {memberAvailability.map(period => {
+                const dateLabel = period.startDate === period.endDate
+                  ? formatDate(period.startDate)
+                  : `${formatDate(period.startDate)} – ${formatDate(period.endDate)}`;
+                return (
+                  <li key={period.id} className="nesmi-availability-period" aria-busy={pending === period.id}>
+                    <div className="nesmi-availability-period-row">
+                      <div className="nesmi-availability-period-details">
+                        <p className="nesmi-availability-range">{dateLabel}</p>
+                        {period.reason && <p className="nesmi-availability-reason">{period.reason}</p>}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void handleDelete(period.id)}
+                        className="touch-button nesmi-availability-remove"
+                        disabled={pending !== null}
+                        aria-label={`Remove dates ${dateLabel}`}
+                        title="Remove dates"
+                      >
+                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                    {deleteError?.id === period.id && <p className="chore-error" role="alert">{deleteError.message}</p>}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
       </div>
-    </div>
+    </Dialog>
   );
 }

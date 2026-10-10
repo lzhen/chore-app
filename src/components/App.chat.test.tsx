@@ -1,0 +1,38 @@
+import {cleanup,render,screen,waitFor} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
+import {App} from './App';
+import {dateKey} from '../utils/dates';
+import type {Chore} from '../types';
+const app=vi.hoisted(()=>({state:{chores:[] as Chore[],teamMembers:[],categories:[],completions:[],loading:false,error:null},reload:vi.fn(),addChore:vi.fn(),updateChore:vi.fn(),deleteChore:vi.fn()}));
+vi.mock('../context/AppContext',()=>({useApp:()=>app}));
+vi.mock('../context/AuthContext',()=>({useAuth:()=>({user:{id:'test',email:'demo@example.test'},loading:false})}));
+vi.mock('./Calendar',()=>({Calendar:({onAddClick}:{onAddClick:(v:{date:string})=>void})=><button onClick={()=>onAddClick({date:'2026-11-01'})}>Select calendar date</button>}));
+vi.mock('./Dashboard',()=>({Dashboard:()=> <h2>Insights overview</h2>}));
+vi.mock('./AccountSettings',()=>({AccountSettings:()=> <h2>Account settings</h2>}));
+vi.mock('./AgentPanel',()=>({AgentPanel:({onDismiss}:{onDismiss:()=>void})=><div role="dialog" aria-label="Planning tools"><button onClick={onDismiss}>Close tools</button></div>}));
+afterEach(cleanup);
+beforeEach(()=>{app.state.chores=[{id:'task',title:'Water plants',date:dateKey(),assigneeId:null,recurrence:'none',priority:'medium'}];});
+describe('desktop assistant handoff',()=>{
+ it('keeps global create usable and hands focus to its guarded modal',async()=>{
+  vi.mocked(window.matchMedia).mockImplementation(query=>({matches:query==='(min-width: 1024px)',media:query,onchange:null,addListener:vi.fn(),removeListener:vi.fn(),addEventListener:vi.fn(),removeEventListener:vi.fn(),dispatchEvent:vi.fn()}));
+  Object.defineProperty(window,'innerWidth',{value:1440,configurable:true});
+  const user=userEvent.setup();render(<App/>);
+  await user.click(screen.getByRole('button',{name:/Chore assistant/}));
+  const panel=screen.getByRole('complementary',{name:'Chore assistant'});
+  expect(panel).toBeInTheDocument();
+  await user.click(screen.getByRole('button',{name:'Add new chore'}));
+  expect(screen.getByRole('dialog',{name:'Add a chore'})).toBeInTheDocument();
+  expect(screen.queryByRole('complementary',{name:'Chore assistant'})).toBeNull();
+  await user.type(screen.getByRole('textbox',{name:'Chore'}),'Keep this draft');
+  await user.keyboard('{Escape}');
+  expect(screen.getByRole('dialog',{name:'Discard changes?'})).toBeInTheDocument();
+  await user.click(screen.getByRole('button',{name:'Keep editing'}));
+  expect(screen.getByRole('textbox',{name:'Chore'})).toHaveValue('Keep this draft');
+  await user.click(screen.getByRole('button',{name:'Cancel'}));
+  await user.click(screen.getByRole('button',{name:'Discard changes'}));
+  await waitFor(()=>expect(screen.getByRole('complementary',{name:'Chore assistant'})).toBeInTheDocument());
+  expect(screen.queryByRole('dialog')).toBeNull();
+  await waitFor(()=>expect(screen.getByRole('button',{name:'Add new chore'})).toHaveFocus());
+ });
+});

@@ -60,3 +60,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   window.location.hash = '';
 });
+
+// Layout observer is supplied by the browser; jsdom has no rendering engine.
+globalThis.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };

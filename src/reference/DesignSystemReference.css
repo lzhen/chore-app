@@ -1,0 +1,114 @@
+/* Reference-page layout only. Product components retain their own styles. */
+.nesmi-design-reference { min-height: 100dvh; color: var(--text-primary); background: var(--surface-primary); font-size: var(--nesmi-type-body); line-height: var(--nesmi-leading-body); overflow-wrap: anywhere; }
+.nesmi-design-reference *, .nesmi-design-reference *::before, .nesmi-design-reference *::after { box-sizing: border-box; }
+.nesmi-design-reference button, .nesmi-design-reference input, .nesmi-design-reference textarea { font-family: inherit; }
+.nesmi-design-reference a { color: inherit; }
+.nesmi-design-reference :is(button,a,input,textarea):focus-visible { outline: 2px solid var(--text-primary); outline-offset: 4px; }
+.ds-skip { position: fixed; z-index: 2000; top: 8px; left: 8px; transform: translateY(-160%); padding: 12px 18px; background: var(--surface-primary); border: 2px solid var(--text-primary); border-radius: 8px; }
+.ds-skip:focus { transform: none; }
+.ds-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; max-width: 1208px; margin: 0 auto; padding: 22px 32px; border-bottom: 1px solid var(--border-subtle); }
+.ds-header-controls { display: flex; gap: 12px; align-items: center; }
+.ds-small { color: var(--text-secondary); font-size: 13px; }
+.ds-main { max-width: 1208px; padding: 0 32px; margin: 0 auto; outline: none; }
+.ds-hero { padding: 64px 0 36px; max-width: 850px; }
+.ds-eyebrow { color: var(--text-secondary); font-size: 13px; margin: 0 0 18px; }
+.ds-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+.ds-title-row h1 { font-size: clamp(2.5rem, 7vw, 4.5rem); line-height: 1.05; letter-spacing: -.055em; font-weight: 550; margin: 0; }
+.ds-version { border: 1px solid var(--border-default); border-radius: 8px; padding: 5px 9px; font-size: 13px; color: var(--text-secondary); }
+.ds-intro { max-width: 660px; font-size: 18px; line-height: 1.6; margin: 24px 0; }
+.ds-hero-meta { display: flex; flex-wrap: wrap; gap: 6px 24px; font-size: 13px; color: var(--text-secondary); margin-bottom: 24px; }
+.ds-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }
+.ds-actions .chore-button { text-decoration: none; white-space: normal; text-align: center; }
+.ds-actions .chore-button.danger { text-decoration: underline; }
+.ds-nav { display: flex; flex-wrap: wrap; gap: 6px 16px; border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); padding: 10px 0; }
+.ds-nav a { font-size: 14px; min-height: 44px; display: flex; align-items: center; padding: 8px 4px; text-decoration: none; border-radius: 4px; }
+.ds-nav a:hover { text-decoration: underline; text-underline-offset: 5px; }
+.ds-section { padding: 48px 0; border-bottom: 1px solid var(--border-subtle); scroll-margin-top: 24px; }
+.ds-section-heading { display: flex; gap: 16px; margin-bottom: 28px; align-items: baseline; }
+.ds-number { flex: 0 0 28px; font-size: 13px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.ds-section-heading h2 { font-size: var(--nesmi-type-section); line-height: var(--nesmi-leading-section); font-weight: 600; margin: 0 0 8px; letter-spacing: -.02em; }
+.ds-section-heading p, .ds-helper { font-size: 14px; line-height: 1.5; color: var(--text-secondary); margin: 12px 0 0; }
+.ds-section-heading p { margin: 0; }
+.ds-three-column { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 24px; }
+.ds-two-column { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; align-items: start; }
+.ds-three-column > *, .ds-two-column > * { min-width: 0; }
+.ds-status { display: inline-flex; max-width: 100%; padding: 4px 8px; border-radius: 6px; background: var(--surface-tertiary); font-size: 12px; color: var(--text-secondary); margin-bottom: 16px; }
+.ds-principle h3, .ds-rule-columns h3 { font-size: 16px; font-weight: 550; margin: 0 0 8px; }
+.ds-principle p, .ds-rule-columns p { margin: 0; font-size: 14px; line-height: 1.65; color: var(--text-secondary); }
+.ds-type-list { display: grid; gap: 24px; margin-bottom: 32px; }
+.ds-type-list > div { display: grid; grid-template-columns: minmax(0,1.3fr) minmax(0,1fr); gap: 6px 24px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 20px; }
+.ds-type-section { font-size: var(--nesmi-type-section); line-height: var(--nesmi-leading-section); font-weight: 550; }
+.ds-type-body { font-size: var(--nesmi-type-body); line-height: var(--nesmi-leading-body); }
+.ds-type-label { font-size: var(--nesmi-type-label); line-height: var(--nesmi-leading-label); }
+.ds-type-meta { font-size: 13px; color: var(--text-secondary); }
+.ds-type-list code { grid-column: 2; }
+.nesmi-design-reference code { font-size: 12px; color: var(--text-secondary); overflow-wrap: anywhere; }
+.ds-specimen { border: 1px solid var(--border-default); border-radius: 14px; padding: 24px; min-width: 0; }
+.ds-specimen-heading { display: flex; justify-content: space-between; flex-wrap: wrap; align-items: baseline; gap: 6px 20px; margin-bottom: 24px; }
+.ds-specimen-heading h3 { font-size: 14px; font-weight: 550; margin: 0; }
+.ds-specimen-heading > span { font-size: 12px; color: var(--text-secondary); }
+.ds-segmented { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 20px; }
+.ds-segmented > button { min-height: 44px; padding: 9px 14px; border: 1px solid var(--border-default); color: var(--text-secondary); border-radius: 8px; font-size: 14px; line-height: 1.4; }
+.ds-segmented > button[aria-pressed=true] { background: var(--surface-tertiary); border-color: var(--text-primary); color: var(--text-primary); }
+.ds-segmented > button:disabled { opacity: .55; cursor: not-allowed; }
+.ds-swatches { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 24px; margin-bottom: 32px; }
+.ds-swatch { min-width: 0; }
+.ds-swatch-color { height: 88px; border-radius: 10px; background: var(--ds-swatch); border: 1px solid var(--border-default); margin-bottom: 12px; }
+.ds-swatch h3 { font-size: 14px; font-weight: 550; margin: 0 0 2px; }
+.ds-swatch > span { display: block; font-size: 13px; color: var(--text-secondary); }
+.ds-swatch code { display: block; margin-top: 3px; }
+.ds-logo-stage { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 76px; }
+.ds-spacing { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 18px; min-height: 76px; }
+.ds-spacing > div { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.ds-spacing span { display: block; background: var(--text-primary); border-radius: 2px; }
+.ds-spacing b { font-size: 12px; font-weight: 400; color: var(--text-secondary); }
+.ds-live { font-size: 14px; color: var(--text-secondary); line-height: 1.5; min-height: 21px; margin: 16px 0 0; }
+.ds-field-example .chore-label:first-child { margin-top: 0; }
+.ds-field-example .chore-label { margin-bottom: 8px; }
+.ds-field-example textarea { resize: vertical; }
+.ds-checkbox { display: flex; align-items: center; gap: 12px; min-height: 44px; font-size: 14px; color: var(--text-secondary); margin: 16px 0; }
+.ds-checkbox input { accent-color: var(--text-primary); width: 18px; height: 18px; flex: 0 0 18px; }
+.ds-task-stage { max-width: 760px; margin: 16px 0 0; }
+.ds-empty { padding: 24px 0; }
+.ds-empty p { margin: 0 0 16px; }
+.ds-rule-columns { margin-top: 24px; }
+.ds-rule-columns ul { padding-left: 20px; margin: 12px 0 0; font-size: 14px; line-height: 1.7; color: var(--text-secondary); }
+.ds-rule-columns li + li { margin-top: 8px; }
+.ds-dialog-copy { padding-top: 22px; font-size: var(--nesmi-type-body); line-height: var(--nesmi-leading-body); overflow-wrap: anywhere; }
+.ds-dialog-copy > p { margin: 0 0 16px; }
+.ds-sheet-editor { padding-top: 20px; }
+.ds-sheet-editor > .ds-helper { margin: 0 0 20px; }
+.ds-callout { margin-top: 32px; padding: 24px; border-left: 3px solid var(--chore-highlight); background: var(--surface-tertiary); border-radius: 0 10px 10px 0; }
+.ds-callout strong { font-size: 16px; font-weight: 550; }
+.ds-callout p { margin: 8px 0 0; font-size: 14px; line-height: 1.65; color: var(--text-secondary); }
+.ds-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 24px 0 max(32px,env(safe-area-inset-bottom)); color: var(--text-secondary); font-size: 13px; }
+.ds-footer a { display: inline-flex; align-items: center; min-height: 44px; }
+@media(max-width:800px) {
+  .ds-three-column, .ds-two-column { grid-template-columns: minmax(0,1fr); }
+  .ds-three-column { gap: 28px; }
+  .ds-hero { padding-top: 40px; }
+}
+@media(max-width:540px) {
+  .ds-header { padding: 16px; }.ds-main { padding: 0 16px; }
+  .ds-hero { padding-top: 32px; }.ds-intro { font-size: 16px; }
+  .ds-section { padding: 32px 0; }.ds-section-heading { gap: 8px; }
+  .ds-specimen { padding: 16px; }.ds-specimen-heading { margin-bottom: 20px; }
+  .ds-swatches { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px 16px; }
+  .ds-swatch-color { height: 68px; }
+  .ds-type-list > div { grid-template-columns: minmax(0,1fr); }.ds-type-list code { grid-column: auto; }
+  .ds-actions > .chore-button { max-width: 100%; }
+  .ds-header-controls { gap: 6px; }.ds-small { font-size: 12px; }
+  .ds-nav { gap: 4px 12px; }.ds-callout { padding: 20px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .nesmi-design-reference *, .nesmi-design-reference *::before, .nesmi-design-reference *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+.ds-spec-link { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 2px; font-size: 14px; text-decoration: underline; text-underline-offset: 4px; }
+
+.ds-heading-example { margin-top: 24px; }
+
+.ds-value-scale-example { margin-bottom: 24px; }
+.ds-value-scale { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; align-items: start; }
+.ds-value-scale .chore-label { margin: 0; min-width: 0; }
+.ds-value-scale > div > .chore-input { margin-top: 8px; }
+@media(max-width:800px) { .ds-value-scale { grid-template-columns: minmax(0,1fr); } }

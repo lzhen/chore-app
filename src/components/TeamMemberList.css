@@ -1,0 +1,80 @@
+/* Scope destructive decisions to this compact dialog; keep long forms unchanged. */
+.chore-dialog:has(.nesmi-member-removal) .chore-dialog-header {
+  gap: 12px;
+  padding: 20px 20px 0;
+  min-height: 0;
+  border-bottom: 0;
+}
+.chore-dialog:has(.nesmi-member-removal) .chore-dialog-header h2 { flex: 1; }
+.chore-dialog:has(.nesmi-member-removal) .chore-dialog-header .touch-button { flex: 0 0 44px; }
+.chore-dialog:has(.nesmi-member-removal) .chore-dialog-body { padding: 12px 22px 20px; }
+.nesmi-member-removal { display: grid; gap: 12px; font-size: 14px; line-height: 1.6; color: var(--text-secondary); overflow-wrap: anywhere; }
+.chore-dialog:has(.nesmi-member-removal) .chore-dialog-footer { border-top: 0; padding: 0 22px 22px; flex-wrap: wrap; }
+.chore-dialog:has(.nesmi-member-removal) .chore-dialog-footer .chore-button { min-width: 0; overflow-wrap: anywhere; }
+.chore-button.nesmi-member-remove-confirm { background: #a4322b; color: #fff; text-decoration: none; }
+.chore-button.nesmi-member-remove-confirm:hover:not(:disabled) { background: #892921; }
+@media (max-width: 359px) {
+  .chore-dialog:has(.nesmi-member-removal) .chore-dialog-footer { flex-direction: column; }
+}
+
+/* Web: keep the full name on its own line, with a reserved action strip beneath. */
+.nesmi-family-content[data-interaction-mode='web'] .nesmi-family-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  column-gap: 4px;
+  row-gap: 0;
+  padding-block: 4px;
+}
+.nesmi-family-content[data-interaction-mode='web'] .nesmi-member-visibility { grid-column: 1; grid-row: 1; }
+.nesmi-family-content[data-interaction-mode='web'] .nesmi-member-profile { grid-column: 1 / -1; grid-row: 1; min-height: 44px; }
+.nesmi-family-content[data-interaction-mode='web'] .has-visibility .nesmi-member-profile { grid-column: 2; }
+.nesmi-member-inline-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+  min-height: 44px;
+}
+.nesmi-member-inline-action {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+}
+.nesmi-member-inline-action > svg { width: 18px; height: 18px; }
+.nesmi-member-inline-action:hover, .nesmi-member-inline-action:focus-visible { background: var(--surface-secondary); color: var(--text-primary); }
+.nesmi-member-inline-action.is-remove:hover, .nesmi-member-inline-action.is-remove:focus-visible { color: #bb4940; }
+.nesmi-member-action-tooltip {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  right: 0;
+  z-index: 2;
+  width: max-content;
+  max-width: 160px;
+  padding: 5px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 11px;
+  line-height: 1.4;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+}
+.nesmi-member-inline-action:hover .nesmi-member-action-tooltip,
+.nesmi-member-inline-action:focus-visible .nesmi-member-action-tooltip { visibility: visible; opacity: 1; }
+@media (hover: hover) and (pointer: fine) {
+  .nesmi-member-inline-actions { opacity: 0; pointer-events: none; }
+  .nesmi-family-row:hover .nesmi-member-inline-actions,
+  .nesmi-family-row:focus-within .nesmi-member-inline-actions { opacity: 1; pointer-events: auto; }
+}
+/* Touch-capable and no-hover devices always retain explicit, operable controls. */
+@media (any-pointer: coarse), (hover: none) {
+  .nesmi-member-inline-actions { opacity: 1; pointer-events: auto; }
+}

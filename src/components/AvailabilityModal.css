@@ -1,0 +1,133 @@
+/* Keep availability on the existing dialog surface, with room for each field. */
+.chore-dialog-backdrop.is-centered > .chore-dialog:has(.nesmi-availability) {
+  width: min(100%, 520px);
+}
+
+.nesmi-availability {
+  padding-top: 22px;
+}
+
+.nesmi-availability h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 550;
+  line-height: 1.5;
+}
+
+.nesmi-availability-form {
+  display: grid;
+  gap: 20px;
+}
+
+.nesmi-availability-dates {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+}
+
+.nesmi-availability-field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nesmi-availability-field label {
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.nesmi-availability-field label span {
+  color: var(--text-secondary);
+}
+
+.nesmi-availability .chore-input {
+  min-width: 0;
+  width: 100%;
+  font-size: 16px;
+}
+
+.nesmi-availability .chore-input:disabled,
+.nesmi-availability-remove:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
+.nesmi-availability-submit {
+  width: 100%;
+}
+
+.nesmi-availability-existing {
+  margin-top: 24px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 20px;
+}
+
+.nesmi-availability-empty {
+  margin: 12px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.nesmi-availability-list {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nesmi-availability-period-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nesmi-availability-period-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.nesmi-availability-range {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.nesmi-availability-reason {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.nesmi-availability .nesmi-availability-remove {
+  flex: 0 0 44px;
+  color: var(--text-secondary);
+}
+
+.nesmi-availability .nesmi-availability-remove svg {
+  width: 18px;
+  height: 18px;
+}
+
+.nesmi-availability .chore-error {
+  margin: 0;
+}
+
+.nesmi-availability-period .chore-error {
+  margin-top: 8px;
+}
+
+@media (min-width: 520px) {
+  .nesmi-availability-dates {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+}

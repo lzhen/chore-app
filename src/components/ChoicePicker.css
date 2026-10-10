@@ -1,0 +1,100 @@
+/* Scoped above the legacy input selectors, independent of stylesheet load order. */
+button.nesmi-choice-trigger.chore-input {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 11px 13px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--surface-tertiary);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: start;
+}
+.chore-list-filters > button.nesmi-choice-trigger.chore-input {
+  width: auto;
+  min-width: min(140px, 100%);
+  max-width: min(280px, 100%);
+  min-height: 44px;
+  flex: 0 1 auto;
+  padding: 9px 12px;
+}
+.nesmi-choice-trigger .nesmi-choice-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.nesmi-choice-trigger .nesmi-choice-chevron {
+  flex: 0 0 16px;
+  color: var(--text-secondary);
+}
+button.nesmi-choice-trigger:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+button.nesmi-choice-trigger:focus-visible {
+  outline: 2px solid var(--text-secondary);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+.nesmi-choice-options.nesmi-choice-menu {
+  --picker-surface: #fff;
+  --picker-hover: #ededee;
+  --picker-selected: #f3f3f4;
+  --picker-border: #dedee1;
+  --picker-safe-left: env(safe-area-inset-left, 0px);
+  --picker-safe-right: env(safe-area-inset-right, 0px);
+  --picker-safe-top: env(safe-area-inset-top, 0px);
+  --picker-safe-bottom: env(safe-area-inset-bottom, 0px);
+  position: fixed;
+  z-index: 600;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 5px;
+  border: 1px solid var(--picker-border);
+  border-radius: 12px;
+  background: var(--picker-surface);
+  color: var(--text-primary);
+  box-shadow: 0 6px 24px #00000014, 0 2px 6px #0000000a;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+:is([data-theme='dark'], [data-theme='crystal-dark'], [data-theme='midnight'], .dark) .nesmi-choice-options.nesmi-choice-menu {
+  --picker-surface: #19191c;
+  --picker-hover: #303036;
+  --picker-selected: #26262b;
+  --picker-border: #35353b;
+  box-shadow: 0 6px 24px #0005, 0 2px 6px #0003;
+}
+.nesmi-choice-options.nesmi-choice-menu > button {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  cursor: pointer;
+}
+.nesmi-choice-options.nesmi-choice-menu > button > span { min-width: 0; }
+.nesmi-choice-options.nesmi-choice-menu > button[aria-selected=true] { background: var(--picker-selected); }
+.nesmi-choice-options.nesmi-choice-menu > button[data-active=true] { background: var(--picker-hover); }
+.nesmi-choice-options.nesmi-choice-menu .nesmi-choice-check { flex: 0 0 16px; margin-inline-start: auto; }
+.nesmi-choice-options.nesmi-choice-menu > button:focus-visible { outline: 2px solid var(--text-secondary); outline-offset: -2px; box-shadow: none; }
+.nesmi-choice-options.nesmi-choice-menu > p { padding: 10px; color: var(--text-secondary); }
+@media (forced-colors: active) {
+  .nesmi-choice-options.nesmi-choice-menu > button[data-active=true] { outline: 1px solid Highlight; outline-offset: -1px; }
+}

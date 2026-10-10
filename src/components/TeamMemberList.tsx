@@ -1,200 +1,127 @@
-import { dateKey } from '../utils/dates';
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { TeamMember } from '../types';
-import { MiniCalendar } from './MiniCalendar';
-
+import { memberAvatarStyle } from '../utils/colors';
+import { ChoicePicker } from './ChoicePicker';
+import { Dialog } from './Dialog';
+import './TeamMemberList.css';
+import { useInteractionMode } from '../hooks/useInteractionMode';
 interface TeamMemberListProps {
-  onClose?: () => void;
-  onDateSelect?: (date: Date) => void;
-  eventDates?: Set<string>;
   hiddenMembers?: Set<string>;
   onToggleMemberVisibility?: (memberId: string) => void;
   onProfileOpen?: (member: TeamMember) => void;
   onAvailabilityOpen?: (member: TeamMember) => void;
 }
-
-export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMembers = new Set(), onToggleMemberVisibility, onProfileOpen, onAvailabilityOpen }: TeamMemberListProps) {
-  const { state, addMember, removeMember, isMemberAvailable } = useApp();
+export function TeamMemberList({ hiddenMembers = new Set(), onToggleMemberVisibility, onProfileOpen, onAvailabilityOpen }: TeamMemberListProps) {
+  const { state, addMember, removeMember } = useApp();
+  const interactionMode = useInteractionMode();
   const [newName, setNewName] = useState('');
-
-  const today = dateKey();
-
-  const [error,setError] = useState('');
-  const [busy,setBusy] = useState(false);
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newName.trim()) {
-      setBusy(true);setError('');
-      try {await addMember(newName.trim());setNewName('');}catch(e){setError(e instanceof Error?e.message:'Could not add member.');}finally{setBusy(false);}
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [removingMember, setRemovingMember] = useState<TeamMember | null>(null);
+  const [removeError, setRemoveError] = useState('');
+  const [removing, setRemoving] = useState(false);
+  const removalPending = useRef(false);
+  const returnFocus = useRef<HTMLElement | null>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const cancelButton = useRef<HTMLButtonElement>(null);
+  const descriptionId = useId();
+  const focusReturnFrame = useRef(0);
+  useEffect(() => () => cancelAnimationFrame(focusReturnFrame.current), []);
+  function dismissRemoval() {
+    if (removalPending.current) return;
+    setRemovingMember(null);
+    setRemoveError('');
+    cancelAnimationFrame(focusReturnFrame.current);
+    focusReturnFrame.current = requestAnimationFrame(() => {
+      if (content.current?.closest('[aria-hidden="true"]')) return;
+      const target = returnFocus.current?.isConnected ? returnFocus.current : content.current?.querySelector<HTMLElement>('.nesmi-member-actions, .nesmi-family-title');
+      target?.focus({ preventScroll: true });
+    });
+  }
+  async function confirmRemoval() {
+    if (!removingMember || removalPending.current) return;
+    removalPending.current = true;
+    setRemoving(true);
+    setRemoveError('');
+    try {
+      await removeMember(removingMember.id);
+      removalPending.current = false;
+      dismissRemoval();
+    } catch (error) {
+      setRemoveError(error instanceof Error ? error.message : 'Could not remove member. Please try again.');
+    } finally {
+      removalPending.current = false;
+      setRemoving(false);
     }
-  };
-
-  const getMemberAvailabilityInfo = (memberId: string) => {
-    const isAvailable = isMemberAvailable(memberId, today);
-    const futureUnavailable = state.availability.find(
-      a => a.memberId === memberId && a.startDate > today
-    );
-    return { isAvailable, futureUnavailable };
-  };
-
-  return (
-    <div className="fluent-panel w-72 lg:w-64 p-4 flex flex-col h-full">
-        {/* Header with close button for mobile */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="fluent-title text-lg font-semibold text-content-primary">Family</h2>
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="lg:hidden p-1.5 text-content-secondary hover:text-content-primary hover:bg-subtle-background-hover rounded-fluent-sm transition-all duration-fast"
-              aria-label="Close sidebar"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+  }
+  async function handleAdd(event: React.FormEvent) {
+    event.preventDefault(); if (!newName.trim() || busy) return;
+    setBusy(true); setError('');
+    try { await addMember(newName.trim()); setNewName(''); }
+    catch (error) { setError(error instanceof Error ? error.message : 'Could not add member.'); }
+    finally { setBusy(false); }
+  }
+  function act(action: string, member: TeamMember) {
+    if (action === 'profile') onProfileOpen?.(member);
+    else if (action === 'availability') onAvailabilityOpen?.(member);
+    else if (action === 'remove') {
+      if (removalPending.current) return;
+      cancelAnimationFrame(focusReturnFrame.current);
+      returnFocus.current = document.activeElement as HTMLElement | null;
+      setRemoveError('');
+      setRemovingMember(member);
+    }
+  }
+  return <><div className="nesmi-family-content" data-interaction-mode={interactionMode} ref={content}>
+    <h3 className="nesmi-family-title" tabIndex={-1}>Family members</h3>
+    <p className="chore-muted nesmi-family-hint">Choose whose chores to show.</p>
+    {error && <p className="chore-error" role="alert">{error}</p>}
+    {!state.teamMembers.length ? <p className="chore-muted">Add someone to get started.</p> :
+      <ul className="nesmi-family-list">{state.teamMembers.map(member => {
+        const visible = !hiddenMembers.has(member.id);
+        return <li key={member.id} className={`nesmi-family-row${onToggleMemberVisibility ? ' has-visibility' : ''}`}>
+          {onToggleMemberVisibility && <button type="button" className="nesmi-member-visibility" role="checkbox" aria-checked={visible} aria-label={`Show ${member.name}’s chores`} onClick={() => onToggleMemberVisibility(member.id)}>
+            <span aria-hidden="true" className="nesmi-member-check">{visible && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path strokeLinecap="round" strokeLinejoin="round" d="m5 12 4 4 10-10"/></svg>}</span>
+          </button>}
+          <button type="button" className="nesmi-member-profile" aria-label={`Open ${member.name}’s profile`} onClick={() => onProfileOpen?.(member)}>
+            {member.avatarUrl ? <img className="nesmi-member-avatar" src={member.avatarUrl} alt=""/> : <span aria-hidden="true" className="nesmi-member-avatar" style={memberAvatarStyle(member.color)}>{member.name.charAt(0).toUpperCase()}</span>}
+            <span className="nesmi-member-name">{member.name}</span>
+          </button>
+          {interactionMode === 'web' ? <div className="nesmi-member-inline-actions" role="group" aria-label={`Actions for ${member.name}`}>
+            <button type="button" className="nesmi-member-inline-action" aria-label={`Manage ${member.name}’s availability`} onClick={() => act('availability', member)}>
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4m8-4v4M4 11h16m-9 4h5"/></svg>
+              <span className="nesmi-member-action-tooltip" aria-hidden="true">Availability</span>
             </button>
-          )}
-        </div>
-
-        {/* Mini Calendar for navigation */}
-        {onDateSelect && (
-          <div className="mb-4">
-            <MiniCalendar
-              onDateSelect={onDateSelect}
-              eventDates={eventDates}
-            />
-          </div>
-        )}
-
-        <form onSubmit={handleAdd} className="mb-4">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Family member name"
-              className="fluent-input flex-1 text-sm"
-            />
-            <button
-              type="submit" disabled={busy}
-              className="fluent-button px-3 py-2 text-sm"
-            >
-              Add
+            <button type="button" className="nesmi-member-inline-action is-remove" aria-label={`Remove ${member.name} from family`} onClick={() => act('remove', member)}>
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg>
+              <span className="nesmi-member-action-tooltip" aria-hidden="true">Remove member</span>
             </button>
-          </div>
-        </form>
-
-        <div className="flex-1 overflow-y-auto">{error&&<p className="chore-error" role="alert">{error}</p>}
-          {state.teamMembers.length === 0 ? (
-            <p className="text-sm text-content-secondary italic">Add the people you plan chores for.</p>
-          ) : (
-            <ul className="space-y-1">
-              {state.teamMembers.map((member) => {
-                const { isAvailable, futureUnavailable } = getMemberAvailabilityInfo(member.id);
-                const isVisible = !hiddenMembers.has(member.id);
-                return (
-                  <li
-                    key={member.id}
-                    className="flex items-center justify-between p-2 rounded-fluent-sm hover:bg-subtle-background-hover group transition-all duration-fast"
-                  >
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      {/* Visibility checkbox */}
-                      {onToggleMemberVisibility && (
-                        <button
-                          onClick={() => onToggleMemberVisibility(member.id)}
-                          className={`w-4 h-4 flex-shrink-0 rounded border transition-all ${
-                            isVisible
-                              ? 'border-accent bg-accent'
-                              : 'border-border bg-surface-tertiary'
-                          }`}
-                          title={isVisible ? 'Hide events' : 'Show events'}
-                        >
-                          {isVisible && (
-                            <svg className="w-full h-full text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </button>
-                      )}
-                      {/* Avatar or color dot */}
-                      {member.avatarUrl ? (
-                        <img
-                          src={member.avatarUrl}
-                          alt={member.name}
-                          className={`w-6 h-6 rounded-fluent-circle object-cover flex-shrink-0 transition-opacity cursor-pointer ${!isVisible ? 'opacity-40' : ''}`}
-                          onClick={() => onProfileOpen?.(member)}
-                        />
-                      ) : (
-                        <button
-                          onClick={() => onProfileOpen?.(member)}
-                          className={`w-6 h-6 rounded-fluent-circle flex-shrink-0 transition-opacity flex items-center justify-center text-white text-xs font-bold ${!isVisible ? 'opacity-40' : ''}`}
-                          style={{ backgroundColor: member.color }}
-                        >
-                          {member.name.charAt(0).toUpperCase()}
-                        </button>
-                      )}
-                      <span
-                        className={`text-sm text-content-primary truncate transition-opacity cursor-pointer hover:underline ${!isVisible ? 'opacity-40' : ''}`}
-                        onClick={() => onProfileOpen?.(member)}
-                      >
-                        {member.name}
-                      </span>
-                      {/* Points badge */}
-                      {member.points > 0 && (
-                        <span className="text-xs bg-brand-primary/20 text-brand-primary px-1.5 py-0.5 rounded-fluent-sm flex-shrink-0">
-                          {member.points}pts
-                        </span>
-                      )}
-                      {/* Availability badge */}
-                      {!isAvailable && (
-                        <span className="text-xs bg-orange-500/20 text-orange-600 px-1.5 py-0.5 rounded-fluent-sm flex-shrink-0">
-                          Away
-                        </span>
-                      )}
-                      {isAvailable && futureUnavailable && (
-                        <span className="text-xs bg-yellow-500/20 text-yellow-600 px-1.5 py-0.5 rounded-fluent-sm flex-shrink-0" title={`Unavailable from ${futureUnavailable.startDate}`}>
-                          Soon
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                      {/* Profile button */}
-                      <button
-                        onClick={() => onProfileOpen?.(member)}
-                        className="text-content-secondary hover:text-brand-primary hover:bg-brand-primary/10 rounded-fluent-sm p-0.5 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-all duration-fast"
-                        title="Edit profile"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                      </button>
-                      {/* Availability button */}
-                      <button
-                        onClick={() => onAvailabilityOpen?.(member)}
-                        className="text-content-secondary hover:text-accent hover:bg-accent/10 rounded-fluent-sm p-0.5 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-all duration-fast"
-                        title="Set availability"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                      </button>
-                      {/* Remove button */}
-                      <button
-                        onClick={async () => {if(!confirm(`Remove ${member.name}? Their tasks will become unassigned.`))return;try{await removeMember(member.id);}catch(e){setError(e instanceof Error?e.message:'Could not remove member.');}}}
-                        className="text-content-secondary hover:text-red-500 hover:bg-red-500/10 rounded-fluent-sm p-0.5 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-all duration-fast"
-                        title="Remove member"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-    </div>
-  );
+          </div> : <ChoicePicker label={`Actions for ${member.name}`} value="" className="nesmi-member-actions" align="end" onChange={action => act(action, member)} options={[{id:'profile',label:'Profile'},{id:'availability',label:'Availability'},{id:'remove',label:'Remove member'}]}><span aria-hidden="true">⋯</span></ChoicePicker>}
+        </li>;
+      })}</ul>}
+    <form className="nesmi-family-add" onSubmit={handleAdd}>
+      <label className="chore-label" htmlFor="new-family-name">Add a person</label>
+      <div><input id="new-family-name" type="text" value={newName} onChange={event=>setNewName(event.target.value)} placeholder="Name" className="chore-input"/><button type="submit" className="chore-button secondary" disabled={busy || !newName.trim()}>{busy?'Adding…':'Add'}</button></div>
+    </form>
+  </div>
+    {removingMember && <Dialog
+      title={`Remove ${removingMember.name}?`}
+      onClose={dismissRemoval}
+      variant="centered"
+      role="alertdialog"
+      descriptionId={descriptionId}
+      initialFocusRef={cancelButton}
+      busy={removing}
+      footer={<>
+        <button ref={cancelButton} type="button" className="chore-button secondary" onClick={dismissRemoval} disabled={removing}>Cancel</button>
+        <button type="button" className="chore-button nesmi-member-remove-confirm" onClick={() => void confirmRemoval()} disabled={removing}>{removing ? 'Removing…' : `Remove ${removingMember.name}`}</button>
+      </>}
+    >
+      <div className="nesmi-member-removal">
+        <p id={descriptionId}>Their chores will become unassigned. Their availability and completion history will also be removed. This can’t be undone.</p>
+        {removeError && <p className="chore-error" role="alert">{removeError}</p>}
+      </div>
+    </Dialog>}
+  </>;
 }

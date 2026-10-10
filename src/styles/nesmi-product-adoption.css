@@ -1,0 +1,80 @@
+/* Approved DS adoption, scoped to existing product roles. No layout or data changes. */
+.chore-input, .chore-auth .fluent-input, .nesmi-auth-state .fluent-input {
+  font-family: inherit; font-size: var(--nesmi-type-body); line-height: var(--nesmi-leading-body);
+  min-height: 48px; max-width: 100%;
+}
+.chore-label, .chore-dialog .chore-label, .chore-auth .fluent-label, .nesmi-auth-state .fluent-label {
+  font-size: var(--nesmi-type-label); line-height: var(--nesmi-leading-label); font-weight: 400;
+}
+.chore-button, .nesmi-auth-state .fluent-button, .chore-auth .fluent-button {
+  font-size: var(--nesmi-type-support); line-height: var(--nesmi-leading-support); min-height: 44px;
+  border-radius: var(--nesmi-radius-control); white-space: normal;
+}
+.chore-muted, .chore-error, .chore-notice, .nesmi-auth-form-description,
+.nesmi-auth-state p, .nesmi-startup-brand > p {
+  font-size: var(--nesmi-type-support); line-height: var(--nesmi-leading-support);
+  overflow-wrap: anywhere;
+}
+.chore-dialog-header h2, .nesmi-auth-state h2 {
+  font-size: var(--nesmi-type-section); line-height: var(--nesmi-leading-section); font-weight: 550;
+}
+.chore-dialog-body { font-size: var(--nesmi-type-body); line-height: var(--nesmi-leading-body); }
+.chore-dialog-footer { gap: var(--nesmi-space-12); flex-wrap: wrap; }
+.nesmi-auth-state .fluent-card { background: var(--surface-primary); border-color: var(--border-subtle); }
+.nesmi-auth-state .fluent-button { background: var(--chore-highlight); color: var(--chore-highlight-ink); }
+.nesmi-auth-state :is(input,button):focus-visible { outline: 2px solid var(--text-primary); outline-offset: 3px; }
+.nesmi-auth-state .fluent-input { background: var(--surface-tertiary); color: var(--text-primary); border-color: var(--border-default); }
+.nesmi-completion-content .nesmi-choice-trigger.chore-input {
+  font-family: inherit; font-size: var(--nesmi-type-body); line-height: var(--nesmi-leading-body); font-weight: 400;
+}
+.nesmi-completion-content .completion-title { font-size: var(--nesmi-type-section); line-height: var(--nesmi-leading-section); }
+.nesmi-availability h3 { font-size: var(--nesmi-type-section); line-height: var(--nesmi-leading-section); }
+.nesmi-availability-field label { font-size: var(--nesmi-type-label); line-height: var(--nesmi-leading-label); }
+.nesmi-availability-range { font-size: var(--nesmi-type-body); line-height: var(--nesmi-leading-body); }
+.nesmi-availability-empty, .nesmi-availability-reason { font-size: var(--nesmi-type-support); line-height: var(--nesmi-leading-support); }
+.nesmi-member-removal, .nesmi-delete-confirmation, .nesmi-discard-confirmation {
+  font-size: var(--nesmi-type-body); line-height: var(--nesmi-leading-body); gap: var(--nesmi-space-12);
+}
+.nesmi-inline-editor-heading h4, .nesmi-family-title { font-size: var(--nesmi-type-body); line-height: var(--nesmi-leading-body); }
+.nesmi-inline-editor-heading > span { font-size: var(--nesmi-type-label); line-height: var(--nesmi-leading-label); }
+.chore-task-body > .chore-task-title { font-size: var(--nesmi-type-body); line-height: var(--nesmi-leading-body); overflow-wrap: anywhere; }
+.chore-task-meta, .chore-task-date, .nesmi-task-row-actions > button,
+.nesmi-active-filters, .nesmi-view-options summary, .nesmi-home-agent small {
+  font-size: var(--nesmi-type-label); line-height: var(--nesmi-leading-label);
+}
+.nesmi-home-agent strong { font-size: var(--nesmi-type-body); line-height: var(--nesmi-leading-body); }
+.nesmi-home-cues { font-size: var(--nesmi-type-support); line-height: var(--nesmi-leading-support); flex-wrap: wrap; }
+.nesmi-planning-heading .chore-button, .nesmi-family-setup { font-size: var(--nesmi-type-support); }
+.nesmi-chat-panel-header h2 { font-size: var(--nesmi-type-section); line-height: var(--nesmi-leading-section); }
+.nesmi-chat-panel-header p { font-size: var(--nesmi-type-label); line-height: var(--nesmi-leading-label); }
+.nesmi-calendar .nesmi-calendar-control { font-size: var(--nesmi-type-label); }
+.nesmi-calendar-event.is-agenda .nesmi-calendar-event-title { font-size: var(--nesmi-type-body); line-height: var(--nesmi-leading-body); }
+.chore-calendar-page.nesmi-calendar .fc .fc-list-empty { font-size: var(--nesmi-type-body); line-height: var(--nesmi-leading-body); }
+/* Dense grid time/date/priority annotations retain compact sizes; full details remain readable. */
+.nesmi-shortcuts-help { padding-block: var(--nesmi-space-16); }
+.nesmi-shortcuts-help dl { display: grid; gap: var(--nesmi-space-12); }
+.nesmi-shortcuts-help dl > div { display: flex; justify-content: space-between; gap: var(--nesmi-space-16); align-items: baseline; }
+.nesmi-shortcuts-help dt { font-size: var(--nesmi-type-body); overflow-wrap: anywhere; }
+.nesmi-shortcuts-help dd { flex-shrink: 0; }
+.nesmi-shortcuts-help kbd { font-size: var(--nesmi-type-label); border: 1px solid var(--border-default); background: var(--surface-tertiary); padding: 4px 8px; border-radius: var(--nesmi-radius-control); }
+.nesmi-shortcuts-help p { font-size: var(--nesmi-type-support); color: var(--text-secondary); margin-top: var(--nesmi-space-24); }
+@media (max-width: 359px) { .nesmi-shortcuts-help dl > div { flex-wrap: wrap; gap: var(--nesmi-space-4); } }
+
+.nesmi-member-name { font-size: var(--nesmi-type-body); line-height: var(--nesmi-leading-body); }
+.nesmi-family-hint { font-size: var(--nesmi-type-support); line-height: var(--nesmi-leading-support); }
+.family-drawer-header h2 { font-size: var(--nesmi-type-section); line-height: var(--nesmi-leading-section); }
+.nesmi-member-action-tooltip { font-size: var(--nesmi-type-label); line-height: var(--nesmi-leading-label); }
+
+.chore-task-group > h3, .chore-task-group > summary { font-size: var(--nesmi-type-support); line-height: var(--nesmi-leading-support); }
+.chore-task-group > h3 > span, .chore-task-group > p { font-size: var(--nesmi-type-label); line-height: var(--nesmi-leading-label); }
+.nesmi-auth-message { font-size: var(--nesmi-type-support); line-height: var(--nesmi-leading-support); padding: var(--nesmi-space-12); border-radius: var(--nesmi-radius-control); }
+.nesmi-auth-message.is-success { color: #245b3d; background: #edf7f0; border: 1px solid #8bad96; }
+.dark .nesmi-auth-message.is-success { color: #b8ddc5; background: #18291f; border-color: #587761; }
+.nesmi-auth-text-action { min-height: 44px; padding: 8px 4px; font-size: var(--nesmi-type-support); line-height: var(--nesmi-leading-support); color: var(--text-primary); text-decoration: underline; text-underline-offset: 3px; }
+.nesmi-auth-privacy { font-size: var(--nesmi-type-support); line-height: var(--nesmi-leading-support); }
+.nesmi-task-details { font-size: var(--nesmi-type-body); line-height: var(--nesmi-leading-body); gap: var(--nesmi-space-12); }
+.chore-empty h2, .chore-empty h3 { font-size: var(--nesmi-type-section); line-height: var(--nesmi-leading-section); }
+.chore-empty p, .chore-load-error p { font-size: var(--nesmi-type-body); line-height: var(--nesmi-leading-body); }
+.chore-empty p.chore-muted { font-size: var(--nesmi-type-support); }
+.chore-summary-line { font-size: var(--nesmi-type-support); line-height: var(--nesmi-leading-support); }
+.chore-summary-minute-note, .chore-filter-reset { font-size: var(--nesmi-type-label); line-height: var(--nesmi-leading-label); }

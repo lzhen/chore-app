@@ -31,17 +31,22 @@ async function fixture(page:Page,width=390,empty=false){
   const single=req.headers().accept?.includes('vnd.pgrst.object');if(single&&Array.isArray(result))result=result[0]||null;
   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(result)});
  });
- await page.goto('/chore-app/');await expect(page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Today',exact:true})).toHaveAttribute('aria-current','page');
+ await page.goto('/chore-app/');await expect(page.getByRole('heading',{name:'Today',exact:true})).toBeVisible();
  return {db,calls,failWrites:()=>{fail=true;},failReads:()=>{readsFail=true;},recover:()=>{fail=false;readsFail=false;}};
+}
+async function navigate(page:Page,name:string) {
+ await page.getByRole('button',{name:'Open family menu',exact:true}).click();
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name,exact:true}).click();
+ await expect(page.getByRole('navigation',{name:'Primary navigation'})).toHaveCount(0);
 }
 for(const width of [375,390,430])test(`normal save reachable; time and date survive reload at ${width}px`,async({page},info)=>{
  const {db,calls}=await fixture(page,width);
  await page.screenshot({path:info.outputPath(`today-${width}.png`),fullPage:true});
  await page.getByRole('button',{name:'Add new chore',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Add a chore'});
- await dialog.getByLabel('What needs doing?').fill('A new shared chore');
- await dialog.getByLabel('When?').fill('2026-09-27');
- await dialog.locator('summary').click();
+ await dialog.getByLabel('Chore').fill('A new shared chore');
+ await dialog.getByLabel('Date').fill('2026-09-27');
+ await dialog.locator('.chore-more > summary').click();
  await dialog.getByLabel('Start time').fill('18:00');await dialog.getByLabel('End time').fill('19:00');
  const save=dialog.getByRole('button',{name:'Add chore',exact:true});
  const box=await save.boundingBox();expect(box).not.toBeNull();expect(box!.y+box!.height).toBeLessThanOrEqual(844);
@@ -49,30 +54,30 @@ for(const width of [375,390,430])test(`normal save reachable; time and date surv
  await save.click();await expect(dialog).toHaveCount(0);
  expect(db.chores.find(c=>c.title==='A new shared chore')?.end_time).toBe('19:00');
  expect(calls.filter(c=>c.table==='chores'&&c.method==='POST')).toHaveLength(1);
- await page.reload();await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Chores',exact:true}).click();
- await expect(page.getByRole('button',{name:'Edit A new shared chore'})).toContainText('Sun, Sep 27');
- await page.getByRole('button',{name:'Edit A new shared chore'}).click();await expect(page.getByLabel('End time')).toHaveValue('19:00');
+ await page.reload();await navigate(page,'Chores');
+ await expect(page.getByRole('button',{name:'Actions: A new shared chore',exact:true})).toContainText('Sun, Sep 27');
+ await page.getByRole('button',{name:'Actions: A new shared chore',exact:true}).click();await page.getByRole('dialog',{name:'A new shared chore',exact:true}).getByRole('button',{name:'Edit A new shared chore',exact:true}).click();await expect(page.getByRole('dialog',{name:'Edit chore'}).getByLabel('End time')).toHaveValue('19:00');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 test('failed save retains draft, reports error and allows retry',async({page})=>{
- const f=await fixture(page);f.failWrites();await page.getByRole('button',{name:'Add new chore'}).click();await page.getByLabel('What needs doing?').fill('Keep this draft');await page.getByRole('dialog').getByRole('button',{name:'Add chore',exact:true}).click();
- await expect(page.getByRole('alert')).toContainText('Your entries are still here');await expect(page.getByLabel('What needs doing?')).toHaveValue('Keep this draft');expect(f.db.chores.some(c=>c.title==='Keep this draft')).toBe(false);
+ const f=await fixture(page);f.failWrites();await page.getByRole('button',{name:'Add new chore'}).click();await page.getByLabel('Chore').fill('Keep this draft');await page.getByRole('dialog').getByRole('button',{name:'Add chore',exact:true}).click();
+ await expect(page.getByRole('alert')).toContainText('Your entries are still here');await expect(page.getByLabel('Chore')).toHaveValue('Keep this draft');expect(f.db.chores.some(c=>c.title==='Keep this draft')).toBe(false);
  f.recover();await page.getByRole('dialog').getByRole('button',{name:'Add chore',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 test('search filters the Chores view and exposes an empty state',async({page})=>{
- await fixture(page);await page.getByRole('navigation').getByRole('button',{name:'Chores',exact:true}).click();await page.getByRole('button',{name:'Search chores',exact:true}).click();await page.getByLabel('Search chores',{exact:true}).fill('nothing-matches');await expect(page.getByText('No matching chores')).toBeVisible();await expect(page.locator('.chore-task')).toHaveCount(0);await page.getByLabel('Search chores',{exact:true}).fill('Vacuum');await expect(page.locator('.chore-task')).toHaveCount(1);
+ await fixture(page);await navigate(page,'Chores');await page.getByRole('button',{name:'Search chores',exact:true}).click();await page.getByLabel('Search chores',{exact:true}).fill('nothing-matches');await expect(page.getByText('No matching chores')).toBeVisible();await expect(page.locator('.chore-task')).toHaveCount(0);await page.getByLabel('Search chores',{exact:true}).fill('Vacuum');await expect(page.locator('.chore-task')).toHaveCount(1);
 });
 test('unassigned completion requires explicit member; selection determines credit',async({page})=>{
- const f=await fixture(page);await page.getByRole('button',{name:'Complete: Water the plants',exact:true}).click();await expect(page.getByLabel('Who completed it?')).toHaveValue('');await expect(page.getByRole('button',{name:'Mark done',exact:true})).toBeDisabled();expect(f.db.chore_completions).toHaveLength(0);await page.getByLabel('Who completed it?').selectOption(B);await page.getByRole('button',{name:'Mark done',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);expect(f.db.chore_completions[0].completed_by).toBe(B);
+ const f=await fixture(page);await page.getByRole('button',{name:'Complete: Water the plants',exact:true}).click();await expect(page.getByLabel('Who completed it?')).toContainText('Choose a family member');await expect(page.getByRole('button',{name:'Mark done',exact:true})).toBeDisabled();expect(f.db.chore_completions).toHaveLength(0);await page.getByLabel('Who completed it?').click();await page.getByRole('option',{name:'Jamie',exact:true}).click();await page.getByRole('button',{name:'Mark done',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);expect(f.db.chore_completions[0].completed_by).toBe(B);
 });
 test('Insights and Account are top-level pages, with the correct selected tab',async({page})=>{
- await fixture(page);const nav=page.getByRole('navigation',{name:'Primary navigation'});for(const name of ['Insights','Account','Calendar','Today']){await nav.getByRole('button',{name,exact:true}).click();await expect(nav.getByRole('button',{name,exact:true})).toHaveAttribute('aria-current','page');await expect(page.getByRole('dialog')).toHaveCount(0);}
+ await fixture(page);for(const name of ['Insights','Account','Calendar','Today']){await navigate(page,name);await expect(page.getByRole('dialog')).toHaveCount(0);await page.getByRole('button',{name:'Open family menu'}).click();await expect(page.getByRole('navigation').getByRole('button',{name,exact:true})).toHaveAttribute('aria-current','page');await page.keyboard.press('Escape');}
 });
 test('dialog isolates background controls, keeps focus and confirms draft discard',async({page})=>{
- await fixture(page);await page.getByRole('button',{name:'Add new chore'}).click();expect(await page.locator('#root').evaluate(el=>(el as HTMLElement).inert)).toBe(true);await page.getByLabel('What needs doing?').fill('Do not silently discard');await page.keyboard.press('Escape');await expect(page.getByText('Discard your unsaved changes?')).toBeVisible();await page.getByRole('button',{name:'Keep editing'}).click();await expect(page.getByLabel('What needs doing?')).toHaveValue('Do not silently discard');
+ await fixture(page);await page.getByRole('button',{name:'Add new chore'}).click();expect(await page.locator('#root').evaluate(el=>(el as HTMLElement).inert)).toBe(true);await page.getByLabel('Chore').fill('Do not silently discard');await page.keyboard.press('Escape');await expect(page.getByRole('dialog',{name:'Discard changes?'})).toBeVisible();await page.getByRole('button',{name:'Keep editing'}).click();await expect(page.getByLabel('Chore')).toHaveValue('Do not silently discard');
 });
 test('data load failure has retry, not a misleading empty family',async({page})=>{
- const f=await fixture(page);f.failReads();await page.reload();await expect(page.getByRole('alert')).toContainText('could not be loaded');f.recover();await page.getByRole('button',{name:'Retry',exact:true}).click();await expect(page.getByRole('button',{name:'Edit Water the plants'})).toBeVisible();
+ const f=await fixture(page);f.failReads();await page.reload();await expect(page.getByRole('alert')).toContainText('could not be loaded');f.recover();await page.getByRole('button',{name:'Retry',exact:true}).click();await expect(page.getByRole('button',{name:'Actions: Water the plants'})).toBeVisible();
 });
 
 for (const width of [375, 1440]) test(`sign-in fits ${width}px and appearance persists`, async ({page}, info) => {
@@ -80,8 +85,8 @@ for (const width of [375, 1440]) test(`sign-in fits ${width}px and appearance pe
   await page.goto('/chore-app/');
   await expect(page.getByRole('heading', {name: 'Sign in to your account', exact: true})).toBeVisible();
   for (const theme of ['Light', 'Dark']) {
-    await page.getByRole('button', {name: /^Theme:/}).click();
-    await page.getByRole('group', {name: 'Choose appearance'}).getByRole('button', {name: new RegExp(theme)}).click();
+    await page.getByRole('combobox', {name: /^Theme:/}).click();
+    await page.getByRole('listbox').getByRole('option', {name: new RegExp(theme)}).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme.toLowerCase());
     const email = page.getByLabel('Email', {exact: true});
     expect(await email.evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
@@ -104,11 +109,15 @@ test('desktop Today progress and mobile starter drafts are usable', async ({page
   const taskBox = await firstTask.boundingBox();
   expect(taskBox!.y + taskBox!.height).toBeLessThan(844);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.getByRole('button', {name: /^Theme:/}).click();
-  await page.getByRole('group', {name: 'Choose appearance'}).getByRole('button', {name: /Light/}).click();
+  await navigate(page,'Account');
+  await page.getByRole('combobox', {name: /^Theme:/}).click();
+  await page.getByRole('listbox').getByRole('option', {name: /Light/}).click();
+  await navigate(page,'Today');
   await page.screenshot({path: info.outputPath('today-desktop-light.png'), fullPage: true});
-  await page.getByRole('button', {name: /^Theme:/}).click();
-  await page.getByRole('group', {name: 'Choose appearance'}).getByRole('button', {name: /Dark/}).click();
+  await navigate(page,'Account');
+  await page.getByRole('combobox', {name: /^Theme:/}).click();
+  await page.getByRole('listbox').getByRole('option', {name: /Dark/}).click();
+  await navigate(page,'Today');
   await page.screenshot({path: info.outputPath('today-desktop-dark.png'), fullPage: true});
   await page.setViewportSize({width: 390, height: 844});
   const mobileTaskBox = await firstTask.boundingBox();
@@ -123,14 +132,15 @@ test('direct dark appearance respects later choices and styles the browser chrom
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#080809');
   expect(await page.locator('html').evaluate(el => getComputedStyle(el).colorScheme)).toBe('dark');
-  await page.getByRole('button', {name: /^Theme:/}).click();
-  await page.getByRole('group', {name: 'Choose appearance'}).getByRole('button', {name: /Light/}).click();
+  await page.getByRole('combobox', {name: /^Theme:/}).click();
+  await page.getByRole('listbox').getByRole('option', {name: /Light/}).click();
   expect(new URL(page.url()).searchParams.has('theme')).toBe(false);
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#ffffff');
-  await page.getByRole('button', {name: /^Theme:/}).click();
-  await page.getByRole('group', {name: 'Choose appearance'}).getByRole('button', {name: /System/}).click();
+  // A fresh preference follows the device without exposing a third menu option.
+  await page.evaluate(()=>localStorage.removeItem('theme'));
+  await page.reload();
   await page.emulateMedia({colorScheme: 'dark'});
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.emulateMedia({colorScheme: 'light'});
@@ -147,11 +157,11 @@ test('starter suggestion waits for an edited explicit save', async ({page}, info
   await page.screenshot({path: info.outputPath('first-chore-mobile.png'), fullPage: true});
   await page.getByRole('button', {name: 'Start with Wash dishes'}).click();
   const dialog = page.getByRole('dialog', {name: 'Add a chore'});
-  await expect(dialog.getByLabel('What needs doing?')).toHaveValue('Wash dishes');
+  await expect(dialog.getByLabel('Chore')).toHaveValue('Wash dishes');
   await expect(dialog.getByLabel('Repeat')).toHaveValue('daily');
   await expect(dialog.getByLabel('Estimated minutes · optional')).toHaveValue('15');
   expect(f.calls.filter(call => call.table === 'chores' && call.method === 'POST')).toHaveLength(0);
-  await dialog.getByLabel('What needs doing?').fill('Put away our dishes');
+  await dialog.getByLabel('Chore').fill('Put away our dishes');
   await dialog.getByLabel('Estimated minutes · optional').fill('10');
   await dialog.getByRole('button', {name: 'Add chore', exact: true}).click();
   await expect(dialog).toHaveCount(0);

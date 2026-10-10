@@ -34,7 +34,7 @@ describe('AuthForm', () => {
     });
 
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/password/i,{selector:'input'})).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
   });
 
@@ -96,7 +96,7 @@ describe('AuthForm', () => {
     });
 
     await user.type(screen.getByLabelText(/email/i), 'test@example.com');
-    await user.type(screen.getByLabelText(/password/i), 'password123');
+    await user.type(screen.getByLabelText(/password/i,{selector:'input'}), 'password123');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => {
@@ -122,7 +122,7 @@ describe('AuthForm', () => {
 
     await user.click(screen.getByText(/don't have an account\? sign up/i));
     await user.type(screen.getByLabelText(/email/i), 'newuser@example.com');
-    await user.type(screen.getByLabelText(/password/i), 'password123');
+    await user.type(screen.getByLabelText(/password/i,{selector:'input'}), 'password123');
     await user.click(screen.getByRole('button', { name: /sign up/i }));
 
     await waitFor(() => {
@@ -148,7 +148,7 @@ describe('AuthForm', () => {
 
     await user.click(screen.getByText(/don't have an account\? sign up/i));
     await user.type(screen.getByLabelText(/email/i), 'newuser@example.com');
-    await user.type(screen.getByLabelText(/password/i), 'password123');
+    await user.type(screen.getByLabelText(/password/i,{selector:'input'}), 'password123');
     await user.click(screen.getByRole('button', { name: /sign up/i }));
 
     await waitFor(() => {
@@ -218,7 +218,7 @@ describe('AuthForm', () => {
     });
 
     await user.type(screen.getByLabelText(/email/i), 'test@example.com');
-    await user.type(screen.getByLabelText(/password/i), 'wrongpassword');
+    await user.type(screen.getByLabelText(/password/i,{selector:'input'}), 'wrongpassword');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => {
@@ -241,7 +241,7 @@ describe('AuthForm', () => {
     });
 
     await user.type(screen.getByLabelText(/email/i), 'test@example.com');
-    await user.type(screen.getByLabelText(/password/i), 'wrongpassword');
+    await user.type(screen.getByLabelText(/password/i,{selector:'input'}), 'wrongpassword');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => {

@@ -53,7 +53,7 @@ describe('Integration Tests: Full Auth Flows', () => {
 
       // Step 3: Fill in registration form
       const emailInput = screen.getByLabelText(/email/i);
-      const passwordInput = screen.getByLabelText(/password/i);
+      const passwordInput = screen.getByLabelText(/password/i,{selector:'input'});
 
       await user.type(emailInput, 'newuser@example.com');
       await user.type(passwordInput, 'SecurePassword123');
@@ -85,7 +85,7 @@ describe('Integration Tests: Full Auth Flows', () => {
 
       await user.click(screen.getByText(/don't have an account\? sign up/i));
       await user.type(screen.getByLabelText(/email/i), 'existing@example.com');
-      await user.type(screen.getByLabelText(/password/i), 'Password123');
+      await user.type(screen.getByLabelText(/password/i,{selector:'input'}), 'Password123');
       await user.click(screen.getByRole('button', { name: /sign up/i }));
 
       await waitFor(() => {
@@ -129,7 +129,7 @@ describe('Integration Tests: Full Auth Flows', () => {
 
       // Fill in login form
       await user.type(screen.getByLabelText(/email/i), 'user@example.com');
-      await user.type(screen.getByLabelText(/password/i), 'MyPassword123');
+      await user.type(screen.getByLabelText(/password/i,{selector:'input'}), 'MyPassword123');
 
       // Submit login
       await user.click(screen.getByRole('button', { name: /sign in/i }));
@@ -152,7 +152,7 @@ describe('Integration Tests: Full Auth Flows', () => {
       });
 
       await user.type(screen.getByLabelText(/email/i), 'user@example.com');
-      await user.type(screen.getByLabelText(/password/i), 'WrongPassword');
+      await user.type(screen.getByLabelText(/password/i,{selector:'input'}), 'WrongPassword');
       await user.click(screen.getByRole('button', { name: /sign in/i }));
 
       await waitFor(() => {
@@ -171,7 +171,7 @@ describe('Integration Tests: Full Auth Flows', () => {
       });
 
       await user.type(screen.getByLabelText(/email/i), 'nonexistent@example.com');
-      await user.type(screen.getByLabelText(/password/i), 'SomePassword');
+      await user.type(screen.getByLabelText(/password/i,{selector:'input'}), 'SomePassword');
       await user.click(screen.getByRole('button', { name: /sign in/i }));
 
       await waitFor(() => {
@@ -421,7 +421,7 @@ describe('Integration Tests: Full Auth Flows', () => {
 
       await user.click(screen.getByText(/don't have an account\? sign up/i));
       await user.type(screen.getByLabelText(/email/i), 'newuser@example.com');
-      await user.type(screen.getByLabelText(/password/i), 'SecurePass123');
+      await user.type(screen.getByLabelText(/password/i,{selector:'input'}), 'SecurePass123');
       await user.click(screen.getByRole('button', { name: /sign up/i }));
 
       await waitFor(() => {
@@ -458,7 +458,7 @@ describe('Integration Tests: Full Auth Flows', () => {
       });
 
       await user.type(screen.getByLabelText(/email/i), 'newuser@example.com');
-      await user.type(screen.getByLabelText(/password/i), 'SecurePass123');
+      await user.type(screen.getByLabelText(/password/i,{selector:'input'}), 'SecurePass123');
       await user.click(screen.getByRole('button', { name: /sign in/i }));
 
       expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
@@ -524,7 +524,7 @@ describe('Integration Tests: Full Auth Flows', () => {
       });
 
       await user.type(screen.getByLabelText(/email/i), 'user@example.com');
-      await user.type(screen.getByLabelText(/password/i), 'NewSecurePass456');
+      await user.type(screen.getByLabelText(/password/i,{selector:'input'}), 'NewSecurePass456');
       await user.click(screen.getByRole('button', { name: /sign in/i }));
 
       expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({

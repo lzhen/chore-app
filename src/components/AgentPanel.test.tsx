@@ -13,7 +13,7 @@ it('keeps the real assistant launcher and panel available without invoking integ
  const trigger=screen.getByRole('button',{name:'Calendar Agent'});
  expect(trigger).toHaveTextContent('99+');expect(trigger).toHaveAttribute('aria-expanded','false');
  await user.click(trigger);expect(trigger).toHaveAttribute('aria-expanded','true');
- expect(screen.getByRole('button',{name:'Chat with Assistant'})).toBeVisible();
- await user.click(screen.getByRole('button',{name:'Close Calendar Agent'}));expect(trigger).toHaveAttribute('aria-expanded','false');
+ expect(screen.getByRole('button',{name:'Chore assistant'})).toBeVisible();
+ await user.click(screen.getByRole('button',{name:'Close dialog'}));expect(trigger).toHaveAttribute('aria-expanded','false');
  expect(update).not.toHaveBeenCalled();
 });

@@ -1,3 +1,5 @@
+import '../styles/nesmi-secondary-surfaces.css';
+import { memberAvatarStyle } from '../utils/colors';
 import { useMemo } from 'react';
 import { TeamMember, Chore } from '../types';
 
@@ -65,9 +67,9 @@ export function WorkloadChart({ members, chores, dateRange }: WorkloadChartProps
   const maxMinutes = Math.max(...workloadData.map(d => Math.max(d.assignedMinutes, d.capacityMinutes)), 1);
 
   const getUtilizationColor = (percent: number) => {
-    if (percent <= 70) return 'bg-green-500';
-    if (percent <= 90) return 'bg-yellow-500';
-    return 'bg-red-500';
+    if (percent <= 70) return 'nesmi-workload-under';
+    if (percent <= 90) return 'nesmi-workload-near';
+    return 'nesmi-workload-over';
   };
 
   const formatMinutes = (minutes: number) => {
@@ -80,33 +82,33 @@ export function WorkloadChart({ members, chores, dateRange }: WorkloadChartProps
 
   if (members.length === 0) {
     return (
-      <div className="text-center py-8 text-content-secondary">
+      <div className="nesmi-secondary-surface nesmi-secondary-support text-center py-8">
         No team members yet. Add team members to see workload.
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="nesmi-workload nesmi-secondary-surface space-y-4">
       {/* Summary */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="fluent-surface p-3 rounded-fluent-md border border-border text-center">
-          <div className="text-lg font-bold text-green-500">
+          <div className="nesmi-workload-summary-value font-bold nesmi-secondary-success">
             {workloadData.filter(d => d.utilizationPercent <= 70).length}
           </div>
-          <div className="text-xs text-content-secondary">Under Capacity</div>
+          <div className="nesmi-secondary-label">Under Capacity</div>
         </div>
         <div className="fluent-surface p-3 rounded-fluent-md border border-border text-center">
-          <div className="text-lg font-bold text-yellow-500">
+          <div className="nesmi-workload-summary-value font-bold nesmi-secondary-warning">
             {workloadData.filter(d => d.utilizationPercent > 70 && d.utilizationPercent <= 90).length}
           </div>
-          <div className="text-xs text-content-secondary">Near Capacity</div>
+          <div className="nesmi-secondary-label">Near Capacity</div>
         </div>
         <div className="fluent-surface p-3 rounded-fluent-md border border-border text-center">
-          <div className="text-lg font-bold text-red-500">
+          <div className="nesmi-workload-summary-value font-bold nesmi-secondary-danger">
             {workloadData.filter(d => d.utilizationPercent > 90).length}
           </div>
-          <div className="text-xs text-content-secondary">Over Capacity</div>
+          <div className="nesmi-secondary-label">Over Capacity</div>
         </div>
       </div>
 
@@ -114,8 +116,8 @@ export function WorkloadChart({ members, chores, dateRange }: WorkloadChartProps
       <div className="space-y-3">
         {workloadData.map(({ member, assignedMinutes, capacityMinutes, utilizationPercent, choreCount }) => (
           <div key={member.id} className="fluent-surface p-3 rounded-fluent-md border border-border">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
+            <div className="nesmi-workload-row-heading flex items-center justify-between gap-3 mb-2">
+              <div className="nesmi-workload-member flex items-center gap-2">
                 {member.avatarUrl ? (
                   <img
                     src={member.avatarUrl}
@@ -124,23 +126,23 @@ export function WorkloadChart({ members, chores, dateRange }: WorkloadChartProps
                   />
                 ) : (
                   <div
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                    style={{ backgroundColor: member.color }}
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-white nesmi-secondary-label font-bold"
+                    style={memberAvatarStyle(member.color)}
                   >
                     {member.name.charAt(0).toUpperCase()}
                   </div>
                 )}
-                <span className="text-sm font-medium text-content-primary">{member.name}</span>
-                <span className="text-xs text-content-secondary">({choreCount} chores)</span>
+                <span className="nesmi-secondary-body font-medium">{member.name}</span>
+                <span className="nesmi-secondary-label">({choreCount} chores)</span>
               </div>
               <div className="text-right">
-                <span className={`text-sm font-bold ${
-                  utilizationPercent <= 70 ? 'text-green-500' :
-                  utilizationPercent <= 90 ? 'text-yellow-500' : 'text-red-500'
+                <span className={`nesmi-secondary-body font-bold ${
+                  utilizationPercent <= 70 ? 'nesmi-secondary-success' :
+                  utilizationPercent <= 90 ? 'nesmi-secondary-warning' : 'nesmi-secondary-danger'
                 }`}>
                   {utilizationPercent}%
                 </span>
-                <span className="text-xs text-content-secondary ml-1">
+                <span className="nesmi-secondary-label ml-1">
                   ({formatMinutes(assignedMinutes)} / {formatMinutes(capacityMinutes)})
                 </span>
               </div>
@@ -155,7 +157,7 @@ export function WorkloadChart({ members, chores, dateRange }: WorkloadChartProps
               />
               {/* Assigned bar */}
               <div
-                className={`absolute h-full ${getUtilizationColor(utilizationPercent)} transition-all duration-300`}
+                className={`nesmi-workload-assigned absolute h-full ${getUtilizationColor(utilizationPercent)}`}
                 style={{ width: `${(assignedMinutes / maxMinutes) * 100}%` }}
               />
               {/* Capacity line */}
@@ -169,17 +171,17 @@ export function WorkloadChart({ members, chores, dateRange }: WorkloadChartProps
       </div>
 
       {/* Legend */}
-      <div className="flex justify-center gap-6 pt-4 text-xs text-content-secondary">
+      <div className="nesmi-workload-legend flex flex-wrap justify-center gap-6 pt-4 nesmi-secondary-label">
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-green-500" />
+          <div className="w-3 h-3 rounded nesmi-workload-under" />
           <span>Under 70%</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-yellow-500" />
+          <div className="w-3 h-3 rounded nesmi-workload-near" />
           <span>70-90%</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-red-500" />
+          <div className="w-3 h-3 rounded nesmi-workload-over" />
           <span>Over 90%</span>
         </div>
       </div>

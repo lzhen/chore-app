@@ -41,8 +41,10 @@ async function fixture(page:Page,width=390,empty=false){
 
 for(const width of [375,768,1440]) for(const theme of ['light','dark']) test(`floating actions remain separate ${width} ${theme}`,async({page},info)=>{
  const {calls}=await fixture(page,width);
- await page.getByRole('button',{name:/Theme:/}).click();
- await page.getByRole('button',{name:theme==='dark'?/Dark A quieter/:/Light A brighter/}).click();
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
+ await page.getByRole('combobox',{name:/Theme:/}).click();
+ await page.getByRole('option',{name:theme==='dark'?/Dark/:/Light/}).click();
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Today',exact:true}).click();
  await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Calendar',exact:true}).click();
  const add=page.getByRole('button',{name:'Add new chore',exact:true});
  const agent=page.getByRole('button',{name:'Calendar Agent',exact:true});

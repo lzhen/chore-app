@@ -105,10 +105,10 @@ describe('EmailVerification', () => {
     expect(window.history.replaceState).toHaveBeenCalled();
   });
 
-  it('renders logo and theme selector', () => {
+  it('renders logo without an authentication theme control', () => {
     render(<EmailVerification onContinue={mockOnContinue} />);
 
     expect(screen.getByTestId('logo')).toBeInTheDocument();
-    expect(screen.getByTestId('theme-selector')).toBeInTheDocument();
+    expect(screen.queryByTestId('theme-selector')).not.toBeInTheDocument();
   });
 });

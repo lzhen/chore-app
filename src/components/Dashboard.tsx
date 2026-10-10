@@ -1,9 +1,12 @@
+import '../styles/nesmi-secondary-surfaces.css';
+import { memberAvatarStyle } from '../utils/colors';
 import { dateKey, parseDate } from '../utils/dates';
 import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { MemberStats } from '../types';
 import { BADGES, getBadgeById } from '../data/badges';
 import { WorkloadChart } from './WorkloadChart';
+import { SectionHeading } from './SectionHeading';
 
 // Format relative time (e.g., "2 hours ago", "3 days ago")
 function formatRelativeTime(dateString: string): string {
@@ -144,13 +147,13 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
 
   return (
     <div className={embedded?"chore-insights-page":"fixed inset-0 bg-overlay flex items-center justify-center z-50 p-4"}>
-      <div className={embedded ? "nesmi-page-content nesmi-insights" : "fluent-card nesmi-insights w-full max-w-4xl max-h-[90vh] overflow-hidden"}>
+      <div className={embedded ? "nesmi-page-content nesmi-insights nesmi-secondary-surface" : "fluent-card nesmi-insights nesmi-secondary-surface w-full max-w-4xl max-h-[90vh] overflow-hidden"}>
         {/* Header */}
         <div className="nesmi-insights-heading flex items-center justify-between">
           <h2 className="nesmi-page-title">Insights</h2>
           <button
             hidden={embedded} onClick={onClose}
-            className="text-content-secondary hover:text-content-primary hover:bg-subtle-background-hover rounded-fluent-sm transition-all duration-fast p-1.5"
+            aria-label="Close insights" className="touch-button nesmi-secondary-close"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -162,41 +165,25 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
         <div className="nesmi-section-tabs flex border-b border-border" aria-label="Insights sections">
           <button
             aria-pressed={activeTab === 'overview'} onClick={() => setActiveTab('overview')}
-            className={`px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'overview'
-                ? 'text-brand-primary border-b-2 border-brand-primary'
-                : 'text-content-secondary hover:text-content-primary'
-            }`}
+            className="nesmi-secondary-tab"
           >
             Overview
           </button>
           <button
             aria-pressed={activeTab === 'activity'} onClick={() => setActiveTab('activity')}
-            className={`px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'activity'
-                ? 'text-brand-primary border-b-2 border-brand-primary'
-                : 'text-content-secondary hover:text-content-primary'
-            }`}
+            className="nesmi-secondary-tab"
           >
             Activity
           </button>
           <button
             aria-pressed={activeTab === 'workload'} onClick={() => setActiveTab('workload')}
-            className={`px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'workload'
-                ? 'text-brand-primary border-b-2 border-brand-primary'
-                : 'text-content-secondary hover:text-content-primary'
-            }`}
+            className="nesmi-secondary-tab"
           >
             Workload
           </button>
           <button
             aria-pressed={activeTab === 'achievements'} onClick={() => setActiveTab('achievements')}
-            className={`px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'achievements'
-                ? 'text-brand-primary border-b-2 border-brand-primary'
-                : 'text-content-secondary hover:text-content-primary'
-            }`}
+            className="nesmi-secondary-tab"
           >
             Achievements
           </button>
@@ -210,25 +197,25 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
               <div className="nesmi-metrics grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="fluent-surface p-4 rounded-fluent-md border border-border">
                   <div className="text-2xl font-bold text-content-primary">{stats.completedToday}</div>
-                  <div className="text-sm text-content-secondary">Completed Today</div>
+                  <div className="nesmi-secondary-label">Completed Today</div>
                 </div>
                 <div className="fluent-surface p-4 rounded-fluent-md border border-border">
                   <div className="text-2xl font-bold text-content-primary">{stats.pendingToday}</div>
-                  <div className="text-sm text-content-secondary">Pending Today</div>
+                  <div className="nesmi-secondary-label">Pending Today</div>
                 </div>
                 <div className="fluent-surface p-4 rounded-fluent-md border border-border">
                   <div className="text-2xl font-bold text-content-primary">{stats.overdue}</div>
-                  <div className="text-sm text-content-secondary">Overdue</div>
+                  <div className="nesmi-secondary-label">Overdue</div>
                 </div>
                 <div className="fluent-surface p-4 rounded-fluent-md border border-border">
                   <div className="text-2xl font-bold text-content-primary">{stats.completedThisWeek}</div>
-                  <div className="text-sm text-content-secondary">This Week</div>
+                  <div className="nesmi-secondary-label">This Week</div>
                 </div>
               </div>
 
               {/* Leaderboard */}
               <div className="mb-6">
-                <h3 className="fluent-title text-lg font-semibold text-content-primary mb-4">Leaderboard</h3>
+                <h3 className="nesmi-secondary-title mb-4">Leaderboard</h3>
                 <div className="space-y-2">
                   {memberStats.map((member, index) => (
                     <div
@@ -236,7 +223,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                       className="nesmi-member-row flex items-center gap-4"
                     >
                       {/* Rank */}
-                      <div className="nesmi-member-rank">
+                      <div className="nesmi-member-rank nesmi-secondary-label">
                         {index + 1}
                       </div>
 
@@ -251,26 +238,26 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                         ) : (
                           <div
                             className="w-8 h-8 rounded-fluent-circle flex-shrink-0 flex items-center justify-center text-white text-sm font-bold"
-                            style={{ backgroundColor: member.memberColor }}
+                            style={memberAvatarStyle(member.memberColor)}
                           >
                             {member.memberName.charAt(0).toUpperCase()}
                           </div>
                         )}
                         <div className="min-w-0">
-                          <span className="font-medium text-content-primary truncate block">{member.memberName}</span>
+                          <span className="nesmi-secondary-body font-medium block">{member.memberName}</span>
                           {/* Top badges */}
                           {member.badges.length > 0 && (
                             <div className="flex gap-1 mt-0.5">
                               {member.badges.slice(0, 3).map(badgeId => {
                                 const badge = getBadgeById(badgeId);
                                 return badge ? (
-                                  <span key={badgeId} title={badge.name} className="text-xs">
+                                  <span key={badgeId} title={badge.name} className="nesmi-secondary-label">
                                     {badge.icon}
                                   </span>
                                 ) : null;
                               })}
                               {member.badges.length > 3 && (
-                                <span className="text-xs text-content-secondary">+{member.badges.length - 3}</span>
+                                <span className="nesmi-secondary-label">+{member.badges.length - 3}</span>
                               )}
                             </div>
                           )}
@@ -278,22 +265,22 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                       </div>
 
                       {/* Stats */}
-                      <div className="flex items-center gap-4 text-sm">
+                      <div className="nesmi-insights-member-stats flex items-center gap-4">
                         <div className="text-center">
-                          <div className="font-bold text-brand-primary">{member.points}</div>
-                          <div className="text-xs text-content-secondary">Points</div>
+                          <div className="font-bold text-content-primary">{member.points}</div>
+                          <div className="nesmi-secondary-label">Points</div>
                         </div>
                         <div className="text-center hidden sm:block">
                           <div className="font-bold text-content-primary">{member.totalCompleted}</div>
-                          <div className="text-xs text-content-secondary">Total</div>
+                          <div className="nesmi-secondary-label">Total</div>
                         </div>
                         <div className="text-center hidden md:block">
                           <div className="font-bold text-content-primary">{member.completedThisWeek}</div>
-                          <div className="text-xs text-content-secondary">Week</div>
+                          <div className="nesmi-secondary-label">Week</div>
                         </div>
                         <div className="text-center">
                           <div className="font-medium text-content-primary">{member.currentStreak}</div>
-                          <div className="text-xs text-content-secondary">Streak</div>
+                          <div className="nesmi-secondary-label">Streak</div>
                         </div>
                       </div>
                     </div>
@@ -309,7 +296,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
 
               {/* Recent Activity */}
               <div>
-                <h3 className="fluent-title text-lg font-semibold text-content-primary mb-4">Recent Completions</h3>
+                <h3 className="nesmi-secondary-title mb-4">Recent Completions</h3>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {sortedCompletions.slice(0, 5).map((completion) => {
                     const chore = state.chores.find(c => c.id === completion.choreId);
@@ -319,16 +306,16 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                         key={completion.id}
                         className="flex items-center gap-3 p-2 rounded-fluent-sm hover:bg-subtle-background-hover"
                       >
-                        <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="w-4 h-4 nesmi-secondary-success flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                         <div className="flex-1 min-w-0">
-                          <span className="text-sm text-content-primary">{chore?.title || 'Unknown chore'}</span>
-                          <span className="text-xs text-content-secondary ml-2">
+                          <span className="nesmi-secondary-body">{chore?.title || 'Unknown chore'}</span>
+                          <span className="nesmi-secondary-support ml-2">
                             by {member?.name || 'Unknown'}
                           </span>
                         </div>
-                        <span className="text-xs text-content-secondary flex-shrink-0">
+                        <span className="nesmi-secondary-label flex-shrink-0">
                           {formatRelativeTime(completion.completedAt)}
                         </span>
                       </div>
@@ -344,7 +331,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                   {state.completions.length > 5 && (
                     <button
                       onClick={() => setActiveTab('activity')}
-                      className="w-full text-center text-sm text-brand-primary hover:text-brand-primary/80 py-2"
+                      className="chore-button secondary w-full"
                     >
                       View all activity →
                     </button>
@@ -355,7 +342,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
           ) : activeTab === 'activity' ? (
             /* Activity Tab - Full Activity Feed */
             <div>
-              <h3 className="fluent-title text-lg font-semibold text-content-primary mb-4">
+              <h3 className="nesmi-secondary-title mb-4">
                 Activity Feed ({sortedCompletions.length} completions)
               </h3>
               <div className="space-y-3">
@@ -379,7 +366,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                       ) : (
                         <div
                           className="w-10 h-10 rounded-fluent-circle flex-shrink-0 flex items-center justify-center text-white font-bold"
-                          style={{ backgroundColor: member?.color || '#888' }}
+                          style={memberAvatarStyle(member?.color || '#888')}
                         >
                           {member?.name?.charAt(0).toUpperCase() || '?'}
                         </div>
@@ -390,16 +377,16 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-content-primary">{member?.name || 'Unknown'}</span>
                           <span className="text-content-secondary">completed</span>
-                          <span className="font-medium text-content-primary truncate">{chore?.title || 'Unknown chore'}</span>
+                          <span className="nesmi-secondary-body font-medium">{chore?.title || 'Unknown chore'}</span>
                         </div>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-content-secondary">
+                        <div className="flex items-center gap-3 mt-1 nesmi-secondary-label">
                           <span>{formatRelativeTime(completion.completedAt)}</span>
                           <span>•</span>
                           <span>{new Date(completion.instanceDate).toLocaleDateString()}</span>
                           {pointsEarned > 0 && (
                             <>
                               <span>•</span>
-                              <span className="text-brand-primary font-medium">+{pointsEarned} pts</span>
+                              <span className="text-content-primary font-medium">+{pointsEarned} pts</span>
                             </>
                           )}
                         </div>
@@ -407,8 +394,8 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
 
                       {/* Completion check */}
                       <div className="flex-shrink-0">
-                        <div className="w-8 h-8 rounded-fluent-circle bg-green-500/20 flex items-center justify-center">
-                          <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                        <div className="w-8 h-8 rounded-fluent-circle nesmi-secondary-success-surface flex items-center justify-center">
+                          <svg className="w-4 h-4 nesmi-secondary-success" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
                         </div>
@@ -439,7 +426,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
 
                 return (
                   <div key={badgeType}>
-                    <h3 className="fluent-title text-lg font-semibold text-content-primary mb-3 capitalize">
+                    <h3 className="nesmi-secondary-title mb-3 capitalize">
                       {badgeType} Badges ({earnedCount}/{typeBadges.length})
                     </h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -451,16 +438,16 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                           <div
                             key={badge.id}
                             className={`fluent-surface p-4 rounded-fluent-md border border-border text-center transition-all ${
-                              isEarned ? 'hover:shadow-fluent-8' : 'opacity-50'
+                              isEarned ? 'hover:shadow-fluent-8' : 'nesmi-secondary-unearned'
                             }`}
                           >
                             <div className={`text-3xl mb-2 ${!isEarned ? 'grayscale' : ''}`}>
                               {badge.icon}
                             </div>
-                            <div className={`text-sm font-medium ${isEarned ? 'text-content-primary' : 'text-content-secondary'}`}>
+                            <div className={`nesmi-secondary-body font-medium ${isEarned ? 'text-content-primary' : 'text-content-secondary'}`}>
                               {badge.name}
                             </div>
-                            <div className="text-xs text-content-secondary mt-1">
+                            <div className="nesmi-secondary-support mt-1">
                               {badge.description}
                             </div>
                             {isEarned && (
@@ -468,15 +455,15 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                                 {earnedBy.slice(0, 3).map(m => (
                                   <div
                                     key={m.id}
-                                    className="w-5 h-5 rounded-full text-white text-xs flex items-center justify-center"
-                                    style={{ backgroundColor: m.color }}
+                                    className="w-5 h-5 rounded-full text-white nesmi-secondary-label flex items-center justify-center"
+                                    style={memberAvatarStyle(m.color)}
                                     title={m.name}
                                   >
                                     {m.name.charAt(0)}
                                   </div>
                                 ))}
                                 {earnedBy.length > 3 && (
-                                  <span className="text-xs text-content-secondary">+{earnedBy.length - 3}</span>
+                                  <span className="nesmi-secondary-label">+{earnedBy.length - 3}</span>
                                 )}
                               </div>
                             )}
@@ -491,7 +478,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
           ) : activeTab === 'workload' ? (
             /* Workload Tab */
             <div>
-              <h3 className="fluent-title text-lg font-semibold text-content-primary mb-4">Team Workload (This Week)</h3>
+              <SectionHeading title="Team Workload" context="This Week"/>
               <WorkloadChart
                 members={state.teamMembers}
                 chores={state.chores}

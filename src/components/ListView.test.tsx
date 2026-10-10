@@ -31,6 +31,15 @@ describe('ListView day scope and progress', () => {
   });
   afterEach(cleanup);
 
+  it('keeps Home status counts in the same centered summary as the progress bar',()=>{
+    const {container}=render(<ListView todayView homeView onAddClick={vi.fn()} onEventClick={vi.fn()}/>);
+    const summary=container.querySelector('.chore-day-summary');
+    const status=screen.getByRole('group',{name:'Chore status'});
+    expect(summary).toContainElement(status);expect(summary).toContainElement(screen.getByRole('progressbar'));
+    expect(status).toHaveTextContent('2 pending today');expect(status).toHaveTextContent('1 overdue');
+    expect(container.querySelector('.chore-list-page > .nesmi-home-cues')).toBeNull();
+  });
+
   it('keeps overdue out of the selected-day denominator and estimates only pending day chores', () => {
     render(<ListView todayView onAddClick={vi.fn()} onEventClick={vi.fn()}/>);
 
@@ -40,18 +49,18 @@ describe('ListView day scope and progress', () => {
     expect(screen.getByText('~15 min')).toBeInTheDocument();
     expect(screen.getByText('Estimates set for 1 of 2 remaining chores.')).toBeInTheDocument();
     const overdueGroup = screen.getByRole('heading', {name: /^Overdue\s+1$/}).parentElement!;
-    expect(within(overdueGroup).getByRole('button', {name: 'Edit Laundry backlog'})).toBeInTheDocument();
-    expect(screen.getByRole('button', {name: 'Edit Laundry'})).toHaveTextContent('Alex · Today');
-    expect(screen.getByRole('button', {name: 'Edit Laundry'})).toHaveTextContent('Cleaning · 15 min');
-    expect(screen.queryByRole('button', {name: 'Edit Laundry next week'})).not.toBeInTheDocument();
+    expect(within(overdueGroup).getByRole('button', {name: 'Actions: Laundry backlog'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Actions: Laundry'})).toHaveTextContent('Alex · Today');
+    expect(screen.getByRole('button', {name: 'Actions: Laundry'})).toHaveTextContent('Cleaning · 15 min');
+    expect(screen.queryByRole('button', {name: 'Actions: Laundry next week'})).not.toBeInTheDocument();
   });
 
   it('searches only the selected day and overdue without changing the progress denominator', () => {
     render(<ListView todayView searchQuery="Laundry" onAddClick={vi.fn()} onEventClick={vi.fn()}/>);
 
-    expect(screen.getByRole('button', {name: 'Edit Laundry'})).toBeInTheDocument();
-    expect(screen.getByRole('button', {name: 'Edit Laundry backlog'})).toBeInTheDocument();
-    expect(screen.queryByRole('button', {name: 'Edit Laundry next week'})).not.toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Actions: Laundry'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Actions: Laundry backlog'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Actions: Laundry next week'})).not.toBeInTheDocument();
     expect(screen.getByRole('progressbar', {name: '1 of 3 chores completed on Today'})).toHaveAttribute('max', '3');
     expect(screen.getByText('2 chores · this day + overdue')).toBeInTheDocument();
   });
@@ -64,27 +73,48 @@ describe('ListView day scope and progress', () => {
     expect(screen.getByRole('progressbar')).toHaveAttribute('max', '1');
     expect(screen.getByRole('progressbar')).toHaveAttribute('value', '0');
     expect(screen.getByText('~30 min')).toBeInTheDocument();
-    expect(screen.getByRole('button', {name: 'Edit Laundry next week'})).toBeInTheDocument();
-    expect(screen.queryByRole('button', {name: 'Edit Laundry backlog'})).not.toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Actions: Laundry next week'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Actions: Laundry backlog'})).not.toBeInTheDocument();
   });
 
   it('clears member and parent-owned search/visibility filters from an empty result', async () => {
     const user = userEvent.setup();
     const onClearFilters = vi.fn();
     const {rerender} = render(<ListView todayView searchQuery="not found" onAddClick={vi.fn()} onEventClick={vi.fn()} onClearFilters={onClearFilters}/>);
-    await user.selectOptions(screen.getByRole('combobox', {name: 'Filter by family member'}), 'unassigned');
+    await user.click(screen.getByRole('combobox', {name: 'Filter by family member'}));
+    await user.click(screen.getByRole('option', {name: 'Unassigned'}));
     await user.click(screen.getAllByRole('button', {name: 'Clear filters'})[1]);
 
-    expect(screen.getByRole('combobox', {name: 'Filter by family member'})).toHaveValue('everyone');
+    expect(screen.getByRole('combobox', {name: 'Filter by family member'})).toHaveTextContent('Everyone');
     expect(onClearFilters).toHaveBeenCalledOnce();
     rerender(<ListView todayView onAddClick={vi.fn()} onEventClick={vi.fn()} onClearFilters={onClearFilters}/>);
-    expect(screen.getByRole('button', {name: 'Edit Laundry'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Actions: Laundry'})).toBeInTheDocument();
+  });
+
+  it('combines family and completion pickers and clears both without changing chores', async () => {
+    const user = userEvent.setup();
+    render(<ListView onAddClick={vi.fn()} onEventClick={vi.fn()}/>);
+    const family = screen.getByRole('combobox', {name: 'Filter by family member'});
+    const status = screen.getByRole('combobox', {name: 'Completion status'});
+    await user.click(family); await user.click(screen.getByRole('option', {name: 'Alex'}));
+    expect(family).toHaveTextContent('Alex');
+    expect(screen.queryByRole('button', {name: 'Actions: Water plants'})).not.toBeInTheDocument();
+    await user.click(status); await user.click(screen.getByRole('option', {name: 'Completed'}));
+    expect(screen.getByRole('button', {name: 'Actions: Wash dishes'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Actions: Laundry'})).not.toBeInTheDocument();
+    await user.click(status); await user.click(screen.getByRole('option', {name: 'Not done'}));
+    expect(screen.queryByRole('button', {name: 'Actions: Wash dishes'})).not.toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Actions: Laundry'})).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Clear filters'}));
+    expect(family).toHaveTextContent('Everyone'); expect(status).toHaveTextContent('All statuses');
+    expect(screen.getByRole('button', {name: 'Actions: Water plants'})).toBeInTheDocument();
+    expect(app.completeChore).not.toHaveBeenCalled(); expect(app.uncompleteChore).not.toHaveBeenCalled();
   });
 
   it('labels all-date search in List view', () => {
     render(<ListView searchQuery="Laundry" onAddClick={vi.fn()} onEventClick={vi.fn()}/>);
     expect(screen.getByRole('heading', {name: /Search results · all dates/})).toBeInTheDocument();
-    expect(screen.getByRole('button', {name: 'Edit Laundry next week'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Actions: Laundry next week'})).toBeInTheDocument();
   });
 
   it('retains today’s daily recurrence when an old one-off chore exists', () => {
@@ -97,8 +127,8 @@ describe('ListView day scope and progress', () => {
 
     expect(screen.getByRole('progressbar', {name: '0 of 1 chores completed on Today'})).toBeInTheDocument();
     const todayGroup = screen.getByRole('heading', {name: /Up for today/}).parentElement!;
-    expect(within(todayGroup).getByRole('button', {name: 'Edit Daily routine'})).toHaveTextContent('Today');
-    expect(screen.getByRole('button', {name: 'Edit Old one-off'})).toBeInTheDocument();
+    expect(within(todayGroup).getByRole('button', {name: 'Actions: Daily routine'})).toHaveTextContent('Today');
+    expect(screen.getByRole('button', {name: 'Actions: Old one-off'})).toBeInTheDocument();
   });
 
   it('requires explicit credit before completing an unassigned chore', async () => {
@@ -108,7 +138,8 @@ describe('ListView day scope and progress', () => {
     const dialog = screen.getByRole('dialog', {name: 'Complete chore'});
     expect(within(dialog).getByRole('button', {name: 'Mark done'})).toBeDisabled();
     expect(app.completeChore).not.toHaveBeenCalled();
-    await user.selectOptions(within(dialog).getByRole('combobox', {name: 'Who completed it?'}), 'member-1');
+    await user.click(within(dialog).getByRole('combobox', {name: 'Who completed it?'}));
+    await user.click(within(dialog).getByRole('option', {name: 'Alex'}));
     await user.click(within(dialog).getByRole('button', {name: 'Mark done'}));
     expect(app.completeChore).toHaveBeenCalledWith('unestimated', dateKey(), 'member-1');
   });

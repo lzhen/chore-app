@@ -1,1 +1,1 @@
-export function QuickAddButton({onClick}:{onClick:()=>void}){return <button className="chore-fab" onClick={onClick} aria-label="Add new chore"><span aria-hidden="true">＋</span>Add chore</button>;}
+export function QuickAddButton({onClick}:{onClick:()=>void}){return <button className="nesmi-global-add" onClick={onClick} aria-label="Add new chore" title="Add chore"><span aria-hidden="true">＋</span></button>;}
