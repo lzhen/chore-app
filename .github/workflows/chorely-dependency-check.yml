@@ -2,7 +2,9 @@ name: Nesmi production dependency report
 on:
   push:
     branches: [main, release/chorely-app-store]
-    paths: ['package*.json', '.github/workflows/chorely-dependency-check.yml']
+    paths: ['package*.json', 'mobile/package*.json', '.github/workflows/chorely-dependency-check.yml']
+  pull_request:
+    paths: ['package*.json', 'mobile/package*.json', '.github/workflows/chorely-dependency-check.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,8 +24,11 @@ jobs:
           const report=JSON.parse(readFileSync('production-dependency-audit.json','utf8'));
           if(report.error)throw Error('Dependency registry unavailable; no clean-security conclusion can be drawn.');
           console.log(JSON.stringify(report.metadata,null,2));
+          if((report.metadata?.vulnerabilities?.high||0)+(report.metadata?.vulnerabilities?.critical||0)>0)throw Error('High or critical production dependency vulnerability blocks release.');
           for(const [name,info] of Object.entries(report.vulnerabilities||{})) console.log(JSON.stringify({name,severity:info.severity,range:info.range,isDirect:info.isDirect,fixAvailable:info.fixAvailable,via:info.via}));
           NODE
+      - name: Verify mobile production dependency lock
+        run: npm audit --prefix mobile --omit=dev --audit-level=high
       - uses: actions/upload-artifact@v4
         if: always()
         with:
