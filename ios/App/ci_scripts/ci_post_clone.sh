@@ -26,6 +26,7 @@ node --version
 npm --version
 pod --version
 npm ci --include=dev
+npm audit --omit=dev --audit-level=high
 CAPACITOR_BUILD=true npm run build
 ./node_modules/.bin/cap sync ios
 
