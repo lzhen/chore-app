@@ -1,3 +1,4 @@
+import { memberAvatarStyle } from '../utils/colors';
 import { parseDate } from '../utils/dates';
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
@@ -47,7 +48,7 @@ export function AvailabilityModal({ member, onClose }: AvailabilityModalProps) {
           <div className="flex items-center gap-3">
             <div
               className="w-4 h-4 rounded-fluent-circle"
-              style={{ backgroundColor: member.color }}
+              style={memberAvatarStyle(member.color)}
             />
             <h2 className="fluent-title text-lg font-semibold text-content-primary">
               {member.name}'s Availability

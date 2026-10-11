@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, fix/nesmi-active-release-security-20261011]
   pull_request:
     branches: [main, master]
 

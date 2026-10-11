@@ -1,7 +1,7 @@
 name: Nesmi - Native Builds
 on:
   push:
-    branches: [main]
+    branches: [main, fix/nesmi-active-release-security-20261011]
     paths: ['mobile/**', '.github/workflows/mobile-build.yml']
   pull_request:
     branches: [main]

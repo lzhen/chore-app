@@ -108,7 +108,8 @@ describe('ListView day scope and progress', () => {
     const dialog = screen.getByRole('dialog', {name: 'Complete chore'});
     expect(within(dialog).getByRole('button', {name: 'Mark done'})).toBeDisabled();
     expect(app.completeChore).not.toHaveBeenCalled();
-    await user.selectOptions(within(dialog).getByRole('combobox', {name: 'Who completed it?'}), 'member-1');
+    await user.click(within(dialog).getByRole('combobox', {name: 'Who completed it?'}));
+    await user.click(within(dialog).getByRole('option', {name: 'Alex'}));
     await user.click(within(dialog).getByRole('button', {name: 'Mark done'}));
     expect(app.completeChore).toHaveBeenCalledWith('unestimated', dateKey(), 'member-1');
   });

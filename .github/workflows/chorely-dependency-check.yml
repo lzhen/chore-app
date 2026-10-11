@@ -1,7 +1,7 @@
 name: Nesmi production dependency report
 on:
   push:
-    branches: [main, release/chorely-app-store]
+    branches: [main, release/chorely-app-store, fix/nesmi-active-release-security-20261011]
     paths: ['package*.json', 'mobile/package*.json', '.github/workflows/chorely-dependency-check.yml']
   pull_request:
     paths: ['package*.json', 'mobile/package*.json', '.github/workflows/chorely-dependency-check.yml']
