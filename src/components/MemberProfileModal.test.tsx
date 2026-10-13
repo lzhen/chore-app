@@ -1,3 +1,4 @@
+import { formatTime } from '../utils/time';
 import { useState } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -31,7 +32,7 @@ describe('Member profile shared surface', () => {
     expect(screen.getByLabelText('Name')).toHaveValue('Alex');
     expect(screen.getByLabelText('Email')).toHaveValue('alex@example.test');
     expect(screen.getByLabelText('Skills')).toHaveClass('nesmi-secondary-field');
-    expect(screen.getByLabelText('Working hours start')).toHaveValue('09:00');
+    expect(screen.getByLabelText('Working hours start')).toHaveValue(formatTime('09:00'));
     expect(screen.getByRole('button', { name: 'Mon' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(screen.getByRole('button', { name: 'Open Alex profile' })).toHaveFocus());

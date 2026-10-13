@@ -1,3 +1,4 @@
+import { formatTime } from '../utils/time';
 import {cleanup,render,screen} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {afterEach,describe,expect,it,vi} from 'vitest';
@@ -10,7 +11,7 @@ describe('centered task details',()=>{
  it('uses centered modal layout instead of an edge position; completion uses enabled Cancel styling',async()=>{
   const complete=vi.fn(),edit=vi.fn(),close=vi.fn(),user=userEvent.setup();render(<EventPopover chore={chore} instance={instance} position={{x:9999,y:9999}} onComplete={complete} onEdit={edit} onClose={close}/>);
   const dialog=screen.getByRole('dialog',{name:chore.title});expect(dialog.parentElement).toHaveClass('is-centered');expect(dialog).not.toHaveAttribute('style');
-  expect(screen.getByText(/09:00 – 10:00/)).toBeInTheDocument();expect(screen.getByText('Eric')).toBeInTheDocument();expect(screen.getByText('Put books away')).toBeInTheDocument();
+  expect(screen.getByText(`${formatTime('09:00')} – ${formatTime('10:00')}`, {exact:false})).toBeInTheDocument();expect(screen.getByText('Eric')).toBeInTheDocument();expect(screen.getByText('Put books away')).toBeInTheDocument();
   const toggle=screen.getByRole('button',{name:'Mark incomplete'});expect(toggle).toBeEnabled();expect(toggle).toHaveClass('chore-button','secondary');await user.click(toggle);expect(complete).toHaveBeenCalledOnce();
   await user.click(screen.getByRole('button',{name:'Edit'}));expect(edit).toHaveBeenCalledOnce();await user.keyboard('{Escape}');expect(close).toHaveBeenCalledOnce();
  });

@@ -1,3 +1,4 @@
+import { TimeInput } from './TimeInput';
 import '../styles/nesmi-secondary-surfaces.css';
 import { memberAvatarStyle } from '../utils/colors';
 import { useState, useRef, useId, useEffect } from 'react';
@@ -248,17 +249,15 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
               <div>
                 <p className="nesmi-secondary-label mb-2">Working Hours</p>
                 <div className="nesmi-profile-time-row flex items-center gap-2">
-                  <input
-                    type="time"
-                    aria-label="Working hours start" value={formData.workingHoursStart}
-                    onChange={(e) => setFormData({ ...formData, workingHoursStart: e.target.value })}
+                  <TimeInput
+                    label="Working hours start" value={formData.workingHoursStart}
+                    onChange={(value) => setFormData({ ...formData, workingHoursStart: value })}
                     className="nesmi-secondary-field"
                   />
                   <span className="text-content-secondary">to</span>
-                  <input
-                    type="time"
-                    aria-label="Working hours end" value={formData.workingHoursEnd}
-                    onChange={(e) => setFormData({ ...formData, workingHoursEnd: e.target.value })}
+                  <TimeInput
+                    label="Working hours end" value={formData.workingHoursEnd}
+                    onChange={(value) => setFormData({ ...formData, workingHoursEnd: value })}
                     className="nesmi-secondary-field"
                   />
                 </div>

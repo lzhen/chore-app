@@ -1,3 +1,4 @@
+import { formatTime } from '../utils/time';
 import { createRef } from 'react';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -96,7 +97,7 @@ describe('calendar presentation with FullCalendar', () => {
     await user.keyboard('{Enter}');
     const details = screen.getByRole('dialog', { name: chore.title });
     expect(within(details).getByText('Keep the full chore details available.')).toBeVisible();
-    expect(within(details).getByText(/09:30 – 10:30/)).toBeVisible();
+    expect(within(details).getByText(`${formatTime('09:30')} – ${formatTime('10:30')}`, {exact:false})).toBeVisible();
     await user.click(within(details).getByRole('button', { name: 'Edit' }));
     expect(onEventClick).toHaveBeenCalledExactlyOnceWith(chore, '2026-10-10');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

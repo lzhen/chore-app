@@ -47,3 +47,58 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
 }
+
+// Keep the native canvas/status bar in sync with the app's selected appearance.
+// This bridge accepts only a theme name from the bundled main frame, never credentials.
+import WebKit
+private final class AppearanceMessageHandler: NSObject, WKScriptMessageHandler {
+    weak var owner: NesmiViewController?
+    init(_ owner: NesmiViewController) { self.owner = owner }
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.frameInfo.isMainFrame,
+              message.frameInfo.request.url?.scheme == "capacitor",
+              let theme = message.body as? String,
+              ["light", "dark", "system"].contains(theme) else { return }
+        owner?.applyAppearance(theme)
+    }
+}
+
+class NesmiViewController: CAPBridgeViewController {
+    override func capacitorDidLoad() {
+        super.capacitorDidLoad()
+        if let saved = UserDefaults.standard.string(forKey: "NesmiAppearance") {
+            applyAppearance(saved)
+        } else {
+            applyAppearance("system")
+        }
+        let controller = webView?.configuration.userContentController
+        controller?.add(AppearanceMessageHandler(self), name: "nesmiAppearance")
+        let script = """
+        (() => {
+          const send = () => window.webkit.messageHandlers.nesmiAppearance.postMessage(
+            localStorage.getItem('theme') === 'system' || !localStorage.getItem('theme') ? 'system' : (document.documentElement.classList.contains('dark') ? 'dark' : 'light'));
+          new MutationObserver(send).observe(document.documentElement, {attributes:true, attributeFilter:['class','data-theme']});
+          send();
+        })();
+        """
+        controller?.addUserScript(WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+    }
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        if UserDefaults.standard.string(forKey: "NesmiAppearance") == "system",
+           previousTraitCollection?.userInterfaceStyle != traitCollection.userInterfaceStyle {
+            applyAppearance("system")
+        }
+    }
+    fileprivate func applyAppearance(_ theme: String) {
+        overrideUserInterfaceStyle = theme == "system" ? .unspecified : (theme == "dark" ? .dark : .light)
+        let dark = theme == "system" ? traitCollection.userInterfaceStyle == .dark : theme == "dark"
+        let background = dark ? UIColor(red: 8/255, green: 8/255, blue: 9/255, alpha: 1) : UIColor.white
+        view.backgroundColor = background
+        webView?.isOpaque = false
+        webView?.backgroundColor = background
+        webView?.scrollView.backgroundColor = background
+        setStatusBarStyle(dark ? .lightContent : .darkContent)
+        UserDefaults.standard.set(theme, forKey: "NesmiAppearance")
+    }
+}

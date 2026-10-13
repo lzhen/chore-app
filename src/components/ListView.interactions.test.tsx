@@ -24,7 +24,7 @@ describe('Web task rows', () => {
   await user.click(screen.getByRole('button',{name:'Edit Wash dishes'}));
   expect(screen.queryByRole('dialog')).toBeNull();expect(document.body.style.overflow).not.toBe('hidden');
   expect(screen.getByRole('textbox',{name:'Chore'})).toHaveFocus();
-  expect(screen.getByLabelText('Date')).toHaveAttribute('type','date');expect(screen.getByLabelText('Start time · optional')).toHaveAttribute('type','time');
+  expect(screen.getByLabelText('Date')).toHaveAttribute('type','date');expect(screen.getByLabelText('Start time · optional')).toHaveAttribute('type','text');
   await user.keyboard('{Escape}');expect(screen.queryByRole('textbox',{name:'Chore'})).toBeNull();expect(screen.getByRole('button',{name:'Edit Wash dishes'})).toHaveFocus();
  });
  it('keeps dirty values when cancelling a second edit, then resumes the requested edit after discard', async () => {

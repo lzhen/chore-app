@@ -1,3 +1,4 @@
+import { formatTime } from '../utils/time';
 import { parseDate } from '../utils/dates';
 import { Chore, ChoreInstance } from '../types';
 import { Dialog } from './Dialog';
@@ -11,7 +12,7 @@ interface EventPopoverProps {
 }
 export function EventPopover({ instance, onEdit, onComplete, onClose }: EventPopoverProps) {
   const date = parseDate(instance.date).toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric', year:'numeric' });
-  const time = instance.dueTime ? `${instance.dueTime}${instance.endTime ? ` – ${instance.endTime}` : ''}` : 'All day';
+  const time = instance.dueTime ? `${formatTime(instance.dueTime)}${instance.endTime ? ` – ${formatTime(instance.endTime)}` : ''}` : 'All day';
   return <Dialog title={instance.title} variant="centered" onClose={onClose} footer={<>
     <button type="button" onClick={onComplete} className="chore-button secondary">{instance.isCompleted ? 'Mark incomplete' : 'Mark complete'}</button>
     <button type="button" onClick={onEdit} className="chore-button primary">Edit</button>

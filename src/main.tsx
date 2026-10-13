@@ -18,6 +18,7 @@ import './index.css';
 import './nesmi-refinement.css';
 import './styles/nesmi-tokens.css';
 import './styles/nesmi-product-adoption.css';
+import './styles/nesmi-device-fixes.css';
 
 const reference = isDesignSystemReference(
   (window as Window & { __NESMI_PREVIEW__?: boolean }).__NESMI_PREVIEW__,

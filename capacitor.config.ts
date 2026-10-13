@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Nesmi',
   webDir: 'dist',
   ios: {
-    contentInset: 'automatic',
+    contentInset: 'never',
     preferredContentMode: 'mobile',
   },
 }

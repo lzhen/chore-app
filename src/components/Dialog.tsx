@@ -17,6 +17,18 @@ export function Dialog({title, onClose, children, footer, busy=false, variant='d
  const box=useRef<HTMLDivElement>(null), layer=useRef<HTMLDivElement>(null);
  const close=useRef(onClose); close.current=onClose;
  const working=useRef(busy); working.current=busy;
+ useEffect(() => {
+  const viewport = window.visualViewport;
+  if (!viewport) return;
+  const update = () => {
+   layer.current?.style.setProperty('--dialog-height', `${viewport.height}px`);
+   layer.current?.style.setProperty('--dialog-top', `${viewport.offsetTop}px`);
+   const focused = document.activeElement;
+   if (focused instanceof HTMLElement && box.current?.contains(focused)) focused.scrollIntoView?.({block:'nearest'});
+  };
+  update(); viewport.addEventListener('resize',update); viewport.addEventListener('scroll',update);
+  return () => {viewport.removeEventListener('resize',update);viewport.removeEventListener('scroll',update);};
+ }, []);
  const closeIfActive=()=>{if(!working.current&&layer.current===layers[layers.length-1])close.current();};
  useEffect(()=>{
   const currentLayer=layer.current!;

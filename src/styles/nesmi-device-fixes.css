@@ -1,0 +1,30 @@
+/* One canvas and one safe-area owner. Native contentInset is never. */
+html, body, #root { background: var(--surface-primary); color: var(--text-primary); min-width: 0; }
+.chore-dialog-backdrop {
+  inset-block: auto;
+  top: var(--dialog-top, 0px);
+  height: var(--dialog-height, 100dvh);
+  box-sizing: border-box;
+  padding-top: max(18px, env(safe-area-inset-top));
+}
+.chore-dialog-backdrop > .chore-dialog,
+.chore-dialog-backdrop:not(.is-centered) > .chore-dialog:has(.nesmi-chore-sheet) {
+  min-width: 0;
+  max-height: 100%;
+}
+.chore-dialog-body { min-width: 0; scroll-padding-block: 16px; }
+.chore-dialog-body :is(input, textarea, button, summary) { scroll-margin-block: 16px; }
+.chore-dialog-header h2 { min-width: 0; overflow-wrap: anywhere; }
+.chore-dialog-header > button { flex-shrink: 0; }
+.nesmi-chore-fields :is(.chore-label, .chore-input, details) { min-width: 0; }
+.chore-time-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.nesmi-time-hint { display: block; margin-top: 6px; font-size: 12px; font-weight: 400; line-height: 1.5; color: var(--text-secondary); overflow-wrap: anywhere; }
+input[aria-invalid='true'] { outline: 2px solid var(--text-primary); }
+.nesmi-profile-time-row { display: grid; grid-template-columns: minmax(0, 1fr); }
+.nesmi-profile-time-row input { width: 100%; min-width: 0; }
+@media(max-width:599px) {
+  .chore-time-row { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .chore-time-row .chore-label { margin-block: 12px; }
+  .chore-dialog-backdrop:has(.nesmi-chore-sheet):not(.is-centered) { padding-top: max(18px, env(safe-area-inset-top)); }
+  .chore-more > summary small { display: block; margin-left: 0; }
+}

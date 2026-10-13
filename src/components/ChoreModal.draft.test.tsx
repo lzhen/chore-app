@@ -1,3 +1,4 @@
+import { formatTime } from '../utils/time';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -99,7 +100,7 @@ describe('editor save guard and optional data',()=>{
   const user=userEvent.setup(),close=vi.fn();render(<ChoreModal isOpen onClose={close} defaultValues={{title:'Clean kitchen',startTime:'11:00',endTime:'10:00',priority:'high',estimatedMinutes:30}}/>);
   await user.click(screen.getByRole('button',{name:'Add chore'}));expect(screen.getByRole('alert')).toHaveTextContent('Choose an end time after the start time');expect(close).not.toHaveBeenCalled();
   expect(screen.getByRole('combobox',{name:'Priority'})).toHaveTextContent('High');expect(screen.getByRole('spinbutton',{name:'Estimated minutes · optional'})).toHaveValue(30);
-  expect(screen.getByLabelText('Start time · optional')).toHaveValue('11:00');expect(screen.getByLabelText('End time · optional')).toHaveValue('10:00');
+  expect(screen.getByLabelText('Start time · optional')).toHaveValue(formatTime('11:00'));expect(screen.getByLabelText('End time · optional')).toHaveValue(formatTime('10:00'));
  });
 });
 
@@ -129,7 +130,7 @@ describe('editor choice menus', () => {
     await user.click(screen.getByRole('button', {name: 'Cancel'}));
     expect(onClose).toHaveBeenCalledOnce();
   });
-  it('all four choices save their values while Date and time stay native inputs', async () => {
+  it('all four choices save their values while Date stays native and time uses the themed editor', async () => {
     const user = userEvent.setup(); app.addChore.mockResolvedValueOnce(undefined);
     render(<ChoreModal isOpen onClose={vi.fn()} defaultValues={{title: 'Task', recurrence: 'weekly', priority: 'high'}}/>);
     for (const [field, option] of [['Person', 'Alex'], ['Repeat', 'Every month'], ['Priority', 'Low'], ['Category', 'Cleaning']]) {
@@ -137,8 +138,8 @@ describe('editor choice menus', () => {
       await user.click(screen.getByRole('option', {name: option}));
     }
     expect(screen.getByLabelText('Date')).toHaveAttribute('type', 'date');
-    expect(screen.getByLabelText('Start time · optional')).toHaveAttribute('type', 'time');
-    expect(screen.getByLabelText('End time · optional')).toHaveAttribute('type', 'time');
+    expect(screen.getByLabelText('Start time · optional')).toHaveAttribute('type', 'text');
+    expect(screen.getByLabelText('End time · optional')).toHaveAttribute('type', 'text');
     await user.click(screen.getByRole('button', {name: 'Add chore'}));
     expect(app.addChore).toHaveBeenCalledWith(expect.objectContaining({assigneeId: 'alex', recurrence: 'monthly', priority: 'low', categoryId: 'cleaning'}));
   });
