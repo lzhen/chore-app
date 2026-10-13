@@ -124,6 +124,7 @@ function reducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         chores: state.chores.filter(c => c.id !== action.payload),
+        completions: state.completions.filter(completion => completion.choreId !== action.payload),
       };
     case 'SET_MEMBERS':
       return { ...state, teamMembers: action.payload };
@@ -138,6 +139,9 @@ function reducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         teamMembers: state.teamMembers.filter(m => m.id !== action.payload),
+        chores: state.chores.map(chore => chore.assigneeId === action.payload ? { ...chore, assigneeId: null } : chore),
+        completions: state.completions.filter(completion => completion.completedBy !== action.payload),
+        availability: state.availability.filter(period => period.memberId !== action.payload),
       };
     case 'SET_CATEGORIES':
       return { ...state, categories: action.payload };
@@ -256,6 +260,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const removeMember = async (id: string) => {
     const success = await dbDeleteTeamMember(id);
+    if (!success) throw new Error('Could not remove member. Please try again.');
     if (success) {
       dispatch({ type: 'REMOVE_MEMBER', payload: id });
     }

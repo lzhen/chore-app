@@ -1,0 +1,21 @@
+/* Nesmi semantic typography v0.1. Existing product colors and font stack remain authoritative. */
+:root {
+  --nesmi-type-body: 1rem;
+  --nesmi-type-support: .875rem;
+  --nesmi-leading-support: 1.5;
+  --nesmi-space-4: 4px;
+  --nesmi-space-8: 8px;
+  --nesmi-space-12: 12px;
+  --nesmi-space-16: 16px;
+  --nesmi-space-20: 20px;
+  --nesmi-space-24: 24px;
+  --nesmi-space-32: 32px;
+  --nesmi-radius-control: 8px;
+  --nesmi-radius-card: 12px;
+  --nesmi-radius-panel: 20px;
+  --nesmi-type-label: .8125rem;
+  --nesmi-type-section: 1.25rem;
+  --nesmi-leading-body: 1.5;
+  --nesmi-leading-label: 1.4;
+  --nesmi-leading-section: 1.3;
+}

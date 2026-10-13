@@ -1,0 +1,55 @@
+.chore-dialog:has(.nesmi-discard-confirmation) .chore-dialog-header {
+  padding: 16px 16px 4px 24px;
+  min-height: 60px;
+  border-bottom: 0;
+}
+.chore-dialog:has(.nesmi-discard-confirmation) .chore-dialog-body {
+  flex: 0 1 auto;
+  padding: 12px 24px 20px;
+}
+.nesmi-discard-confirmation { display: grid; gap: 10px; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.nesmi-discard-confirmation p { margin: 0; color: var(--text-primary); }
+.nesmi-discard-confirmation .nesmi-discard-fields { color: var(--text-secondary); }
+.nesmi-discard-confirmation strong { font-weight: 550; }
+.chore-dialog:has(.nesmi-discard-confirmation) .chore-dialog-footer {
+  border-top: 0;
+  padding: 0 24px max(20px, env(safe-area-inset-bottom));
+}
+@media(max-width:359px) {
+  .chore-dialog:has(.nesmi-discard-confirmation) .chore-dialog-footer { flex-wrap: wrap; }
+  .chore-dialog:has(.nesmi-discard-confirmation) .chore-dialog-footer > button { flex-basis: 100%; }
+}
+
+.nesmi-chore-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
+.chore-dialog-backdrop:has(.nesmi-chore-sheet):not(.is-centered) { align-items: flex-end; padding: 18px 0 0; }
+.chore-dialog-backdrop:not(.is-centered) > .chore-dialog:has(.nesmi-chore-sheet) { border-radius: 20px 20px 0 0; max-height: min(720px,calc(100dvh - 18px)); }
+
+.nesmi-inline-editor { border: 1px solid var(--border-default); background: var(--surface-primary); border-radius: 12px; padding: 20px 24px; margin: 15px 0 4px 54px; }
+.nesmi-inline-editor-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 5px 12px; }
+.nesmi-inline-editor-heading h4 { font-size: 14px; font-weight: 550; margin: 0; }
+.nesmi-inline-editor-heading > span { font-size: 11px; color: var(--text-secondary); }
+.nesmi-inline-editor form > .chore-label:first-of-type { margin-top: 16px; }
+.nesmi-inline-editor .chore-more { margin-top: 20px; }
+.nesmi-inline-editor-footer { display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border-subtle); padding-top: 16px; margin-top: 20px; }
+.nesmi-inline-editor-footer .chore-button { min-height: 44px; }
+
+@media(max-width:599px) { .nesmi-inline-editor { margin-left: 0; padding: 16px; } }
+
+/* Text, selected people and native date/time digits share one input scale. */
+.nesmi-chore-fields .chore-input,
+.nesmi-chore-fields button.nesmi-choice-trigger.chore-input {
+  font-family: inherit;
+  font-size: var(--nesmi-type-body, 1rem);
+  font-weight: 400;
+  line-height: var(--nesmi-leading-body, 1.5);
+  letter-spacing: normal;
+}
+.nesmi-chore-fields input[type='date']::-webkit-date-and-time-value {
+  font: inherit;
+  text-align: start;
+}
+.nesmi-chore-fields input[type='date']::-webkit-datetime-edit,
+.nesmi-chore-fields input[type='time']::-webkit-datetime-edit {
+  font: inherit;
+  padding: 0;
+}

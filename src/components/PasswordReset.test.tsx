@@ -169,10 +169,10 @@ describe('PasswordReset', () => {
     expect(screen.getByLabelText(/confirm password/i)).toBeDisabled();
   });
 
-  it('renders logo and theme selector', () => {
+  it('renders logo without an authentication theme control', () => {
     render(<PasswordReset onComplete={mockOnComplete} />);
 
     expect(screen.getByTestId('logo')).toBeInTheDocument();
-    expect(screen.getByTestId('theme-selector')).toBeInTheDocument();
+    expect(screen.queryByTestId('theme-selector')).not.toBeInTheDocument();
   });
 });

@@ -1,3 +1,4 @@
+import '../styles/nesmi-secondary-surfaces.css';
 import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import {
@@ -19,11 +20,13 @@ import {
   signOutFromGoogle,
   syncChoresToGoogleCalendar,
 } from '../utils/googleCalendar';
+import { Dialog } from './Dialog';
 import { ChatAssistant } from './ChatAssistant';
 
-export function AgentPanel() {
+export function AgentPanel({initialOpen=false,onDismiss,onChatOpen}:{initialOpen?:boolean;onDismiss?:()=>void;onChatOpen?:()=>void}={}) {
   const { state, updateChore } = useApp();
-  const [isOpen, setIsOpen] = useState(false);
+  const previewOnly = (window as Window & { __NESMI_PREVIEW__?: boolean }).__NESMI_PREVIEW__ === true;
+  const [isOpen, setIsOpen] = useState(initialOpen);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isAutoAssigning, setIsAutoAssigning] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
@@ -39,11 +42,12 @@ export function AgentPanel() {
 
   // Check notification permission on mount
   useEffect(() => {
-    setNotificationsEnabled(areNotificationsEnabled());
+    if (!previewOnly) setNotificationsEnabled(areNotificationsEnabled());
   }, []);
 
   // Initialize Google Calendar API
   useEffect(() => {
+    if (previewOnly) return;
     const configured = isGoogleCalendarConfigured();
     setGoogleConfigured(configured);
     if (configured) {
@@ -55,7 +59,7 @@ export function AgentPanel() {
 
   // Check for upcoming chores and send notifications
   useEffect(() => {
-    if (notificationsEnabled && state.chores.length > 0) {
+    if (!previewOnly && notificationsEnabled && state.chores.length > 0) {
       checkAndNotifyUpcomingChores(state.chores, state.teamMembers);
     }
   }, [notificationsEnabled, state.chores, state.teamMembers]);
@@ -75,6 +79,7 @@ export function AgentPanel() {
   };
 
   const handleEnableNotifications = async () => {
+    if (previewOnly) return;
     const granted = await requestNotificationPermission();
     setNotificationsEnabled(granted);
     if (granted) {
@@ -83,17 +88,20 @@ export function AgentPanel() {
   };
 
   const handleGoogleSignIn = async () => {
+    if (previewOnly) return;
     const success = await signInToGoogle();
     setGoogleSignedIn(success);
   };
 
   const handleGoogleSignOut = () => {
+    if (previewOnly) return;
     signOutFromGoogle();
     setGoogleSignedIn(false);
     setSyncResult(null);
   };
 
   const handleSyncToGoogle = async () => {
+    if (previewOnly) return;
     setIsSyncing(true);
     setSyncResult(null);
     const result = await syncChoresToGoogleCalendar(state.chores, state.teamMembers);
@@ -104,7 +112,7 @@ export function AgentPanel() {
   return (
     <>
       {/* Floating Agent Button */}
-      <button
+      {!initialOpen&&<button
         onClick={() => setIsOpen(!isOpen)}
         className="nesmi-agent-trigger rounded-full flex items-center justify-center"
         aria-label="Calendar Agent" aria-expanded={isOpen} aria-controls="nesmi-agent-panel"
@@ -123,42 +131,19 @@ export function AgentPanel() {
             {unassignedCount > 99 ? '99+' : unassignedCount > 0 ? unassignedCount : '!'}
           </span>
         )}
-      </button>
+      </button>}
 
       {/* Agent Panel */}
       {isOpen && (
-        <div id="nesmi-agent-panel" className="nesmi-agent-panel fluent-card" aria-label="Calendar Agent panel">
-          <div className="nesmi-agent-heading px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                />
-              </svg>
-              <span className="font-semibold">Calendar Agent</span>
-            </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              aria-label="Close Calendar Agent" className="nesmi-agent-close"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="nesmi-agent-content p-4 space-y-4">
+        <Dialog title="Planning tools" variant="centered" onClose={()=>{setIsOpen(false);onDismiss?.();}}>
+          <div className="nesmi-agent-content nesmi-secondary-surface p-4 space-y-4">
             {/* Chat Assistant Button */}
             <button
               onClick={() => {
                 setIsOpen(false);
-                // Delay opening chat to prevent animation conflict
-                setTimeout(() => setIsChatOpen(true), 150);
+                if(onChatOpen) onChatOpen(); else setIsChatOpen(true);
               }}
-              className="w-full py-3 px-4 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-md font-medium hover:from-purple-600 hover:to-blue-600 flex items-center justify-center gap-2"
+              className="chore-button primary w-full"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -168,43 +153,44 @@ export function AgentPanel() {
                   d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
                 />
               </svg>
-              Chat with Assistant
+              Chore assistant
             </button>
 
             {/* Notifications Toggle */}
             <div>
-              <h4 className="text-sm font-medium text-content-primary mb-2">
+              <h4 className="nesmi-secondary-title mb-2">
                 Notifications
               </h4>
-              {notificationsEnabled ? (
-                <div className="flex items-center gap-2 p-3 bg-green-500/10 rounded-md text-green-600 dark:text-green-400">
+              <p className="nesmi-secondary-support">Checks when you open these tools. No background reminders.</p>
+              {previewOnly ? <p className="nesmi-secondary-support">Browser reminders are unavailable in this demo.</p> : notificationsEnabled ? (
+                <div className="nesmi-planning-status nesmi-secondary-success-surface flex items-center gap-2">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                   </svg>
-                  <span className="text-sm">Reminders enabled</span>
+                  <span className="nesmi-secondary-body">Browser reminders allowed</span>
                 </div>
               ) : (
                 <button
                   onClick={handleEnableNotifications}
-                  className="w-full py-2 px-4 bg-surface-tertiary text-content-primary rounded-md text-sm hover:bg-surface-secondary flex items-center justify-center gap-2 transition-colors"
+                  className="chore-button secondary w-full"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                   </svg>
-                  Enable Reminders
+                  Allow browser reminders
                 </button>
               )}
             </div>
 
             {/* Google Calendar Integration */}
-            {googleConfigured && (
+            {(previewOnly || googleConfigured) && (
               <div>
-                <h4 className="text-sm font-medium text-content-primary mb-2">
+                <h4 className="nesmi-secondary-title mb-2">
                   Google Calendar
                 </h4>
-                {googleSignedIn ? (
+                {previewOnly ? <p className="nesmi-secondary-support">Google Calendar connection is unavailable in this demo.</p> : googleSignedIn ? (
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2 p-2 bg-green-500/10 rounded-md text-green-600 dark:text-green-400 text-sm">
+                    <div className="nesmi-planning-status nesmi-secondary-success-surface nesmi-secondary-body flex items-center gap-2">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
@@ -213,11 +199,11 @@ export function AgentPanel() {
                     <button
                       onClick={handleSyncToGoogle}
                       disabled={isSyncing || state.chores.length === 0}
-                      className="w-full py-2 px-4 bg-accent text-white rounded-md text-sm hover:bg-accent-hover disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+                      className="chore-button primary w-full"
                     >
                       {isSyncing ? (
                         <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
                           Syncing...
                         </>
                       ) : (
@@ -230,14 +216,14 @@ export function AgentPanel() {
                       )}
                     </button>
                     {syncResult && (
-                      <p className="text-xs text-center text-content-secondary">
+                      <p className="nesmi-secondary-support text-center">
                         Synced {syncResult.success} chore{syncResult.success !== 1 ? 's' : ''}
                         {syncResult.failed > 0 && `, ${syncResult.failed} failed`}
                       </p>
                     )}
                     <button
                       onClick={handleGoogleSignOut}
-                      className="w-full py-1 px-2 text-content-secondary text-xs hover:text-content-primary transition-colors"
+                      className="chore-button secondary w-full"
                     >
                       Disconnect
                     </button>
@@ -245,7 +231,7 @@ export function AgentPanel() {
                 ) : (
                   <button
                     onClick={handleGoogleSignIn}
-                    className="w-full py-2 px-4 bg-surface-tertiary text-content-primary rounded-md text-sm hover:bg-surface-secondary flex items-center justify-center gap-2 transition-colors"
+                    className="chore-button secondary w-full"
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24">
                       <path
@@ -261,14 +247,14 @@ export function AgentPanel() {
 
             {/* Workload Status */}
             <div>
-              <h4 className="text-sm font-medium text-content-primary mb-2">
+              <h4 className="nesmi-secondary-title mb-2">
                 Workload Balance
               </h4>
               <div
-                className={`p-3 rounded-md ${
+                className={`nesmi-planning-status ${
                   analysis.isBalanced
-                    ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                    : 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                    ? 'nesmi-secondary-success-surface'
+                    : 'nesmi-secondary-warning-surface'
                 }`}
               >
                 {analysis.isBalanced ? (
@@ -276,10 +262,10 @@ export function AgentPanel() {
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-sm">Workload is balanced</span>
+                    <span className="nesmi-secondary-body">Workload is balanced</span>
                   </div>
                 ) : (
-                  <div className="text-sm space-y-1">
+                  <div className="nesmi-secondary-body space-y-1">
                     {analysis.suggestions.map((s, i) => (
                       <p key={i}>{s}</p>
                     ))}
@@ -291,14 +277,14 @@ export function AgentPanel() {
             {/* Team Stats */}
             {analysis.stats.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium text-content-primary mb-2">
+                <h4 className="nesmi-secondary-title mb-2">
                   Team Stats (Last 7 Days)
                 </h4>
                 <div className="space-y-2">
                   {analysis.stats.map((stat) => (
                     <div
                       key={stat.memberId}
-                      className="flex items-center justify-between text-sm"
+                      className="flex items-center justify-between gap-3 nesmi-secondary-body"
                     >
                       <span className="text-content-secondary">{stat.memberName}</span>
                       <span className="text-content-primary font-medium">
@@ -313,21 +299,21 @@ export function AgentPanel() {
             {/* Upcoming Chores */}
             {upcomingChores.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium text-content-primary mb-2">
+                <h4 className="nesmi-secondary-title mb-2">
                   Due Today/Tomorrow
                 </h4>
                 <div className="space-y-1">
                   {upcomingChores.slice(0, 5).map((chore) => (
                     <div
                       key={chore.id}
-                      className="text-sm text-content-secondary flex items-center gap-2"
+                      className="nesmi-secondary-body text-content-secondary flex items-center gap-2"
                     >
-                      <span className="w-2 h-2 rounded-full bg-accent"></span>
+                      <span className="nesmi-planning-dot w-2 h-2 rounded-full shrink-0"></span>
                       {chore.title}
                     </div>
                   ))}
                   {upcomingChores.length > 5 && (
-                    <p className="text-xs text-content-secondary">
+                    <p className="nesmi-secondary-support">
                       +{upcomingChores.length - 5} more
                     </p>
                   )}
@@ -337,8 +323,8 @@ export function AgentPanel() {
 
             {/* Suggested Assignee */}
             {suggestedMember && (
-              <div className="p-3 bg-accent/10 rounded-md">
-                <p className="text-sm text-content-accent">
+              <div className="nesmi-planning-suggestion">
+                <p className="nesmi-secondary-body">
                   <strong>Suggestion:</strong> Assign next chore to{' '}
                   <strong>{suggestedMember.name}</strong> (least busy)
                 </p>
@@ -350,11 +336,11 @@ export function AgentPanel() {
               <button
                 onClick={handleAutoAssign}
                 disabled={isAutoAssigning}
-                className="w-full py-2 px-4 bg-accent text-white rounded-md font-medium hover:bg-accent-hover disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+                className="chore-button primary w-full"
               >
                 {isAutoAssigning ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
                     Assigning...
                   </>
                 ) : (
@@ -373,11 +359,11 @@ export function AgentPanel() {
               </button>
             )}
           </div>
-        </div>
+        </Dialog>
       )}
 
       {/* Chat Assistant */}
-      {isChatOpen && <ChatAssistant onClose={() => setIsChatOpen(false)} />}
+      {isChatOpen && <ChatAssistant onClose={() => {setIsChatOpen(false); if(initialOpen)setIsOpen(true);}} />}
     </>
   );
 }

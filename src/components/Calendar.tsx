@@ -1,17 +1,25 @@
 import { dateKey, shiftDate } from '../utils/dates';
 import { CompletionDialog } from './CompletionDialog';
-import { useMemo, useRef, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { useCallback, useId, useMemo, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import listPlugin from '@fullcalendar/list';
 import interactionPlugin from '@fullcalendar/interaction';
-import { EventClickArg, DateSelectArg, EventDropArg } from '@fullcalendar/core';
+import { EventClickArg, DateSelectArg, EventDropArg, DatesSetArg } from '@fullcalendar/core';
 import { EventResizeDoneArg } from '@fullcalendar/interaction';
 import { useApp } from '../context/AppContext';
 import { generateChoreInstances, getCalendarRange } from '../utils/recurrence';
 import { Chore, ChoreInstance } from '../types';
 import { EventPopover } from './EventPopover';
+import './Calendar.css';
+
+const calendarViews = [
+  { id: 'dayGridMonth', label: 'Month', period: 'month' },
+  { id: 'timeGridWeek', label: 'Week', period: 'week' },
+  { id: 'timeGridDay', label: 'Day', period: 'day' },
+  { id: 'listWeek', label: 'Agenda', period: 'week' },
+];
 
 interface CalendarProps {
   onAddClick: (defaultValues?: { date?: string; startTime?: string; endTime?: string; allDay?: boolean }) => void;
@@ -34,6 +42,20 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
     const [completionInstance,setCompletionInstance] = useState<ChoreInstance|null>(null);
     const [operationError,setOperationError] = useState('');
     const calendarRef = useRef<FullCalendar>(null);
+    // Pick a readable first view once. Resizing never changes the user's view or date.
+    const [initialView] = useState(() =>
+      typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+        ? 'listWeek'
+        : 'dayGridMonth'
+    );
+    const [display, setDisplay] = useState({ view: initialView, title: '' });
+    const titleId = useId();
+    const period = calendarViews.find(view => view.id === display.view)?.period || 'period';
+    const handleDatesSet = useCallback(({ view }: DatesSetArg) => {
+      setDisplay(previous => previous.view === view.type && previous.title === view.title
+        ? previous
+        : { view: view.type, title: view.title });
+    }, []);
 
     // Popover state
     const [popover, setPopover] = useState<{
@@ -51,18 +73,6 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
       next: () => calendarRef.current?.getApi().next(),
       prev: () => calendarRef.current?.getApi().prev(),
     }));
-
-    // Close popover when clicking outside
-    useEffect(() => {
-      const handleClickOutside = (e: MouseEvent) => {
-        const target = e.target as HTMLElement;
-        if (popover.visible && !target.closest('.event-popover')) {
-          setPopover(prev => ({ ...prev, visible: false }));
-        }
-      };
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [popover.visible]);
 
     // Generate calendar events
     const instances = useMemo(() => {
@@ -259,37 +269,55 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
     };
 
     return (
-      <div className="chore-calendar-page">{operationError&&<p className="chore-error" role="alert">{operationError}<button onClick={()=>setOperationError('')}>Dismiss</button></p>}{completionInstance&&<CompletionDialog instance={completionInstance} onClose={()=>setCompletionInstance(null)}/>}
-        <div className="mobile-calendar-shell">
+      <div className="chore-calendar-page nesmi-calendar">{operationError&&<p className="chore-error" role="alert">{operationError}<button onClick={()=>setOperationError('')}>Dismiss</button></p>}{completionInstance&&<CompletionDialog instance={completionInstance} onClose={()=>setCompletionInstance(null)}/>}
+        <section className="mobile-calendar-shell" aria-labelledby={titleId}>
+          <div className="nesmi-calendar-toolbar">
+            <div className="nesmi-calendar-period">
+              <h3 id={titleId} className="nesmi-calendar-title" aria-live="polite" aria-atomic="true">{display.title}</h3>
+              <div className="nesmi-calendar-date-controls" role="group" aria-label="Calendar dates">
+                <button type="button" className="nesmi-calendar-control nesmi-calendar-arrow" aria-label={`Previous ${period}`} onClick={() => calendarRef.current?.getApi().prev()}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m14 6-6 6 6 6" /></svg>
+                </button>
+                <button type="button" className="nesmi-calendar-control nesmi-calendar-arrow" aria-label={`Next ${period}`} onClick={() => calendarRef.current?.getApi().next()}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m10 6 6 6-6 6" /></svg>
+                </button>
+                <button type="button" className="nesmi-calendar-control" onClick={() => calendarRef.current?.getApi().today()}>Today</button>
+              </div>
+            </div>
+            <div className="nesmi-calendar-view-controls" role="group" aria-label="Calendar view">
+              {calendarViews.map(view => (
+                <button key={view.id} type="button" className="nesmi-calendar-control" aria-pressed={display.view === view.id} onClick={() => calendarRef.current?.getApi().changeView(view.id)}>{view.label}</button>
+              ))}
+            </div>
+          </div>
           <div className="calendar-container">
             <FullCalendar
               ref={calendarRef}
               plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
-              initialView="dayGridMonth"
+              initialView={initialView}
+              datesSet={handleDatesSet}
               events={events}
               eventClick={handleEventClick}
               select={handleDateSelect}
               eventDrop={handleEventDrop}
               eventResize={handleEventResize}
-              headerToolbar={{
-                left: 'prev,next today',
-                center: 'title',
-                right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek',
+              headerToolbar={false}
+              height={display.view.startsWith('timeGrid') ? 640 : 'auto'}
+              expandRows={false}
+              fixedWeekCount={false}
+              views={{
+                dayGridMonth: { titleFormat: { year: 'numeric', month: 'long' } },
+                timeGridWeek: { titleFormat: { year: 'numeric', month: 'short', day: 'numeric' }, dayHeaderFormat: { weekday: 'short', day: 'numeric' } },
+                timeGridDay: { titleFormat: { year: 'numeric', month: 'short', day: 'numeric', weekday: 'short' }, dayHeaderFormat: { weekday: 'long', day: 'numeric' } },
+                listWeek: { titleFormat: { year: 'numeric', month: 'short', day: 'numeric' } },
               }}
-              buttonText={{
-                today: 'Today',
-                month: 'Month',
-                week: 'Week',
-                day: 'Day',
-                list: 'Agenda',
-              }}
-              height="100%"
               // Interaction settings
               editable={true}
               selectable={true}
               selectMirror={true}
               dayMaxEvents={3}
               eventDisplay="block"
+              eventInteractive={true}
               nowIndicator={true}
               // Time grid settings
               slotMinTime="06:00:00"
@@ -299,58 +327,37 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
               allDaySlot={true}
               allDayText="All day"
               // Formatting
-              titleFormat={{ year: 'numeric', month: 'short' }}
               dayHeaderFormat={{ weekday: 'short' }}
               slotLabelFormat={{ hour: 'numeric', minute: '2-digit', hour12: true }}
               eventTimeFormat={{ hour: 'numeric', minute: '2-digit', hour12: true }}
               // Custom event content
               eventContent={(arg) => {
-                const isCompleted = arg.event.extendedProps.isCompleted;
-                const priority = arg.event.extendedProps.priority;
-                const view = arg.view.type;
+                const { isCompleted, priority, memberColor, assigneeName } = arg.event.extendedProps;
+                const isMonth = arg.view.type === 'dayGridMonth';
+                const isAgenda = arg.view.type === 'listWeek';
 
-                // Compact rendering for month view
-                if (view === 'dayGridMonth') {
-                  return (
-                    <div className={`flex items-center gap-1 px-1 py-0.5 overflow-hidden ${isCompleted ? 'line-through opacity-70' : ''}`}>
-                      {!isCompleted && priority && (
-                        <span className="nesmi-calendar-dot" style={{ backgroundColor: arg.event.extendedProps.memberColor }} aria-hidden="true" />
-                      )}
-                      {isCompleted && (
-                        <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                      <span className="truncate text-xs">{arg.event.title}</span>{priority === 'high' && <span className="nesmi-calendar-priority" title="High priority" aria-label="High priority">!</span>}
-                    </div>
-                  );
-                }
-
-                // Richer rendering for week/day views
                 return (
-                  <div className={`flex flex-col h-full px-1 py-0.5 overflow-hidden ${isCompleted ? 'line-through opacity-70' : ''}`}>
-                    <div className="flex items-center gap-1">
-                      {!isCompleted && priority && (
-                        <span className="nesmi-calendar-dot" style={{ backgroundColor: arg.event.extendedProps.memberColor }} aria-hidden="true" />
-                      )}
-                      {isCompleted && (
-                        <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                      <span className="truncate text-xs font-medium">{arg.event.title}</span>{priority === 'high' && <span className="nesmi-calendar-priority" title="High priority" aria-label="High priority">!</span>}
-                    </div>
-                    {arg.event.extendedProps.assigneeName && (
-                      <span className="text-[10px] opacity-80 truncate">
-                        {arg.event.extendedProps.assigneeName}
-                      </span>
+                  <div className={`nesmi-calendar-event ${isMonth ? 'is-month' : ''} ${isAgenda ? 'is-agenda' : ''} ${isCompleted ? 'is-completed' : ''}`}>
+                    {/* Agenda already has FullCalendar's localized time column. */}
+                    {!isAgenda && !arg.event.allDay && arg.timeText && (
+                      <time className="nesmi-calendar-event-time" dateTime={arg.event.startStr}>{arg.timeText}</time>
                     )}
+                    <div className="nesmi-calendar-event-line">
+                      {isCompleted ? (
+                        <svg className="nesmi-calendar-event-check" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 16 16" aria-label="Completed"><path d="m3 8 3 3 7-7" /></svg>
+                      ) : (
+                        <span className="nesmi-calendar-dot" style={{ backgroundColor: memberColor }} aria-hidden="true" />
+                      )}
+                      <span className="nesmi-calendar-event-title" title={arg.event.title}>{arg.event.title}</span>
+                      {priority === 'high' && <span className="nesmi-calendar-priority" title="High priority" aria-label="High priority">!</span>}
+                    </div>
+                    {!isMonth && assigneeName && <span className="nesmi-calendar-event-assignee">{assigneeName}</span>}
                   </div>
                 );
               }}
             />
           </div>
-        </div>
+        </section>
 
         {/* Event Popover */}
         {popover.visible && popover.instance && popover.chore && (

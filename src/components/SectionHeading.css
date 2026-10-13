@@ -1,0 +1,27 @@
+/* Scoped heading metadata: preserves the current Insights title size and hierarchy. */
+h3.nesmi-section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  margin: 0 0 16px;
+  color: var(--text-primary);
+  font-size: var(--nesmi-type-body, 1rem);
+  font-weight: 550;
+  line-height: var(--nesmi-leading-body, 1.5);
+}
+.nesmi-section-heading-title { min-width: 0; overflow-wrap: anywhere; }
+.nesmi-section-heading-context {
+  min-width: 0;
+  padding-inline-start: 12px;
+  border-inline-start: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: var(--nesmi-type-label, .8125rem);
+  font-weight: 400;
+  line-height: var(--nesmi-leading-label, 1.4);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 359px) {
+  .nesmi-section-heading-title { flex-basis: 100%; }
+  .nesmi-section-heading-context { border-inline-start: 0; padding-inline-start: 0; }
+}

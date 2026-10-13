@@ -1,0 +1,5 @@
+.nesmi-delete-confirmation { padding-top: 16px; font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; }
+.nesmi-delete-confirmation p { margin: 0 0 10px; }
+.nesmi-delete-confirmation p:last-child { color: var(--text-secondary); }
+.chore-dialog:has(.nesmi-delete-confirmation) .chore-dialog-header { border-bottom: 0; padding-bottom: 4px; }
+.chore-dialog:has(.nesmi-delete-confirmation) .chore-dialog-footer { border-top: 0; }

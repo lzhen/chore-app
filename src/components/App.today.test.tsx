@@ -27,15 +27,14 @@ describe('App first chore and Today entry', () => {
     expect(screen.queryByText('Calendar view')).not.toBeInTheDocument();
   });
 
-  it('opens a familiar chore as a draft and waits for an explicit save', async () => {
+  it('uses the single global add action and waits for an explicit save', async () => {
     const user = userEvent.setup();
     render(<App/>);
-    await user.click(screen.getByRole('button', {name: 'Start with Wash dishes'}));
+    await user.click(screen.getByRole('button', {name: 'Add new chore'}));
 
     expect(screen.getByRole('dialog', {name: 'Add a chore'})).toBeInTheDocument();
-    expect(screen.getByRole('textbox', {name: 'What needs doing?'})).toHaveValue('Wash dishes');
-    expect(screen.getByRole('combobox', {name: 'Repeat'})).toHaveValue('daily');
-    expect(screen.getByRole('spinbutton', {name: 'Estimated minutes · optional'})).toHaveValue(15);
+    expect(screen.getByRole('textbox', {name: 'Chore'})).toHaveValue('');
+    expect(screen.queryByRole('button', {name: 'Add your first chore'})).not.toBeInTheDocument();
     expect(app.addChore).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', {name: 'Cancel'}));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

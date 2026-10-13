@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Logo } from './Logo';
-import { ThemeSelector } from './ThemeSelector';
 import { supabase } from '../utils/supabase';
 
 type ResetStatus = 'input' | 'loading' | 'success' | 'error';
@@ -50,9 +49,8 @@ export function PasswordReset({ onComplete }: PasswordResetProps) {
   return (
     <>
       <div className="theme-background" />
-      <div className="min-h-screen flex items-center justify-center relative px-4 py-8">
+      <div className="nesmi-auth-state min-h-screen flex items-center justify-center relative px-4 py-8">
         <div className="absolute top-3 right-3 sm:top-4 sm:right-4">
-          <ThemeSelector />
         </div>
         <div className="fluent-card p-6 sm:p-8 w-full max-w-md animate-fluent-appear">
           <div className="flex justify-center mb-6">
@@ -136,7 +134,7 @@ export function PasswordReset({ onComplete }: PasswordResetProps) {
                 </div>
 
                 {errorMessage && (
-                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-fluent-sm text-red-500 text-sm">
+                  <div className="chore-error nesmi-auth-message" role="alert">
                     {errorMessage}
                   </div>
                 )}
@@ -153,7 +151,7 @@ export function PasswordReset({ onComplete }: PasswordResetProps) {
               <div className="mt-4 text-center">
                 <button
                   onClick={handleContinue}
-                  className="text-content-secondary hover:text-brand text-sm transition-colors duration-fast"
+                  className="nesmi-auth-text-action"
                   disabled={status === 'loading'}
                 >
                   Cancel and return to sign in

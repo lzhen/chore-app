@@ -1,0 +1,118 @@
+/* Dedicated assistant surface: existing Nesmi colors, no layout-space reservation. */
+.nesmi-chat-layer {
+  position: fixed;
+  z-index: 280;
+  pointer-events: none;
+  color: var(--text-primary);
+}
+.nesmi-chat-layer[hidden] { display: none; }
+.nesmi-chat-layer[data-suspended="true"] { pointer-events: none; }
+.nesmi-chat-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  outline: none;
+  pointer-events: auto;
+  box-shadow: 0 12px 36px #0002;
+  opacity: 0;
+  transition: transform 200ms ease, opacity 200ms ease;
+}
+.nesmi-chat-layer[data-state="open"] .nesmi-chat-panel { transform: none; opacity: 1; }
+.nesmi-chat-layer[data-state="closed"] .nesmi-chat-panel,
+.nesmi-chat-layer[data-suspended="true"] .nesmi-chat-panel,
+.nesmi-chat-layer[data-state="closed"] .nesmi-chat-backdrop,
+.nesmi-chat-layer[data-suspended="true"] .nesmi-chat-backdrop { pointer-events: none; }
+.nesmi-chat-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 0 0 auto;
+  padding: 16px 14px 16px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.nesmi-chat-panel-header h2 { margin: 0; font-size: 18px; line-height: 1.4; font-weight: 600; letter-spacing: -.02em; }
+.nesmi-chat-panel-header p { margin: 3px 0 0; font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
+.nesmi-chat-panel-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+}
+.nesmi-chat-panel-close svg { width: 20px; height: 20px; }
+.nesmi-chat-panel-close:hover { color: var(--text-primary); background: var(--surface-tertiary); }
+.nesmi-chat-panel-close:disabled { opacity: .5; cursor: wait; }
+.nesmi-chat-panel :focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 3px; }
+.nesmi-chat-panel-messages {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 20px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
+  -webkit-overflow-scrolling: touch;
+}
+.nesmi-chat-panel-footer {
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 14px 16px max(16px, env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-primary);
+}
+.nesmi-chat-panel-footer form { margin: 0; padding: 0; border: 0; }
+.nesmi-chat-panel-footer input { font-size: 16px; }
+.nesmi-chat-layer[data-mode="desktop"] {
+  top: var(--chat-panel-top, 92px);
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: var(--chat-panel-bottom, 88px);
+  width: clamp(360px, 30vw, 400px);
+  max-width: 38vw;
+}
+.nesmi-chat-layer[data-mode="desktop"] .nesmi-chat-panel {
+  width: 100%;
+  height: 100%;
+  border-radius: 18px;
+  transform: translateX(20px);
+}
+.nesmi-chat-layer[data-mode="desktop"][data-state="open"] .nesmi-chat-panel { transform: none; }
+.nesmi-chat-layer[data-mode="mobile"] {
+  top: var(--chat-viewport-top, 0px);
+  left: var(--chat-viewport-left, 0px);
+  width: var(--chat-viewport-width, 100vw);
+  height: var(--chat-viewport-height, 100dvh);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-top: max(12px, env(safe-area-inset-top, 0px));
+}
+.nesmi-chat-layer[data-mode="mobile"][hidden] { display: none; }
+.nesmi-chat-backdrop {
+  position: absolute;
+  inset: 0;
+  background: #0005;
+  pointer-events: auto;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+.nesmi-chat-layer[data-state="open"] .nesmi-chat-backdrop { opacity: 1; }
+.nesmi-chat-layer[data-mode="mobile"] .nesmi-chat-panel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 20px 20px 0 0;
+  border-bottom: 0;
+  transform: translateY(24px);
+}
+.nesmi-chat-layer[data-mode="mobile"][data-state="open"] .nesmi-chat-panel { transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .nesmi-chat-panel, .nesmi-chat-backdrop { transition: none; }
+  .nesmi-chat-panel *, .nesmi-chat-panel-messages { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

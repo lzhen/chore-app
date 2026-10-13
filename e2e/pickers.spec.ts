@@ -38,27 +38,33 @@ async function fixture(page:Page,width=390,empty=false){
 
 for (const width of [320, 375, 390, 430, 1440]) for (const theme of ['light','dark']) test(`pickers ${width} ${theme}`, async ({page}, info) => {
  await fixture(page,width);
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
  await page.getByRole('combobox',{name:/Theme:/}).click();
- await page.getByRole('option',{name:theme==='dark'?/Dark A quieter/:/Light A brighter/}).click();
+ await page.getByRole('option',{name:theme==='dark'?/Dark/:/Light/}).click();
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Today',exact:true}).click();
  const nav=page.getByRole('navigation',{name:'Primary navigation'});
  const checkHeader=async()=>{
   const header=page.getByRole('banner',{name:'Nesmi'}), brand=header.locator('.chore-brand');
   const h=await header.boundingBox(), b=await brand.boundingBox(), left=await header.locator('.nesmi-header-leading').boundingBox(), right=await header.locator('.nesmi-header-actions').boundingBox();
   expect(Math.abs((b!.x+b!.width/2)-(h!.x+h!.width/2))).toBeLessThanOrEqual(1);
   expect(left!.x+left!.width).toBeLessThanOrEqual(b!.x); expect(b!.x+b!.width).toBeLessThanOrEqual(right!.x);
+  await expect(header.getByRole('combobox')).toHaveCount(0);
   const menu=header.getByRole('button',{name:'Open family menu'}); const hit=await menu.boundingBox(); expect(hit!.width).toBeGreaterThanOrEqual(44); expect(hit!.height).toBeGreaterThanOrEqual(44);
  };
  await checkHeader();
  await page.getByRole('button',{name:'Open family menu'}).click();
  await expect(page.locator('#nesmi-family-panel')).toBeVisible();
- await page.locator('#nesmi-family-panel').getByRole('button',{name:'Close sidebar',exact:true}).click();
+ await expect(page.getByRole('checkbox',{name:'Show Alex’s chores'})).toBeVisible();
+ await expect(page.locator('#nesmi-family-panel').getByText('Alex',{exact:true})).toBeVisible();
+ await expect(page.locator('#nesmi-family-panel').getByText('Today',{exact:true})).toHaveCount(0);
+ await page.locator('.family-backdrop').click({position:{x:width-5,y:40}});
 
  await nav.getByRole('button',{name:'Account',exact:true}).click(); await checkHeader();
  const trigger=page.getByRole('combobox',{name:/Theme:/}).last();
  await trigger.click();
  const list=page.getByRole('listbox');
  const box=await list.boundingBox(); expect(box!.x).toBeGreaterThanOrEqual(12); expect(box!.x+box!.width).toBeLessThanOrEqual(width-12);
- await expect(list.getByRole('option')).toHaveCount(3);
+ await expect(list.getByRole('option')).toHaveCount(2);
  await page.screenshot({path:info.outputPath(`account-${theme}-${width}.png`)});
  await trigger.press('ArrowDown'); await trigger.press('Escape'); await expect(list).toHaveCount(0); await expect(trigger).toBeFocused();
  await nav.getByRole('button',{name:'Today',exact:true}).click();
@@ -77,4 +83,24 @@ for (const width of [320, 375, 390, 430, 1440]) for (const theme of ['light','da
  await dialog.getByRole('button',{name:'Cancel',exact:true}).click(); await expect(dialog).toHaveCount(0);
  await nav.getByRole('button',{name:'Insights',exact:true}).click();
  await page.screenshot({path:info.outputPath(`avatars-${theme}-${width}.png`)});
+});
+
+for (const width of [320,390,1440]) test(`centered task details and visible discard decision ${width}`, async({page})=>{
+ await fixture(page,width);
+ await page.getByRole('navigation').getByRole('button',{name:'Calendar',exact:true}).click();
+ await page.locator('.fc-event').filter({hasText:'Water the plants'}).first().click();
+ const details=page.getByRole('dialog',{name:'Water the plants',exact:true});
+ await expect(details).toBeVisible(); const box=await details.boundingBox();
+ expect(Math.abs(box!.x+box!.width/2-width/2)).toBeLessThanOrEqual(1);
+ expect(box!.x).toBeGreaterThanOrEqual(16);expect(box!.y).toBeGreaterThanOrEqual(16);expect(box!.y+box!.height).toBeLessThanOrEqual(844-16);
+ await expect(details.getByRole('button',{name:'Mark complete',exact:true})).toHaveClass(/secondary/);
+ await details.getByRole('button',{name:'Close dialog'}).click();await expect(details).toHaveCount(0);
+ await page.getByRole('navigation').getByRole('button',{name:'Today',exact:true}).click();
+ await page.getByRole('button',{name:'Add new chore',exact:true}).click();
+ const editor=page.getByRole('dialog',{name:'Add a chore'});await editor.getByLabel('Chore',{exact:true}).fill('Preview draft');
+ await editor.locator('.chore-more > summary').click();await editor.getByLabel('Notes · optional').fill('Keep this text');
+ await editor.getByRole('button',{name:'Close dialog'}).click();
+ const decision=page.getByRole('dialog',{name:'Discard changes?'});await expect(decision).toBeVisible();await expect(decision.getByRole('button',{name:'Keep editing'})).toBeFocused();
+ await page.keyboard.press('Escape');await expect(editor.getByLabel('Chore',{exact:true})).toHaveValue('Preview draft');await expect(editor.getByLabel('Notes · optional')).toHaveValue('Keep this text');
+ await editor.getByRole('button',{name:'Close dialog'}).click();await decision.getByRole('button',{name:'Discard changes',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
 });

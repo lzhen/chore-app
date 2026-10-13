@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Logo } from './Logo';
-import { ThemeSelector } from './ThemeSelector';
 
 type VerificationStatus = 'verifying' | 'success' | 'error';
 
@@ -36,9 +35,8 @@ export function EmailVerification({ onContinue }: EmailVerificationProps) {
   return (
     <>
       <div className="theme-background" />
-      <div className="min-h-screen flex items-center justify-center relative px-4 py-8">
+      <div className="nesmi-auth-state min-h-screen flex items-center justify-center relative px-4 py-8">
         <div className="absolute top-3 right-3 sm:top-4 sm:right-4">
-          <ThemeSelector />
         </div>
         <div className="fluent-card p-6 sm:p-8 w-full max-w-md animate-fluent-appear text-center">
           <div className="flex justify-center mb-6">
@@ -119,7 +117,7 @@ export function EmailVerification({ onContinue }: EmailVerificationProps) {
                 We couldn't verify your email address.
               </p>
               {errorMessage && (
-                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-fluent-sm text-red-500 text-sm mb-6">
+                <div className="chore-error nesmi-auth-message mb-6" role="alert">
                   {errorMessage}
                 </div>
               )}

@@ -77,7 +77,7 @@ function getSystemTheme(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
+export function ThemeProvider({ children, persistPreference = true }: { children: ReactNode; persistPreference?: boolean }) {
   // User's theme selection (can be 'system' or a specific theme)
   const [themeSelection, setThemeSelection] = useState<ThemeSelection>(() => {
     const requested = new URLSearchParams(window.location.search).get('theme');
@@ -128,7 +128,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const themeConfig = THEMES.find((t) => t.id === appliedTheme)!;
 
   useEffect(() => {
-    localStorage.setItem('theme', themeSelection);
+    if (persistPreference) localStorage.setItem('theme', themeSelection);
 
     // Remove all theme-related classes
     document.documentElement.classList.remove('dark', 'glass-theme');
@@ -148,7 +148,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (themeConfig.isGlass) {
       document.documentElement.classList.add('glass-theme');
     }
-  }, [appliedTheme, themeSelection, themeConfig]);
+  }, [appliedTheme, themeSelection, themeConfig, persistPreference]);
 
   const setTheme = (newTheme: ThemeSelection) => {
     // A direct appearance link applies on entry; later choices still survive reload.
