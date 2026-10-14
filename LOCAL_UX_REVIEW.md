@@ -18,3 +18,8 @@ No signed build, push, deployment or upload. Temporary QA harness and dependency
 - Local touch-pointer Chromium: 320×812, 375×667, 667×375, 390×844, 844×390, 768×1024, 1024×768; date dialogs exercised through live viewport swaps. No horizontal overflow in checked form fields. Draft title survived rotation; date confirmation remained usable at 320px viewport height.
 - Browser resized-height checks do not establish iOS keyboard behavior. Actual native rotation, Dynamic Type, VoiceOver and safe-area behavior remain device acceptance items.
 - TypeScript/Vite build and 48 files / 321 tests passed after these changes.
+
+## Google connection follow-up
+- Callback errors now distinguish closed/blocked popup, denied access, origin/redirect/client configuration and unsupported embedded browser when that code is returned. Synchronous token-request exceptions resolve as failure rather than rejecting the UI handler.
+- No credentials, Google Console configuration, user accounts or scopes changed. Error pages that Google does not deliver to callbacks still require the page's error code; no assertion that selecting another account fixes them.
+- Final TypeScript/Vite build and 48 files / 322 tests passed. Previous simulator compilation/launch covered c952a3b; this follow-up has web build/unit verification only.

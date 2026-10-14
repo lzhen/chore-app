@@ -17,6 +17,7 @@ import {
   initGoogleApi,
   isGoogleSignedIn,
   signInToGoogle,
+  getGoogleAuthorizationMessage,
   signOutFromGoogle,
   syncChoresToGoogleCalendar,
 } from '../utils/googleCalendar';
@@ -94,7 +95,7 @@ export function AgentPanel({initialOpen=false,onDismiss,onChatOpen}:{initialOpen
     if (previewOnly) return;
     const success = await signInToGoogle();
     setGoogleSignedIn(success);
-    if(!success)setGoogleError('Google Calendar was not connected. You can retry and choose an account. If Google blocks access, the connection settings may need attention. Your chores are unchanged.');
+    if(!success)setGoogleError(getGoogleAuthorizationMessage());
   };
 
   const handleGoogleSignOut = () => {

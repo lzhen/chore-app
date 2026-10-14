@@ -19,6 +19,20 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
 
+let authorizationError = '';
+export function getGoogleAuthorizationMessage(): string {
+  const messages: Record<string, string> = {
+    popup_closed: 'Google Calendar was not connected because the sign-in window was closed. You can try again.',
+    popup_failed_to_open: 'The Google sign-in window could not open. Allow pop-ups and try again.',
+    access_denied: 'Google did not grant access. Check the account and app access settings. Your chores are unchanged.',
+    origin_mismatch: 'Google Calendar connection settings need correction for this app. Switching accounts will not fix this setting.',
+    redirect_uri_mismatch: 'Google Calendar return-address settings need correction. Switching accounts will not fix this setting.',
+    invalid_client: 'Google Calendar app credentials need correction. Your chores are unchanged.',
+    disallowed_useragent: 'Google does not allow this sign-in inside the app browser. The app needs a supported sign-in flow; switching accounts will not fix it.',
+  };
+  return messages[authorizationError] || 'Google Calendar was not connected. You can retry and choose an account. If Google blocks access, share the error code shown on its page with support. Your chores are unchanged.';
+}
+
 let gapiInited = false;
 let gisInited = false;
 let pendingAuthorization: ((result:boolean)=>void) | null = null;
@@ -78,7 +92,7 @@ export async function initGoogleApi(): Promise<boolean> {
         client_id: GOOGLE_CLIENT_ID,
         scope: SCOPES,
         callback: () => {}, // Will be set when requesting access
-        error_callback: () => {const finish=pendingAuthorization;pendingAuthorization=null;finish?.(false)},
+        error_callback: (error) => {authorizationError=error.type;const finish=pendingAuthorization;pendingAuthorization=null;finish?.(false)},
       });
       gisInited = true;
       maybeEnableButtons(value=>{clearTimeout(timeout);resolve(value)});
@@ -104,6 +118,7 @@ export function isGoogleSignedIn(): boolean {
  * Request access to Google Calendar
  */
 export function signInToGoogle(): Promise<boolean> {
+  authorizationError = "";
   return new Promise((resolve) => {
     if (!tokenClient) {
       resolve(false);
@@ -114,13 +129,14 @@ export function signInToGoogle(): Promise<boolean> {
     tokenClient.callback = (response) => {
       pendingAuthorization=null;
       if (response.error) {
-        console.error('Google sign-in error:', response.error);
+        authorizationError = response.error;
         resolve(false);
         return;
       }
       resolve(true);
     };
 
+    try {
     if (!window.gapi?.client?.getToken()) {
       // Prompt the user to select a Google Account
       tokenClient.requestAccessToken({ prompt: 'select_account' });
@@ -128,6 +144,7 @@ export function signInToGoogle(): Promise<boolean> {
       // Skip display of account chooser for existing session
       tokenClient.requestAccessToken({ prompt: '' });
     }
+    } catch { pendingAuthorization=null; resolve(false); }
   });
 }
 
