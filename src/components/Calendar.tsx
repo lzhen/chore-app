@@ -44,12 +44,12 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
     const calendarRef = useRef<FullCalendar>(null);
     // Phone schedules use an agenda; retain the selected date when resizing.
     const [initialView] = useState(() =>
-      typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+      typeof window !== 'undefined' && window.matchMedia('(max-width: 767px), (pointer: coarse) and (max-height: 500px)').matches
         ? 'listWeek'
         : 'dayGridMonth'
     );
     const [display, setDisplay] = useState({ view: initialView, title: '' });
-    useEffect(()=>{const media=window.matchMedia('(max-width: 767px)');const update=()=>{if(media.matches&&calendarRef.current?.getApi().view.type!=='listWeek')calendarRef.current?.getApi().changeView('listWeek')};media.addEventListener?.('change',update);return()=>media.removeEventListener?.('change',update)},[]);
+    useEffect(()=>{const media=window.matchMedia('(max-width: 767px), (pointer: coarse) and (max-height: 500px)');const update=()=>{if(media.matches&&calendarRef.current?.getApi().view.type!=='listWeek')calendarRef.current?.getApi().changeView('listWeek')};media.addEventListener?.('change',update);return()=>media.removeEventListener?.('change',update)},[]);
     const titleId = useId();
     const period = calendarViews.find(view => view.id === display.view)?.period || 'period';
     const handleDatesSet = useCallback(({ view }: DatesSetArg) => {
