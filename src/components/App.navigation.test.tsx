@@ -21,7 +21,7 @@ async function navigate(user:ReturnType<typeof userEvent.setup>,name:string){
  const nav=screen.getByRole('navigation',{name:'Primary navigation'});
  await user.click(within(nav).getByRole('button',{name}));
  expect(screen.queryByRole('navigation')).toBeNull();
- expect(screen.getAllByRole('button',{name:'Add new chore'})).toHaveLength(1);
+ expect(screen.queryAllByRole('button',{name:'Add new chore'})).toHaveLength(name==='Account'?0:1);
 }
 describe('Home and drawer navigation',()=>{
  it('keeps every destination in the drawer and one global create action',async()=>{
@@ -64,7 +64,7 @@ describe('Home and drawer navigation',()=>{
  });
  it('keeps empty Home useful without duplicate add buttons',()=>{
   app.state.chores=[];render(<App/>);
-  expect(screen.getAllByRole('button',{name:'Add new chore'})).toHaveLength(1);
+  expect(screen.queryAllByRole('button',{name:'Add new chore'})).toHaveLength(1);
   expect(screen.getByText('Use the + below to add a chore.')).toBeInTheDocument();
   expect(screen.getByRole('button',{name:/Chore assistant/})).toBeVisible();
  });

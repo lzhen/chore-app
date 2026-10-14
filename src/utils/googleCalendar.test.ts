@@ -1,0 +1,4 @@
+import {afterEach,expect,it,vi} from 'vitest';
+afterEach(()=>{vi.unstubAllEnvs();vi.resetModules();document.querySelectorAll('script').forEach(s=>s.remove());});
+it('does not claim an unconfigured Google connection is ready',async()=>{vi.stubEnv('VITE_GOOGLE_CLIENT_ID','');const api=await import('./googleCalendar');expect(api.isGoogleCalendarConfigured()).toBe(false);expect(await api.initGoogleApi()).toBe(false);expect(await api.signInToGoogle()).toBe(false);expect(document.querySelectorAll('script')).toHaveLength(0);});
+it('resolves a blocked Google script as failure without hanging',async()=>{vi.stubEnv('VITE_GOOGLE_CLIENT_ID','synthetic-client');const api=await import('./googleCalendar');const result=api.initGoogleApi();document.querySelector('script')!.dispatchEvent(new Event('error'));expect(await result).toBe(false);});

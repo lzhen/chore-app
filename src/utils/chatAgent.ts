@@ -17,6 +17,7 @@ export interface QuickAction {
 
 export interface ChatAction {
   type:
+    | 'missing_chore_name'
     | 'add_chore'
     | 'assign_chore'
     | 'complete_chore'
@@ -293,6 +294,8 @@ export function parseUserInput(input: string, teamMembers: TeamMember[]): ChatAc
     }
   }
 
+  if (/^(?:add|create|new)\s+(?:a\s+)?(?:chore|task)(?:\s+(?:called|named|for))?\s*["']?$/i.test(input.trim())) return { type: 'missing_chore_name' };
+
   // Add chore patterns
   const addPatterns = [
     /^add (?:a )?(?:chore|task) (?:called |named |for )?["']?([^"']+?)["']?(?:\s+(?:on|for|due)\s+(.+))?$/i,
@@ -378,6 +381,8 @@ export function generateResponse(
   const { chores, teamMembers, completions } = context;
 
   switch (action.type) {
+    case 'missing_chore_name':
+      return { text: 'What would you like to call the chore? Please include its name, for example: Add a chore called Water plants.' };
     case 'greeting':
       const greetings = [
         "Hello! I'm your chore assistant. How can I help you today?",

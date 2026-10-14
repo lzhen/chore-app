@@ -235,7 +235,7 @@ export function App() {
     {viewMode==='dashboard'&&(state.chores.length>0?<Dashboard embedded onClose={()=>setViewMode('today')}/>:<section className="chore-list-page"><div className="chore-empty"><h2>Small wins will show up here.</h2><p>Add your first chore to start seeing your household’s progress.</p><p>Use the + below to add your first chore.</p></div></section>)}
     {viewMode==='account'&&<AccountSettings embedded isOpen onClose={()=>setViewMode('today')}/>}
     </main>
-    <div className="nesmi-add-bar" aria-label="Nesmi create"><QuickAddButton onClick={()=>handleAddClick()}/></div>
+    {viewMode!=='account'&&<div className="nesmi-add-bar" aria-label="Nesmi create"><QuickAddButton onClick={()=>handleAddClick()}/></div>}
    </div>
    <ChatAssistant open={chatOpen} suspended={modalOpen||!!profileMember||!!availabilityMember||sidebarOpen||toolsOpen||shortcutsOpen} onClose={()=>setChatOpen(false)}/>
    {toolsOpen&&<AgentPanel initialOpen onChatOpen={()=>{setToolsOpen(false);setChatOpen(true);}} onDismiss={()=>setToolsOpen(false)}/>}

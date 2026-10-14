@@ -51,8 +51,9 @@ export function AgentPanel({initialOpen=false,onDismiss,onChatOpen}:{initialOpen
     const configured = isGoogleCalendarConfigured();
     setGoogleConfigured(configured);
     if (configured) {
-      initGoogleApi().then(() => {
-        setGoogleSignedIn(isGoogleSignedIn());
+      initGoogleApi().then(ready => {
+        if(!ready)setGoogleError('Google Calendar could not load. Check your connection and reopen these tools to retry.');
+        setGoogleSignedIn(ready && isGoogleSignedIn());
       });
     }
   }, []);
@@ -87,10 +88,13 @@ export function AgentPanel({initialOpen=false,onDismiss,onChatOpen}:{initialOpen
     }
   };
 
+  const [googleError,setGoogleError]=useState('');
   const handleGoogleSignIn = async () => {
+    setGoogleError('');
     if (previewOnly) return;
     const success = await signInToGoogle();
     setGoogleSignedIn(success);
+    if(!success)setGoogleError('Google Calendar was not connected. You can retry and choose an account. If Google blocks access, the connection settings may need attention. Your chores are unchanged.');
   };
 
   const handleGoogleSignOut = () => {
@@ -135,7 +139,7 @@ export function AgentPanel({initialOpen=false,onDismiss,onChatOpen}:{initialOpen
 
       {/* Agent Panel */}
       {isOpen && (
-        <Dialog title="Planning tools" variant="centered" onClose={()=>{setIsOpen(false);onDismiss?.();}}>
+        <Dialog title="Planning tools" variant="dialog" onClose={()=>{setIsOpen(false);onDismiss?.();}}>
           <div className="nesmi-agent-content nesmi-secondary-surface p-4 space-y-4">
             {/* Chat Assistant Button */}
             <button
@@ -182,6 +186,8 @@ export function AgentPanel({initialOpen=false,onDismiss,onChatOpen}:{initialOpen
               )}
             </div>
 
+            {googleError&&<p role="alert" className="chore-error">{googleError}</p>}
+            {!previewOnly&&!googleConfigured&&<section><h4 className="nesmi-secondary-title">Google Calendar</h4><p className="nesmi-secondary-support">Connection is not available in this version. Your chores remain available here.</p></section>}
             {/* Google Calendar Integration */}
             {(previewOnly || googleConfigured) && (
               <div>
@@ -288,7 +294,7 @@ export function AgentPanel({initialOpen=false,onDismiss,onChatOpen}:{initialOpen
                     >
                       <span className="text-content-secondary">{stat.memberName}</span>
                       <span className="text-content-primary font-medium">
-                        {stat.recentAssignments} chores
+                        {stat.recentAssignments} {stat.recentAssignments===1?'chore':'chores'}
                       </span>
                     </div>
                   ))}

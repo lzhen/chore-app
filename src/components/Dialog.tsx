@@ -24,7 +24,7 @@ export function Dialog({title, onClose, children, footer, busy=false, variant='d
    layer.current?.style.setProperty('--dialog-height', `${viewport.height}px`);
    layer.current?.style.setProperty('--dialog-top', `${viewport.offsetTop}px`);
    const focused = document.activeElement;
-   if (focused instanceof HTMLElement && box.current?.contains(focused)) focused.scrollIntoView?.({block:'nearest'});
+   if (focused instanceof HTMLElement && box.current?.contains(focused)) focused.scrollIntoView?.({block:'nearest',inline:'nearest'});
   };
   update(); viewport.addEventListener('resize',update); viewport.addEventListener('scroll',update);
   return () => {viewport.removeEventListener('resize',update);viewport.removeEventListener('scroll',update);};

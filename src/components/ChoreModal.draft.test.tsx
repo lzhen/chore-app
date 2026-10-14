@@ -130,14 +130,14 @@ describe('editor choice menus', () => {
     await user.click(screen.getByRole('button', {name: 'Cancel'}));
     expect(onClose).toHaveBeenCalledOnce();
   });
-  it('all four choices save their values while Date stays native and time uses the themed editor', async () => {
+  it('all four choices save their values while Date uses the themed picker and time uses the themed editor', async () => {
     const user = userEvent.setup(); app.addChore.mockResolvedValueOnce(undefined);
     render(<ChoreModal isOpen onClose={vi.fn()} defaultValues={{title: 'Task', recurrence: 'weekly', priority: 'high'}}/>);
     for (const [field, option] of [['Person', 'Alex'], ['Repeat', 'Every month'], ['Priority', 'Low'], ['Category', 'Cleaning']]) {
       await user.click(screen.getByRole('combobox', {name: field}));
       await user.click(screen.getByRole('option', {name: option}));
     }
-    expect(screen.getByLabelText('Date')).toHaveAttribute('type', 'date');
+    expect(screen.getByLabelText('Date')).toHaveAttribute('type', 'text');
     expect(screen.getByLabelText('Start time · optional')).toHaveAttribute('type', 'text');
     expect(screen.getByLabelText('End time · optional')).toHaveAttribute('type', 'text');
     await user.click(screen.getByRole('button', {name: 'Add chore'}));

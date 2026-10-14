@@ -88,3 +88,5 @@ describe('bounded local chore commands', () => {
     expect(response.text).toContain('Done in the last 7 days (including today): 1');
   });
 });
+
+ it.each(['add a chore called', 'add a chore named', 'create a task', 'new chore'])('asks for a missing task name: %s', input => { expect(parseUserInput(input, []).type).toBe('missing_chore_name'); });

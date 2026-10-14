@@ -7,6 +7,7 @@ import { ChoicePicker } from './ChoicePicker';
 import { DeleteChoreDialog } from './DeleteChoreDialog';
 import { useInteractionMode } from '../hooks/useInteractionMode';
 import './ChoreModal.css';
+import { DateField } from './DateField';
 import { TimeInput } from './TimeInput';
 export interface ChoreDefaultValues {
  title?:string;
@@ -73,7 +74,7 @@ export const ChoreEditor = forwardRef<ChoreEditorHandle, Props>(function ChoreEd
  useEffect(()=>{if(!busy&&pendingWhileBusy.current){const action=pendingWhileBusy.current;pendingWhileBusy.current=null;requestTransition(action);}},[busy]);
  function close(){if(busyRef.current)return;if(confirmDiscard){keepEditing();return;}requestTransition(()=>{});}
  function discard(){const next=pendingAction.current;pendingAction.current=null;setConfirmDiscard(false);if(next)next();else onClose();}
- async function save(event:React.FormEvent){event.preventDefault();if(busyRef.current)return;setError('');if(!title.trim()||!date){setError('Enter a task name and date.');return;}if([start,end].some(value=>value&&!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value))){setError('Enter a valid start and end time.');return;}if(end&&(!start||end<=start)){setError('Choose an end time after the start time, on the same day.');return;}if(estimate&&(!Number.isInteger(Number(estimate))||Number(estimate)<1)){setError('Estimated minutes must be a positive whole number.');return;}
+ async function save(event:React.FormEvent){event.preventDefault();if(busyRef.current)return;setError('');if(!title.trim()||!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number.isNaN(new Date(date+'T12:00:00').getTime())||new Date(date+'T12:00:00').getDate()!==Number(date.slice(-2))){setError('Enter a task name and date.');return;}if([start,end].some(value=>value&&!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value))){setError('Enter a valid start and end time.');return;}if(end&&(!start||end<=start)){setError('Choose an end time after the start time, on the same day.');return;}if(estimate&&(!Number.isInteger(Number(estimate))||Number(estimate)<1)){setError('Estimated minutes must be a positive whole number.');return;}
  busyRef.current=true;setBusy(true);try{const values={title:title.trim(),date,assigneeId:member||null,dueTime:start||undefined,endTime:end||undefined,allDay:!start,description:description.trim()||undefined,recurrence:repeat,priority,categoryId:category||undefined,estimatedMinutes:estimate?Number(estimate):undefined};if(editChore)await updateChore({...editChore,...values});else await addChore(values);const action=pendingWhileBusy.current;pendingWhileBusy.current=null;onClose();action?.();}catch(e){setError(e instanceof Error?e.message:'Could not save this chore. Please try again.');}finally{busyRef.current=false;setBusy(false);}}
  const input=(label:string,id:string,value:string,change:(s:string)=>void,type='text',required=false)=><label className="chore-label" htmlFor={id}>{label}<input className="chore-input" id={id} ref={id==='chore-title'?titleRef:undefined} value={value} type={type} required={required} onChange={e=>change(e.target.value)}/></label>;
  const footer=<><button type="button" className="chore-button secondary" disabled={busy} onClick={close}>Cancel</button><button className="chore-button primary" type="submit" form="chore-edit-form" disabled={busy}>{busy?'Saving…':editChore?'Save changes':'Add chore'}</button></>;
@@ -85,7 +86,7 @@ export const ChoreEditor = forwardRef<ChoreEditorHandle, Props>(function ChoreEd
  {error&&<p className="chore-error" role="alert" tabIndex={-1} ref={errorRef}>{error} Your entries are still here.</p>}
  {input('Chore','chore-title',title,setTitle,'text',true)}
  <label className="chore-label" htmlFor="chore-member">Person<ChoicePicker id="chore-member" className="chore-input" label="Person" value={member} onChange={setMember} options={[{id:'',label:'Unassigned'},...state.teamMembers.map(m=>({id:m.id,label:m.name}))]}/></label>
- {input('Date','chore-date',date,setDate,'date',true)}
+ <div className="chore-label"><label htmlFor="chore-date">Date</label><DateField id="chore-date" value={date} onChange={setDate} required/></div>
  <details className="chore-more" open={hasDefaultDetails||undefined}><summary>Details <small>Time, repeat and notes</small></summary>
  <div className="chore-time-row"><label className="chore-label" htmlFor="chore-start">Start time · optional<TimeInput id="chore-start" label="Start time · optional" value={start} onChange={setStart}/></label><label className="chore-label" htmlFor="chore-end">End time · optional<TimeInput id="chore-end" label="End time · optional" value={end} onChange={setEnd}/></label></div><p className="chore-muted">Optional. Leave times blank for all day.</p>
  <label className="chore-label" htmlFor="chore-repeat">Repeat<ChoicePicker id="chore-repeat" className="chore-input" label="Repeat" value={repeat} onChange={value=>setRepeat(value as RecurrenceType)} options={[{id:'none',label:'Does not repeat'},{id:'daily',label:'Every day'},{id:'weekly',label:'Every week'},{id:'monthly',label:'Every month'}]}/></label>

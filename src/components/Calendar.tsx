@@ -1,6 +1,6 @@
 import { dateKey, shiftDate } from '../utils/dates';
 import { CompletionDialog } from './CompletionDialog';
-import { useCallback, useId, useMemo, useRef, useState, forwardRef, useImperativeHandle } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -42,13 +42,14 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
     const [completionInstance,setCompletionInstance] = useState<ChoreInstance|null>(null);
     const [operationError,setOperationError] = useState('');
     const calendarRef = useRef<FullCalendar>(null);
-    // Pick a readable first view once. Resizing never changes the user's view or date.
+    // Phone schedules use an agenda; retain the selected date when resizing.
     const [initialView] = useState(() =>
       typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
         ? 'listWeek'
         : 'dayGridMonth'
     );
     const [display, setDisplay] = useState({ view: initialView, title: '' });
+    useEffect(()=>{const media=window.matchMedia('(max-width: 767px)');const update=()=>{if(media.matches&&calendarRef.current?.getApi().view.type!=='listWeek')calendarRef.current?.getApi().changeView('listWeek')};media.addEventListener?.('change',update);return()=>media.removeEventListener?.('change',update)},[]);
     const titleId = useId();
     const period = calendarViews.find(view => view.id === display.view)?.period || 'period';
     const handleDatesSet = useCallback(({ view }: DatesSetArg) => {
@@ -286,7 +287,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
             </div>
             <div className="nesmi-calendar-view-controls" role="group" aria-label="Calendar view">
               {calendarViews.map(view => (
-                <button key={view.id} type="button" className="nesmi-calendar-control" aria-pressed={display.view === view.id} onClick={() => calendarRef.current?.getApi().changeView(view.id)}>{view.label}</button>
+                <button key={view.id} type="button" className={`nesmi-calendar-control ${view.id !== 'listWeek' ? 'desktop-calendar-view' : ''}`} aria-pressed={display.view === view.id} onClick={() => calendarRef.current?.getApi().changeView(view.id)}>{view.label}</button>
               ))}
             </div>
           </div>

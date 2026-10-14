@@ -15,12 +15,13 @@
 import { Chore, TeamMember } from '../types';
 
 // Google API configuration
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '210936263317-2hrvenu5509i73usg6nvajcemnrkh33s.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
 
 let gapiInited = false;
 let gisInited = false;
+let pendingAuthorization: ((result:boolean)=>void) | null = null;
 let tokenClient: google.accounts.oauth2.TokenClient | null = null;
 
 declare global {
@@ -47,18 +48,21 @@ export async function initGoogleApi(): Promise<boolean> {
   }
 
   return new Promise((resolve) => {
+    const timeout=setTimeout(()=>resolve(false),10000);
+    const fail=()=>{clearTimeout(timeout);resolve(false)};
     // Load GAPI script
     const gapiScript = document.createElement('script');
     gapiScript.src = 'https://apis.google.com/js/api.js';
     gapiScript.async = true;
     gapiScript.defer = true;
+    gapiScript.onerror=fail;
     gapiScript.onload = () => {
       window.gapi.load('client', async () => {
-        await window.gapi.client.init({
+        try { await window.gapi.client.init({
           discoveryDocs: [DISCOVERY_DOC],
-        });
+        }); } catch { fail(); return; }
         gapiInited = true;
-        maybeEnableButtons(resolve);
+        maybeEnableButtons(value=>{clearTimeout(timeout);resolve(value)});
       });
     };
     document.body.appendChild(gapiScript);
@@ -68,14 +72,16 @@ export async function initGoogleApi(): Promise<boolean> {
     gisScript.src = 'https://accounts.google.com/gsi/client';
     gisScript.async = true;
     gisScript.defer = true;
+    gisScript.onerror=fail;
     gisScript.onload = () => {
       tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: SCOPES,
         callback: () => {}, // Will be set when requesting access
+        error_callback: () => {const finish=pendingAuthorization;pendingAuthorization=null;finish?.(false)},
       });
       gisInited = true;
-      maybeEnableButtons(resolve);
+      maybeEnableButtons(value=>{clearTimeout(timeout);resolve(value)});
     };
     document.body.appendChild(gisScript);
   });
@@ -104,7 +110,9 @@ export function signInToGoogle(): Promise<boolean> {
       return;
     }
 
+    pendingAuthorization=resolve;
     tokenClient.callback = (response) => {
+      pendingAuthorization=null;
       if (response.error) {
         console.error('Google sign-in error:', response.error);
         resolve(false);
@@ -113,9 +121,9 @@ export function signInToGoogle(): Promise<boolean> {
       resolve(true);
     };
 
-    if (window.gapi?.client?.getToken() === null) {
+    if (!window.gapi?.client?.getToken()) {
       // Prompt the user to select a Google Account
-      tokenClient.requestAccessToken({ prompt: 'consent' });
+      tokenClient.requestAccessToken({ prompt: 'select_account' });
     } else {
       // Skip display of account chooser for existing session
       tokenClient.requestAccessToken({ prompt: '' });
