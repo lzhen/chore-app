@@ -1,0 +1,23 @@
+import {render,screen,cleanup,waitFor} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import {it,expect,vi,afterEach} from 'vitest';
+import {App} from './App';
+vi.mock('../context/AuthContext',()=>({useAuth:()=>({user:{id:'test'},loading:false})}));
+vi.mock('../context/AppContext',()=>({useApp:()=>({state:{chores:[],teamMembers:[],categories:[],completions:[],loading:false},reload:vi.fn()})}));
+vi.mock('./ThemeSelector',()=>({ThemeSelector:()=>null}));
+vi.mock('./Calendar',()=>({Calendar:()=>null}));
+vi.mock('./ChatAssistant',()=>({ChatAssistant:()=>null}));
+afterEach(()=>{cleanup();delete (window as any).__NESMI_PREVIEW__});
+it('routes actual planning tools into existing Account and Insights workload with destination focus',async()=>{
+ (window as any).__NESMI_PREVIEW__=true;const user=userEvent.setup();render(<App/>);
+ const tools=async()=>{await user.click(screen.getByRole('button',{name:'Open family menu'}));await user.click(screen.getByRole('button',{name:'Calendar'}));await user.click(screen.getByRole('button',{name:'Planning tools'}));};
+ await tools();expect(screen.queryByRole('heading',{name:'Workload Balance'})).toBeNull();
+ await user.click(screen.getByRole('button',{name:'Notifications & Google Calendar'}));
+ await waitFor(()=>expect(screen.getByRole('heading',{name:'Account'})).toHaveFocus());
+ expect(screen.getByRole('heading',{name:'Notifications'})).toBeVisible();expect(screen.getByText('Google Calendar connection is unavailable in this demo.')).toBeVisible();
+ expect(screen.queryByRole('dialog',{name:'Planning tools'})).toBeNull();
+ await tools();await user.click(screen.getByRole('button',{name:'Workload in Insights'}));
+ await waitFor(()=>expect(screen.getByRole('heading',{name:'Insights'})).toHaveFocus());
+ expect(screen.getByRole('button',{name:'Workload'})).toHaveAttribute('aria-pressed','true');
+ expect(screen.getByRole('heading',{name:'Workload Balance'})).toBeVisible();
+});

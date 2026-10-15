@@ -148,10 +148,9 @@ describe('editor choice menus', () => {
 
 describe('meaningful discard decisions', () => {
  afterEach(cleanup);
- it('opening optional sections, focusing time and selecting the existing owner does not dirty a default draft', async () => {
+ it('focusing directly available time and selecting the existing owner does not dirty a default draft', async () => {
   const user=userEvent.setup(), onClose=vi.fn();
   render(<ChoreModal isOpen onClose={onClose} defaultDate="2026-10-10"/>);
-  await user.click(screen.getByText('Details'));
   await user.click(screen.getByLabelText('Start time · optional'));
   await user.click(screen.getByRole('combobox',{name:'Person'}));
   await user.click(screen.getByRole('option',{name:'Unassigned'}));
@@ -193,5 +192,29 @@ describe('meaningful discard decisions', () => {
   expect(screen.getByLabelText('Date')).toHaveValue('2026-10-11');
   expect(screen.getByLabelText('Start time · optional')).toHaveValue('10:30');
   expect(onClose).not.toHaveBeenCalled();
+ });
+});
+
+
+describe('direct chore fields',()=>{
+ afterEach(cleanup);
+ it('exposes all fields without disclosures and saves blank times as all-day',async()=>{
+ const user=userEvent.setup();render(<ChoreModal isOpen onClose={vi.fn()} defaultValues={{title:'Laundry'}}/>);
+ expect(document.querySelector('details')).toBeNull();
+ for(const name of ['Start time · optional','End time · optional','Notes · optional'])expect(screen.getByLabelText(name)).toBeVisible();
+ for(const name of ['Repeat','Priority','Category'])expect(screen.getByRole('combobox',{name})).toBeVisible();
+ expect(screen.getByRole('spinbutton',{name:'Estimated minutes · optional'})).toBeVisible();
+ expect(screen.queryByText(/For example/)).toBeNull();
+ await user.click(screen.getByRole('button',{name:'Add chore'}));
+ expect(app.addChore).toHaveBeenLastCalledWith(expect.objectContaining({allDay:true,dueTime:undefined,endTime:undefined,estimatedMinutes:undefined}));
+ });
+ it('keeps invalid dates and reversed times in the form and announces errors',()=>{
+ render(<ChoreModal isOpen onClose={vi.fn()} defaultValues={{title:'Task'}}/>);
+ fireEvent.change(screen.getByLabelText('Date'),{target:{value:'2026-02-30'}});fireEvent.submit(document.getElementById('chore-edit-form')!);
+ expect(screen.getByRole('alert')).toHaveTextContent('Enter a task name and date');expect(screen.getByRole('alert')).toHaveFocus();
+ fireEvent.change(screen.getByLabelText('Date'),{target:{value:'2026-10-15'}});
+ fireEvent.change(screen.getByLabelText('Start time · optional'),{target:{value:'14:00'}});
+ fireEvent.change(screen.getByLabelText('End time · optional'),{target:{value:'13:00'}});fireEvent.submit(document.getElementById('chore-edit-form')!);
+ expect(screen.getByRole('alert')).toHaveTextContent('after the start time');expect(screen.getByLabelText('Start time · optional')).toHaveValue('14:00');
  });
 });

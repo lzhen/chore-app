@@ -478,7 +478,7 @@
 
 /* A calm Home, drawer navigation, and one shared create action. */
 .chore-main { margin-left: 0; flex-direction: column; }
-.nesmi-add-bar { flex: 0 0 auto; display: flex; justify-content: center; align-items: center; min-height: 76px; padding: 10px max(16px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); background: var(--surface-primary); border-top: 1px solid var(--border-subtle); }
+.nesmi-add-bar { flex: 0 0 auto; display: flex; justify-content: center; align-items: center; min-height: 0; padding: 6px max(16px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); background: var(--surface-primary); border-top: 1px solid var(--border-subtle); }
 .nesmi-global-add { display: flex; align-items: center; justify-content: center; width: 54px; height: 54px; border-radius: 50%; background: var(--chore-highlight); color: var(--chore-highlight-ink); box-shadow: 0 4px 14px #0002; font-size: 30px; line-height: 1; }
 .nesmi-drawer-nav { display: flex; flex-direction: column; gap: 3px; padding: 8px 0 20px; margin-bottom: 20px; border-bottom: 1px solid var(--border-subtle); }
 .nesmi-drawer-nav button { display: flex; justify-content: space-between; align-items: center; text-align: left; padding: 11px 14px; min-height: 46px; border-radius: 10px; font-size: 15px; }

@@ -2,6 +2,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import { AgentPanel } from './AgentPanel';
+import { IntegrationSettings } from './IntegrationSettings';
 vi.mock('../context/AppContext', () => ({ useApp: () => ({ state: { chores: [], teamMembers: [] }, updateChore: vi.fn() }) }));
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); delete (window as Window & { __NESMI_PREVIEW__?: boolean }).__NESMI_PREVIEW__; });
 it('never loads Google scripts or requests browser permissions when the demo tools open and reopen', async () => {
@@ -12,7 +13,7 @@ it('never loads Google scripts or requests browser permissions when the demo too
   vi.stubGlobal('Notification', notify);
   const append = vi.spyOn(document.body, 'appendChild');
   const user = userEvent.setup();
-  render(<AgentPanel />);
+  render(<><AgentPanel /><IntegrationSettings /></>);
   for (let i = 0; i < 2; i++) {
     await user.click(screen.getByRole('button', { name: 'Calendar Agent' }));
     expect(screen.getByText('Google Calendar connection is unavailable in this demo.')).toBeVisible();

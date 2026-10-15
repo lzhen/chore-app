@@ -48,9 +48,10 @@ export function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [insightsTab,setInsightsTab]=useState<'overview'|'workload'>('overview');
   const mainRef = useRef<HTMLElement>(null);
   const navigate = (mode: ViewMode, focusContent = true) => requestTransition(() => {
-    setViewMode(mode); setSidebarOpen(false); setToolsOpen(false); setSearchQuery('');
+    setInsightsTab('overview'); setViewMode(mode); setSidebarOpen(false); setToolsOpen(false); setSearchQuery('');
     if (focusContent) requestAnimationFrame(() => {
       const heading = mainRef.current?.querySelector<HTMLElement>('h1,h2');
       if (heading) { heading.tabIndex = -1; heading.focus(); } else mainRef.current?.focus();
@@ -238,13 +239,13 @@ export function App() {
     </Dialog>}
     {viewMode==='calendar'&&<><div className="nesmi-planning-heading"><h2>Calendar</h2><button className="chore-button secondary" onClick={()=>setToolsOpen(true)}>Planning tools</button></div><Calendar ref={calendarRef} onAddClick={handleAddClick} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers}/></>}
     {(viewMode==='today'||viewMode==='list')&&<ListView key={viewMode} editorRef={activeEditorRef} todayView={viewMode==='today'} homeView={viewMode==='today'} onChatClick={()=>requestTransition(()=>setChatOpen(true))} onManageFamily={()=>requestTransition(()=>setSidebarOpen(true))} onAddClick={()=>handleAddClick()} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers} onClearFilters={()=>{setSearchQuery('');setHiddenMembers(new Set());}}/>}
-    {viewMode==='dashboard'&&(state.chores.length>0?<Dashboard embedded onClose={()=>setViewMode('today')}/>:<section className="chore-list-page"><div className="chore-empty"><h2>Small wins will show up here.</h2><p>Add your first chore to start seeing your household’s progress.</p><p>Use the + below to add your first chore.</p></div></section>)}
+    {viewMode==='dashboard'&&<Dashboard embedded initialTab={insightsTab} onClose={()=>setViewMode('today')}/>}
     {viewMode==='account'&&<AccountSettings embedded isOpen onClose={()=>setViewMode('today')}/>}
     </main>
     {viewMode!=='account'&&<div className="nesmi-add-bar" aria-label="Nesmi create"><QuickAddButton onClick={()=>handleAddClick()}/></div>}
    </div>
    <ChatAssistant open={chatOpen} suspended={modalOpen||!!profileMember||!!availabilityMember||sidebarOpen||toolsOpen||shortcutsOpen} onClose={()=>setChatOpen(false)}/>
-   {toolsOpen&&<AgentPanel initialOpen onChatOpen={()=>{setToolsOpen(false);setChatOpen(true);}} onDismiss={()=>setToolsOpen(false)}/>}
+   {toolsOpen&&<AgentPanel initialOpen onSettingsOpen={()=>navigate('account')} onWorkloadOpen={()=>{navigate('dashboard');setInsightsTab('workload');}} onChatOpen={()=>{setToolsOpen(false);setChatOpen(true);}} onDismiss={()=>setToolsOpen(false)}/>}
    <ChoreModal editorRef={activeEditorRef} isOpen={modalOpen} onClose={handleCloseModal} editChore={editChore} instanceDate={instanceDate} defaultValues={defaultValues}/>
    {profileMember&&<MemberProfileModal member={profileMember} onClose={()=>setProfileMember(null)}/>}
    {availabilityMember&&<AvailabilityModal member={availabilityMember} onClose={()=>setAvailabilityMember(null)}/>}

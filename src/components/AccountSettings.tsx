@@ -1,6 +1,7 @@
 import '../styles/nesmi-secondary-surfaces.css';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { IntegrationSettings } from './IntegrationSettings';
 import { ThemeSelector } from './ThemeSelector';
 
 interface AccountSettingsProps {
@@ -56,6 +57,8 @@ export function AccountSettings({ isOpen, onClose, embedded=false }: AccountSett
           <p className="nesmi-secondary-support mt-1">Learn what information Nesmi stores and how it is used.</p>
           <a className="nesmi-account-policy nesmi-secondary-support mt-2 inline-block" href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noreferrer">View Privacy Policy</a>
         </div>
+
+        <IntegrationSettings />
 
         <button
           onClick={signOut}

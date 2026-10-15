@@ -66,7 +66,7 @@ export function DateField({
           Choose
         </button>
       </span>
-      <small id={`${id}-format`} className="chore-muted">
+      <small id={`${id}-format`} className="sr-only">
         YYYY-MM-DD
       </small>
       {open && (

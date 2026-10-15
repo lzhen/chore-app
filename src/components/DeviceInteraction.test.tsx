@@ -5,6 +5,7 @@ import {ChoicePicker} from './ChoicePicker';
 import {AccountSettings} from './AccountSettings';
 import {ThemeProvider} from '../context/ThemeContext';
 vi.mock('../context/AuthContext',()=>({useAuth:()=>({user:{email:'synthetic@example.test'},signOut:vi.fn(),deleteAccount:vi.fn()})}));
+vi.mock('../context/AppContext',()=>({useApp:()=>({state:{chores:[],teamMembers:[]}})}));
 afterEach(()=>{cleanup();vi.unstubAllGlobals();localStorage.clear();});
 it('account appearance changes directly with touch/click and never exposes a system menu',()=>{
  render(<ThemeProvider><AccountSettings isOpen embedded onClose={()=>{}}/></ThemeProvider>);

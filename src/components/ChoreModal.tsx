@@ -67,8 +67,6 @@ export const ChoreEditor = forwardRef<ChoreEditorHandle, Props>(function ChoreEd
  },[confirmDiscard,inline]);
  const errorRef=useRef<HTMLParagraphElement>(null);
  useEffect(()=>{if(error){errorRef.current?.focus();errorRef.current?.scrollIntoView?.({block:'nearest'});}},[error]);
- const hasDefaultDetails=useRef(!!start||!!end||!!description||repeat!=='none'||priority!=='medium'||!!category||!!estimate).current;
- const hasAdvancedDetails=useRef(priority!=='medium'||!!category||!!estimate).current;
  useEffect(()=>{const prevent=(e:BeforeUnloadEvent)=>{if(dirty){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',prevent);return ()=>window.removeEventListener('beforeunload',prevent);},[dirty]);
  function requestTransition(action:()=>void){if(busyRef.current){pendingWhileBusy.current=action;return;}if(dirty){pendingAction.current=()=>{onClose();action();};returnPoint.current={focus:inline&&!formRef.current?.contains(document.activeElement)?titleRef.current:document.activeElement as HTMLElement,scroll:formRef.current?.parentElement?.scrollTop||0};setConfirmDiscard(true);}else {onClose();action();}}
  useImperativeHandle(ref,()=>({requestTransition}));
@@ -88,22 +86,22 @@ export const ChoreEditor = forwardRef<ChoreEditorHandle, Props>(function ChoreEd
  {input('Chore','chore-title',title,setTitle,'text',true)}
  <label className="chore-label" htmlFor="chore-member">Person<ChoicePicker id="chore-member" className="chore-input" label="Person" value={member} onChange={setMember} options={[{id:'',label:'Unassigned'},...state.teamMembers.map(m=>({id:m.id,label:m.name}))]}/></label>
  <div className="chore-label"><label htmlFor="chore-date">Date</label><DateField id="chore-date" value={date} onChange={setDate} required/></div>
- <details className="chore-more" open={hasDefaultDetails||undefined}><summary>Details <small>Time, repeat and notes</small></summary>
- <div className="chore-time-row"><label className="chore-label" htmlFor="chore-start">Start time · optional<TimeInput id="chore-start" label="Start time · optional" value={start} onChange={setStart}/></label><label className="chore-label" htmlFor="chore-end">End time · optional<TimeInput id="chore-end" label="End time · optional" value={end} onChange={setEnd}/></label></div><p className="chore-muted">Optional. Leave times blank for all day.</p>
+
+ <div className="chore-time-row"><label className="chore-label" htmlFor="chore-start">Start time · optional<TimeInput id="chore-start" label="Start time · optional" descriptionId="chore-all-day-help" value={start} onChange={setStart}/></label><label className="chore-label" htmlFor="chore-end">End time · optional<TimeInput id="chore-end" label="End time · optional" descriptionId="chore-all-day-help" value={end} onChange={setEnd}/></label></div><p id="chore-all-day-help" className="sr-only">Leave times blank for all day.</p>
  <label className="chore-label" htmlFor="chore-repeat">Repeat<ChoicePicker id="chore-repeat" className="chore-input" label="Repeat" value={repeat} onChange={value=>setRepeat(value as RecurrenceType)} options={[{id:'none',label:'Does not repeat'},{id:'daily',label:'Every day'},{id:'weekly',label:'Every week'},{id:'monthly',label:'Every month'}]}/></label>
  <label className="chore-label" htmlFor="chore-notes">Notes · optional<textarea id="chore-notes" className="chore-input" rows={3} value={description} onChange={e=>setDescription(e.target.value)}/></label>
- <details className="chore-advanced" open={hasAdvancedDetails||undefined}><summary>Advanced</summary>
+
  <label className="chore-label" htmlFor="chore-priority">Priority<ChoicePicker id="chore-priority" className="chore-input" label="Priority" value={priority} onChange={value=>setPriority(value as Priority)} options={[{id:'low',label:'Low'},{id:'medium',label:'Normal'},{id:'high',label:'High'}]}/></label>
  {state.categories.length>0&&<label className="chore-label" htmlFor="chore-category">Category<ChoicePicker id="chore-category" className="chore-input" label="Category" value={category} onChange={setCategory} options={[{id:'',label:'No category'},...state.categories.map(c=>({id:c.id,label:c.name}))]}/></label>}
  <EstimateField value={estimate} onChange={setEstimate}/>
- </details>
- </details>
+
+
 
  {!inline&&editChore&&<div className="chore-delete"><button type="button" disabled={busy} className="chore-button danger" onClick={()=>setConfirmDelete(true)}>Delete {editChore.recurrence==='none'?'chore':'series'}</button></div>}
  </fieldset></form></>;
  const deleteDialog=confirmDelete&&editChore?<DeleteChoreDialog chore={editChore} onClose={()=>setConfirmDelete(false)} onDeleted={onClose}/>:null;
  if(inline)return <><section className="nesmi-inline-editor" aria-label={`Edit ${editChore?.title||'chore'}`} onKeyDown={event=>{if(event.key==='Escape'&&!event.defaultPrevented){event.preventDefault();event.stopPropagation();close();}}}>
-   <div className="nesmi-inline-editor-heading"><h4>Edit chore</h4><span>Your changes are saved only when you choose Save.</span></div>
+   <div className="nesmi-inline-editor-heading"><h4>Edit chore</h4></div>
    {form}<div className="nesmi-inline-editor-footer">{footer}</div>
  </section>{confirmDiscard&&<Dialog title="Discard changes?" variant="centered" onClose={keepEditing} initialFocusRef={keepRef} footer={discardFooter}>{discardContent}</Dialog>}{deleteDialog}</>;
  return <><Dialog title={confirmDiscard?'Discard changes?':editChore?'Edit chore':'Add a chore'} variant={confirmDiscard?'centered':'dialog'} onClose={close} busy={busy} initialFocusRef={titleRef} footer={confirmDiscard?discardFooter:footer}>

@@ -53,3 +53,6 @@
   font: inherit;
   padding: 0;
 }
+
+/* Align the destructive action with the field labels without reducing its target. */
+.chore-delete > .chore-button.danger { padding-inline: 0; justify-content: flex-start; text-align: start; min-height: 48px; }

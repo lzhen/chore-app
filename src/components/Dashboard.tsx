@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext';
 import { MemberStats } from '../types';
 import { BADGES, getBadgeById } from '../data/badges';
 import { WorkloadChart } from './WorkloadChart';
+import { WorkloadBalance } from './WorkloadBalance';
 import { SectionHeading } from './SectionHeading';
 
 // Format relative time (e.g., "2 hours ago", "3 days ago")
@@ -27,11 +28,12 @@ function formatRelativeTime(dateString: string): string {
 interface DashboardProps {
   onClose: () => void;
   embedded?: boolean;
+  initialTab?: 'overview' | 'workload';
 }
 
-export function Dashboard({ onClose, embedded=false }: DashboardProps) {
+export function Dashboard({ onClose, embedded=false, initialTab='overview' }: DashboardProps) {
   const { state } = useApp();
-  const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'workload' | 'achievements'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'workload' | 'achievements'>(initialTab);
 
   // Sort completions by completedAt (most recent first)
   const sortedCompletions = useMemo(() => {
@@ -483,6 +485,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                 members={state.teamMembers}
                 chores={state.chores}
               />
+              <WorkloadBalance />
             </div>
           ) : null}
         </div>
