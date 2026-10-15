@@ -10,6 +10,7 @@ describe('approved Nesmi web artwork', () => {
   it('renders the same wreath geometry through a transparent light-mode glyph', () => {
     const { container } = render(<Logo />);
     const glyph = container.querySelector('.nesmi-header-glyph');
+    expect(glyph?.getAttribute('viewBox')).toBe('208 200 616 620');
     expect(glyph?.querySelector('image')?.getAttribute('href')).toBe(artworkUrl);
     expect(glyph?.querySelector('feColorMatrix')?.getAttribute('type')).toBe('luminanceToAlpha');
     expect(glyph?.querySelector('mask')?.getAttribute('style')).toContain('mask-type: alpha');
@@ -51,6 +52,7 @@ describe('approved Nesmi web artwork', () => {
     expect(getByText('Nesmi')).toBeInTheDocument();
     expect(getByText('Family Chore Manager')).toBeInTheDocument();
     expect(container.querySelector('.nesmi-transparent-logo-mark image')?.getAttribute('href')).toBe(artworkUrl);
+    expect(container.querySelector('.nesmi-transparent-logo-mark svg')?.getAttribute('viewBox')).toBe('0 0 1024 1024');
     expect(logoCss).toMatch(/\.nesmi-transparent-logo-mark\s*\{\s*display: block;\s*color: var\(--text-primary\);/);
   });
 

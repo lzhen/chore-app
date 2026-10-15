@@ -42,8 +42,8 @@ for(const theme of ['light','dark']) for(const width of [390,1440]) test(`unifie
  const brand=page.locator('.chore-brand .nesmi-logo');
  const mark=brand.locator('.nesmi-header-icon');
  await expect(mark).toBeVisible();
- await expect(mark).toHaveCSS('width','32px');
- await expect(mark).toHaveCSS('height','32px');
+ await expect(mark).toHaveCSS('width','24px');
+ await expect(mark).toHaveCSS('height','24px');
  await expect(mark).toHaveCSS('background-color','rgba(0, 0, 0, 0)');
  await expect(mark).toHaveCSS('color',theme==='dark'?'rgb(244, 244, 244)':'rgb(20, 20, 20)');
  await expect(mark.locator('svg')).toBeVisible();

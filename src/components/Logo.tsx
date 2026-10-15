@@ -9,13 +9,14 @@ interface LogoProps {
 const artworkUrl = `${import.meta.env.BASE_URL}icons/nesmi-1024-20261008.png`;
 
 /** Reuse the approved artwork without reproducing or tracing its wreath geometry. */
-function LogoGlyph({ className }: { className?: string }) {
+function LogoGlyph({ className, header = false }: { className?: string; header?: boolean }) {
   const id = useId().replace(/:/g, '');
   const filterId = `nesmi-glyph-alpha-${id}`;
   const maskId = `nesmi-glyph-mask-${id}`;
 
   return (
-    <svg className={className} viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
+    // The app-icon asset has padding. Crop only the header lockup to its visible wreath.
+    <svg className={className} viewBox={header ? '208 200 616 620' : '0 0 1024 1024'} aria-hidden="true" focusable="false">
       <defs>
         <filter id={filterId} filterUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024" colorInterpolationFilters="sRGB">
           <feColorMatrix type="luminanceToAlpha" />
@@ -50,7 +51,7 @@ export function Logo({ size = 'md', showText = true }: LogoProps) {
     <div className="nesmi-logo flex items-center gap-2">
       {showText && size !== 'lg' ? (
         <span className="nesmi-header-icon shrink-0 overflow-hidden" aria-hidden="true">
-          <LogoGlyph className="nesmi-header-glyph" />
+          <LogoGlyph className="nesmi-header-glyph" header />
           <img src={artworkUrl} alt="" width="32" height="32" className="nesmi-header-dark-artwork h-full w-full object-contain" />
         </span>
       ) : (
