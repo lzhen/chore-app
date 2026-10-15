@@ -95,9 +95,14 @@ test.describe('Authentication Page', () => {
   test('has logo visible', async ({ page }) => {
     const logo = page.locator('.nesmi-logo');
     await expect(logo.getByText('Nesmi', { exact: true })).toBeVisible();
-    const artwork = logo.locator('img:visible');
+    const artwork = logo.locator('svg');
     await expect(artwork).toBeVisible();
-    await expect.poll(() => artwork.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+    const source = await artwork.locator('image').getAttribute('href');
+    expect(source).toContain('nesmi-1024-20261008.png');
+    await expect.poll(() => page.evaluate(async (src) => {
+      const img = new Image(); img.src = src!;
+      await img.decode(); return img.naturalWidth;
+    }, source)).toBeGreaterThan(0);
   });
 });
 

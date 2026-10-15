@@ -38,8 +38,8 @@ async function fixture(page:Page,width=390,empty=false){
 
 for (const width of [320, 375, 390, 430, 1440]) for (const theme of ['light','dark']) test(`pickers ${width} ${theme}`, async ({page}, info) => {
  await fixture(page,width);
- await page.getByRole('combobox',{name:/Theme:/}).click();
- await page.getByRole('option',{name:theme==='dark'?/Dark A quieter/:/Light A brighter/}).click();
+ if(await page.locator('html').getAttribute('data-theme')!==theme) await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
+ await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
  const nav=page.getByRole('navigation',{name:'Primary navigation'});
  const checkHeader=async()=>{
   const header=page.getByRole('banner',{name:'Nesmi'}), brand=header.locator('.chore-brand');
@@ -54,13 +54,15 @@ for (const width of [320, 375, 390, 430, 1440]) for (const theme of ['light','da
  await page.locator('#nesmi-family-panel').getByRole('button',{name:'Close sidebar',exact:true}).click();
 
  await nav.getByRole('button',{name:'Account',exact:true}).click(); await checkHeader();
- const trigger=page.getByRole('combobox',{name:/Theme:/}).last();
- await trigger.click();
- const list=page.getByRole('listbox');
- const box=await list.boundingBox(); expect(box!.x).toBeGreaterThanOrEqual(12); expect(box!.x+box!.width).toBeLessThanOrEqual(width-12);
- await expect(list.getByRole('option')).toHaveCount(3);
+ const trigger=page.getByRole('button',{name:/^Switch to (light|dark) mode$/}).last();
+ await expect(trigger).toHaveAccessibleName(`Switch to ${theme==='dark'?'light':'dark'} mode`);
+ const box=await trigger.boundingBox(); expect(box!.x).toBeGreaterThanOrEqual(12); expect(box!.x+box!.width).toBeLessThanOrEqual(width-12);
+ await expect(page.getByRole('listbox')).toHaveCount(0);
+ await trigger.press('Enter'); await expect(page.locator('html')).toHaveAttribute('data-theme',theme==='dark'?'light':'dark');
+ await expect(trigger).toBeFocused();
+ await trigger.press('Space'); await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
+ await expect(page.getByRole('listbox')).toHaveCount(0);
  await page.screenshot({path:info.outputPath(`account-${theme}-${width}.png`)});
- await trigger.press('ArrowDown'); await trigger.press('Escape'); await expect(list).toHaveCount(0); await expect(trigger).toBeFocused();
  await nav.getByRole('button',{name:'Today',exact:true}).click();
  await page.getByRole('button',{name:'Complete: Water the plants',exact:true}).click();
  const dialog=page.getByRole('dialog'); const picker=dialog.getByRole('combobox',{name:'Who completed it?'});

@@ -2,6 +2,15 @@ import {test,expect,Page} from '@playwright/test';
 // Keep mocked requests intercepted after reload; service workers can bypass page.route.
 test.use({ serviceWorkers: 'block' });
 
+async function selectAppearance(page: Page, theme: 'light' | 'dark') {
+  const toggle = page.getByRole('button', {name: `Switch to ${theme} mode`, exact: true});
+  if (await page.locator('html').getAttribute('data-theme') !== theme) await toggle.press('Enter');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+  await expect(page.getByRole('button', {name: `Switch to ${theme === 'light' ? 'dark' : 'light'} mode`, exact: true})).toBeVisible();
+  await expect(page.getByRole('combobox', {name: /^Theme:/})).toHaveCount(0);
+  await expect(page.getByRole('listbox')).toHaveCount(0);
+}
+
 const TODAY='2026-09-25';
 const OWNER='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', A='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', B='cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 async function fixture(page:Page,width=390,empty=false){
@@ -80,8 +89,7 @@ for (const width of [375, 1440]) test(`sign-in fits ${width}px and appearance pe
   await page.goto('/chore-app/');
   await expect(page.getByRole('heading', {name: 'Sign in to your account', exact: true})).toBeVisible();
   for (const theme of ['Light', 'Dark']) {
-    await page.getByRole('combobox', {name: /^Theme:/}).click();
-    await page.getByRole('listbox').getByRole('option', {name: new RegExp(theme)}).click();
+    await selectAppearance(page, theme.toLowerCase() as 'light' | 'dark');
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme.toLowerCase());
     const email = page.getByLabel('Email', {exact: true});
     expect(await email.evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
@@ -104,11 +112,9 @@ test('desktop Today progress and mobile starter drafts are usable', async ({page
   const taskBox = await firstTask.boundingBox();
   expect(taskBox!.y + taskBox!.height).toBeLessThan(844);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.getByRole('combobox', {name: /^Theme:/}).click();
-  await page.getByRole('listbox').getByRole('option', {name: /Light/}).click();
+  await selectAppearance(page, 'light');
   await page.screenshot({path: info.outputPath('today-desktop-light.png'), fullPage: true});
-  await page.getByRole('combobox', {name: /^Theme:/}).click();
-  await page.getByRole('listbox').getByRole('option', {name: /Dark/}).click();
+  await selectAppearance(page, 'dark');
   await page.screenshot({path: info.outputPath('today-desktop-dark.png'), fullPage: true});
   await page.setViewportSize({width: 390, height: 844});
   const mobileTaskBox = await firstTask.boundingBox();
@@ -123,16 +129,14 @@ test('direct dark appearance respects later choices and styles the browser chrom
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#080809');
   expect(await page.locator('html').evaluate(el => getComputedStyle(el).colorScheme)).toBe('dark');
-  await page.getByRole('combobox', {name: /^Theme:/}).click();
-  await page.getByRole('listbox').getByRole('option', {name: /Light/}).click();
+  await selectAppearance(page, 'light');
   expect(new URL(page.url()).searchParams.has('theme')).toBe(false);
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#ffffff');
-  await page.getByRole('combobox', {name: /^Theme:/}).click();
-  await page.getByRole('listbox').getByRole('option', {name: /System/}).click();
+  // Explicit choices keep precedence when the device appearance changes.
   await page.emulateMedia({colorScheme: 'dark'});
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await page.emulateMedia({colorScheme: 'light'});
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });
@@ -159,3 +163,15 @@ test('starter suggestion waits for an edited explicit save', async ({page}, info
   expect(f.db.chores[0].estimated_minutes).toBe(10);
   expect(f.calls.filter(call => call.table === 'chores' && call.method === 'POST')).toHaveLength(1);
 });
+
+ test('automatic device appearance applies until the direct button is used', async ({page}) => {
+  await page.emulateMedia({colorScheme: 'light'});
+  await page.goto('/chore-app/');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.emulateMedia({colorScheme: 'dark'});
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.getByRole('button', {name: 'Switch to light mode', exact: true}).press('Space');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+ });
