@@ -57,11 +57,11 @@ for(const width of [375,768,1440]) for(const theme of ['light','dark']) test(`fl
  expect(a!.y+a!.height).toBeLessThanOrEqual(width<768?844-70:844);
  await page.screenshot({path:info.outputPath(`floating-${theme}-${width}.png`),fullPage:true});
  await agent.click();await expect(agent).toHaveAttribute('aria-expanded','true');
- const panel=page.locator('#nesmi-agent-panel');await expect(panel).toBeVisible();
- await expect(panel.locator('.nesmi-agent-heading')).toHaveCSS('color',theme==='dark'?'rgb(242, 242, 243)':'rgb(20, 20, 20)');
- const p=await panel.boundingBox();expect(p!.y).toBeGreaterThanOrEqual(0);expect(p!.y+p!.height+12).toBeLessThanOrEqual(a!.y);
+ const panel=page.getByRole('dialog',{name:'Planning tools',exact:true});await expect(panel).toBeVisible();
+ await expect(panel.locator('.chore-dialog-header')).toHaveCSS('color',theme==='dark'?'rgb(242, 242, 243)':'rgb(20, 20, 20)');
+ const p=await panel.boundingBox();expect(p!.y).toBeGreaterThanOrEqual(0);expect(p!.y+p!.height).toBeLessThanOrEqual(844);
  await page.screenshot({path:info.outputPath(`agent-open-${theme}-${width}.png`),fullPage:true});
- await page.getByRole('button',{name:'Close Calendar Agent',exact:true}).click();await expect(panel).toHaveCount(0);
+ await page.getByRole('button',{name:'Close dialog',exact:true}).click();await expect(panel).toHaveCount(0);
  await add.click();await expect(page.getByRole('dialog',{name:'Add a chore'})).toBeVisible();await expect(agent).toHaveCount(0);await expect(add).toHaveCount(0);
  await page.getByRole('button',{name:'Cancel',exact:true}).click();await expect(agent).toBeVisible();await expect(add).toBeVisible();
  expect(calls.filter(c=>c.method!=='GET')).toHaveLength(0);

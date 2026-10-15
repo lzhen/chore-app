@@ -10,7 +10,7 @@ export function Dialog({title, onClose, children, footer, busy=false}: Props) {
   const oldOverflow=document.body.style.overflow;
   if(root) root.inert=true;
   document.body.style.overflow='hidden';
-  const frame=requestAnimationFrame(()=>box.current?.focus());
+  box.current?.focus();
   const onKey=(event:KeyboardEvent)=>{
    if(event.key==='Escape' && box.current?.querySelector('[data-open-picker]')) return;
    if(event.key==='Escape'){event.preventDefault();event.stopPropagation();if(!working.current)close.current();}
@@ -22,7 +22,7 @@ export function Dialog({title, onClose, children, footer, busy=false}: Props) {
    else if(!event.shiftKey&&(document.activeElement===last||document.activeElement===box.current)){event.preventDefault();first.focus();}
   };
   document.addEventListener('keydown',onKey,true);
-  return ()=>{cancelAnimationFrame(frame);document.removeEventListener('keydown',onKey,true);document.body.style.overflow=oldOverflow;if(root)root.inert=oldInert;previous?.focus();};
+  return ()=>{document.removeEventListener('keydown',onKey,true);document.body.style.overflow=oldOverflow;if(root)root.inert=oldInert;previous?.focus();};
  },[]);
  return createPortal(<div className="chore-dialog-backdrop"><div className="chore-dialog" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={box}>
   <header className="chore-dialog-header"><h2>{title}</h2><button type="button" onClick={onClose} disabled={busy} className="touch-button" aria-label="Close dialog">✕</button></header>

@@ -152,7 +152,7 @@ test('starter suggestion waits for an edited explicit save', async ({page}, info
   await page.getByRole('button', {name: 'Start with Wash dishes'}).click();
   const dialog = page.getByRole('dialog', {name: 'Add a chore'});
   await expect(dialog.getByLabel('What needs doing?')).toHaveValue('Wash dishes');
-  await expect(dialog.getByLabel('Repeat')).toHaveValue('daily');
+  await expect(dialog.getByLabel('Repeat')).toHaveText('Every day');
   await expect(dialog.getByLabel('Estimated minutes · optional')).toHaveValue('15');
   expect(f.calls.filter(call => call.table === 'chores' && call.method === 'POST')).toHaveLength(0);
   await dialog.getByLabel('What needs doing?').fill('Put away our dishes');

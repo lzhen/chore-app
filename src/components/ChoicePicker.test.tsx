@@ -58,3 +58,79 @@ describe('app-owned choice picker', () => {
     const trigger=screen.getByRole('combobox'); fireEvent.keyDown(trigger,{key:'ArrowDown'}); fireEvent.keyDown(trigger,{key:'ArrowDown'}); fireEvent.keyDown(trigger,{key:'Enter'}); expect(onChange).not.toHaveBeenCalled();
   });
 });
+
+describe('refined choice picker interactions and bounds', () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+  it('opens directly on Home or End, and Space commits only once without reopening', async () => {
+    const user = userEvent.setup(), onChange = vi.fn();
+    render(<ChoicePicker value="eric" options={options} onChange={onChange} label="Person"/>);
+    const trigger = screen.getByRole('combobox'); trigger.focus();
+    await user.keyboard('{End}');
+    expect(trigger).toHaveAttribute('aria-activedescendant', screen.getByRole('option', {name: 'Jen'}).id);
+    await user.keyboard(' ');
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('jen');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    await user.keyboard('{Home}');
+    expect(trigger).toHaveAttribute('aria-activedescendant', screen.getByRole('option', {name: 'Alex'}).id);
+  });
+  it('cycles Arrow keys and resets type-ahead when the menu is reopened', async () => {
+    const user = userEvent.setup(), onChange = vi.fn();
+    render(<ChoicePicker value="alex" options={options} onChange={onChange} label="Person"/>);
+    const trigger = screen.getByRole('combobox'); trigger.focus();
+    await user.keyboard('e{Escape}j');
+    expect(trigger).toHaveAttribute('aria-activedescendant', screen.getByRole('option', {name: 'Jen'}).id);
+    await user.keyboard('{ArrowDown}');
+    expect(trigger).toHaveAttribute('aria-activedescendant', screen.getByRole('option', {name: 'Alex'}).id);
+    await user.keyboard('{ArrowUp}{Enter}');
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('jen');
+    expect(trigger).toHaveFocus();
+  });
+  it('Tab keeps the selected value and moves to the next control', async () => {
+    const user = userEvent.setup(), onChange = vi.fn();
+    render(<><ChoicePicker value="alex" options={options} onChange={onChange} label="Person"/><button>Next</button></>);
+    await user.click(screen.getByRole('combobox'));
+    await user.keyboard('{End}'); await user.tab();
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Next'})).toHaveFocus();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+  it('keeps the current option selected while keyboard navigation previews another', async () => {
+    const user = userEvent.setup();
+    render(<ChoicePicker value="eric" options={options} onChange={() => {}} label="Person"/>);
+    await user.click(screen.getByRole('combobox')); await user.keyboard('{End}');
+    expect(screen.getByRole('option', {name: 'Eric'})).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('option', {name: 'Jen'})).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByRole('option', {name: 'Jen'})).toHaveAttribute('data-active', 'true');
+  });
+  it('uses a 200px minimum and matches wider triggers, separated below by 8px', () => {
+    render(<ChoicePicker value="alex" options={options} onChange={() => {}} label="Person"/>);
+    const trigger = screen.getByRole('combobox');
+    const rect = vi.spyOn(trigger, 'getBoundingClientRect');
+    rect.mockReturnValue({left: 20, right: 160, top: 40, bottom: 84, width: 140, height: 44} as DOMRect);
+    fireEvent.click(trigger);
+    expect(screen.getByRole('listbox')).toHaveStyle({width: '200px', top: '92px'});
+    fireEvent.click(trigger);
+    rect.mockReturnValue({left: 20, right: 370, top: 40, bottom: 84, width: 350, height: 44} as DOMRect);
+    fireEvent.click(trigger);
+    expect(screen.getByRole('listbox')).toHaveStyle({width: '350px'});
+  });
+  it('caps a long menu at 320px and flips above a low trigger', () => {
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(800);
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(1000);
+    render(<ChoicePicker value="alex" options={options} onChange={() => {}} label="Person"/>);
+    const trigger = screen.getByRole('combobox');
+    vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue({left: 20, right: 220, top: 710, bottom: 754, width: 200, height: 44} as DOMRect);
+    fireEvent.click(trigger);
+    const menu = screen.getByRole('listbox');
+    expect(menu).toHaveStyle({maxHeight: '320px', top: '382px'});
+    expect(parseFloat(menu.style.top) + parseFloat(menu.style.maxHeight)).toBe(702);
+  });
+  it('shows long option text intact and keeps a dialog menu inside its focus boundary', async () => {
+    const user = userEvent.setup(), label = 'Alexandria with an exceptionally long family member name';
+    render(<Dialog title="Add chore" onClose={() => {}}><ChoicePicker value="long" options={[{id: 'long', label}]} onChange={() => {}} label="Person"/></Dialog>);
+    await user.click(screen.getByRole('combobox'));
+    expect(screen.getByRole('dialog')).toContainElement(screen.getByRole('listbox'));
+    expect(screen.getByRole('option', {name: label})).toHaveTextContent(label);
+    expect(screen.getByRole('option')).toHaveAttribute('tabindex', '-1');
+  });
+});

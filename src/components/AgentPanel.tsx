@@ -19,6 +19,8 @@ import {
   signOutFromGoogle,
   syncChoresToGoogleCalendar,
 } from '../utils/googleCalendar';
+import { Dialog } from './Dialog';
+import '../styles/planning-tools.css';
 import { ChatAssistant } from './ChatAssistant';
 
 export function AgentPanel() {
@@ -107,7 +109,7 @@ export function AgentPanel() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="nesmi-agent-trigger rounded-full flex items-center justify-center"
-        aria-label="Calendar Agent" aria-expanded={isOpen} aria-controls="nesmi-agent-panel"
+        aria-label="Calendar Agent" aria-expanded={isOpen}
         title="Calendar Agent"
       >
         <svg className="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -127,30 +129,8 @@ export function AgentPanel() {
 
       {/* Agent Panel */}
       {isOpen && (
-        <div id="nesmi-agent-panel" className="nesmi-agent-panel fluent-card" aria-label="Calendar Agent panel">
-          <div className="nesmi-agent-heading px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                />
-              </svg>
-              <span className="font-semibold">Calendar Agent</span>
-            </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              aria-label="Close Calendar Agent" className="nesmi-agent-close"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="nesmi-agent-content p-4 space-y-4">
+        <Dialog title="Planning tools" onClose={()=>setIsOpen(false)}>
+          <div className="nesmi-agent-content nesmi-planning-tools space-y-4">
             {/* Chat Assistant Button */}
             <button
               onClick={() => {
@@ -158,7 +138,7 @@ export function AgentPanel() {
                 // Delay opening chat to prevent animation conflict
                 setTimeout(() => setIsChatOpen(true), 150);
               }}
-              className="w-full py-3 px-4 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-md font-medium hover:from-purple-600 hover:to-blue-600 flex items-center justify-center gap-2"
+              className="chore-button primary w-full"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -168,7 +148,7 @@ export function AgentPanel() {
                   d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
                 />
               </svg>
-              Chat with Assistant
+              Chore assistant
             </button>
 
             {/* Notifications Toggle */}
@@ -186,7 +166,7 @@ export function AgentPanel() {
               ) : (
                 <button
                   onClick={handleEnableNotifications}
-                  className="w-full py-2 px-4 bg-surface-tertiary text-content-primary rounded-md text-sm hover:bg-surface-secondary flex items-center justify-center gap-2 transition-colors"
+                  className="chore-button secondary w-full"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -245,7 +225,7 @@ export function AgentPanel() {
                 ) : (
                   <button
                     onClick={handleGoogleSignIn}
-                    className="w-full py-2 px-4 bg-surface-tertiary text-content-primary rounded-md text-sm hover:bg-surface-secondary flex items-center justify-center gap-2 transition-colors"
+                    className="chore-button secondary w-full"
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24">
                       <path
@@ -373,7 +353,7 @@ export function AgentPanel() {
               </button>
             )}
           </div>
-        </div>
+        </Dialog>
       )}
 
       {/* Chat Assistant */}

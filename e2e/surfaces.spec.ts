@@ -87,8 +87,8 @@ for(const theme of ['light','dark']) for(const width of [390,1440]) test(`unifie
  const dialog=page.getByRole('dialog',{name:'Add a chore'});
  const box=await dialog.boundingBox();expect(box).not.toBeNull();expect(box!.width).toBeLessThanOrEqual(width);if(width>=768){expect(box!.width).toBe(530);expect(box!.height).toBeLessThanOrEqual(844*.8+1);}
  await dialog.locator('summary').click();
- await dialog.getByRole('combobox',{name:'Repeat',exact:true}).selectOption('weekly');
- await dialog.getByRole('combobox',{name:'Priority',exact:true}).selectOption('high');
+ await dialog.getByRole('combobox',{name:'Repeat',exact:true}).click();await page.getByRole('option',{name:'Every week',exact:true}).click();
+ await dialog.getByRole('combobox',{name:'Priority',exact:true}).click();await page.getByRole('option',{name:'High',exact:true}).click();
  await dialog.getByLabel('Notes · optional').fill('Fictional preview only');
  await page.screenshot({path:info.outputPath(`form-${theme}-${width}.png`),fullPage:true});
  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
