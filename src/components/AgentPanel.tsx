@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   analyzeWorkloadBalance,
@@ -19,14 +19,49 @@ import {
   signOutFromGoogle,
   syncChoresToGoogleCalendar,
 } from '../utils/googleCalendar';
-import { Dialog } from './Dialog';
+import { createPortal } from 'react-dom';
 import '../styles/planning-tools.css';
 import { ChatAssistant } from './ChatAssistant';
 
-export function AgentPanel() {
+export function AgentPanel({ suspended = false, showTrigger = true }: { suspended?: boolean; showTrigger?: boolean }) {
   const { state, updateChore } = useApp();
   const [isOpen, setIsOpen] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [section, setSection] = useState<'chat' | 'planning'>('chat');
+  const panel = useRef<HTMLElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const visible = isOpen && !suspended;
+  useEffect(() => { if (suspended) setIsOpen(false); }, [suspended]);
+  useEffect(() => {
+    if (!visible) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const root = document.getElementById('root');
+    const oldInert = root?.inert || false;
+    const oldOverflow = document.body.style.overflow;
+    const media = window.matchMedia('(max-width: 1099px)');
+    const adapt = () => {
+      if (root) root.inert = media.matches || oldInert;
+      document.body.style.overflow = media.matches ? 'hidden' : oldOverflow;
+      document.body.classList.toggle('nesmi-assistant-docked', !media.matches);
+      panel.current?.setAttribute('aria-modal', String(media.matches));
+      if (media.matches && !panel.current?.contains(document.activeElement)) panel.current?.focus();
+    };
+    adapt(); media.addEventListener('change', adapt);
+    panel.current?.focus();
+    const key = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && (media.matches || panel.current?.contains(document.activeElement))) { event.preventDefault(); event.stopPropagation(); setIsOpen(false); }
+      if (event.key !== 'Tab' || !media.matches || !panel.current) return;
+      const items = [...panel.current.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),[tabindex="0"]')].filter(el => el.getClientRects().length > 0);
+      const first = items[0], last = items[items.length - 1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === panel.current)) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || document.activeElement === panel.current)) { event.preventDefault(); first?.focus(); }
+    };
+    document.addEventListener('keydown', key, true);
+    return () => {
+      media.removeEventListener('change', adapt); document.removeEventListener('keydown', key, true);
+      if (root) root.inert = oldInert; document.body.style.overflow = oldOverflow; document.body.classList.remove('nesmi-assistant-docked');
+      if (document.activeElement === document.body || panel.current?.contains(document.activeElement)) (trigger.current || previous)?.focus();
+    };
+  }, [visible]);
   const [isAutoAssigning, setIsAutoAssigning] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [googleConfigured, setGoogleConfigured] = useState(false);
@@ -106,10 +141,11 @@ export function AgentPanel() {
   return (
     <>
       {/* Floating Agent Button */}
-      <button
+      {showTrigger && !suspended && <button
+        ref={trigger}
         onClick={() => setIsOpen(!isOpen)}
         className="nesmi-agent-trigger rounded-full flex items-center justify-center"
-        aria-label="Calendar Agent" aria-expanded={isOpen}
+        aria-label="Calendar Agent" aria-expanded={visible} aria-controls="nesmi-assistant"
         title="Calendar Agent"
       >
         <svg className="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -125,32 +161,22 @@ export function AgentPanel() {
             {unassignedCount > 99 ? '99+' : unassignedCount > 0 ? unassignedCount : '!'}
           </span>
         )}
-      </button>
+      </button>}
 
-      {/* Agent Panel */}
-      {isOpen && (
-        <Dialog title="Planning tools" onClose={()=>setIsOpen(false)}>
+      {createPortal(<section ref={panel} id="nesmi-assistant" className="nesmi-assistant" role="dialog" aria-label="Assistant" tabIndex={-1} hidden={!visible}>
+        <header className="nesmi-assistant-header"><h2>Assistant</h2><button type="button" className="touch-button" aria-label="Close assistant" onClick={() => setIsOpen(false)}>✕</button></header>
+        <div className="nesmi-assistant-tabs" role="tablist" aria-label="Assistant sections">
+          {(['chat', 'planning'] as const).map(name => <button key={name} type="button" role="tab" id={`assistant-tab-${name}`} aria-selected={section === name} aria-controls={`assistant-${name}`} tabIndex={section === name ? 0 : -1} onClick={() => setSection(name)} onKeyDown={event => {
+            if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+              event.preventDefault(); const next = event.key === 'Home' ? 'chat' : event.key === 'End' ? 'planning' : section === 'chat' ? 'planning' : 'chat';
+              setSection(next); document.getElementById(`assistant-tab-${next}`)?.focus();
+            }
+          }}>{name === 'chat' ? 'Chat' : 'Planning'}</button>)}
+        </div>
+        <div id="assistant-chat" role="tabpanel" aria-labelledby="assistant-tab-chat" className="nesmi-assistant-chat" hidden={section !== 'chat'}><ChatAssistant active={visible && section === 'chat'}/></div>
+        <div id="assistant-planning" role="tabpanel" aria-labelledby="assistant-tab-planning" className="nesmi-assistant-planning" hidden={section !== 'planning'}>
+          <p className="nesmi-assistant-description">Reminders, calendar sync, and a fair share of chores.</p>
           <div className="nesmi-agent-content nesmi-planning-tools space-y-4">
-            {/* Chat Assistant Button */}
-            <button
-              onClick={() => {
-                setIsOpen(false);
-                // Delay opening chat to prevent animation conflict
-                setTimeout(() => setIsChatOpen(true), 150);
-              }}
-              className="chore-button primary w-full"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                />
-              </svg>
-              Chore assistant
-            </button>
-
             {/* Notifications Toggle */}
             <div>
               <h4 className="text-sm font-medium text-content-primary mb-2">
@@ -193,7 +219,7 @@ export function AgentPanel() {
                     <button
                       onClick={handleSyncToGoogle}
                       disabled={isSyncing || state.chores.length === 0}
-                      className="w-full py-2 px-4 bg-accent text-white rounded-md text-sm hover:bg-accent-hover disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+                      className="chore-button primary w-full"
                     >
                       {isSyncing ? (
                         <>
@@ -353,11 +379,8 @@ export function AgentPanel() {
               </button>
             )}
           </div>
-        </Dialog>
-      )}
-
-      {/* Chat Assistant */}
-      {isChatOpen && <ChatAssistant onClose={() => setIsChatOpen(false)} />}
+        </div>
+      </section>, document.body)}
     </>
   );
 }

@@ -13,3 +13,34 @@
 .chore-dialog:has(.nesmi-planning-tools) {border-radius:18px;}
 .chore-dialog:has(.nesmi-planning-tools) .chore-dialog-body {padding-top:16px;}
 .nesmi-planning-tools button {min-height:44px;}
+
+/* One persistent surface: desktop companion, mobile full screen. */
+.nesmi-assistant {position:fixed;inset:16px 16px 16px auto;width:400px;max-width:calc(100vw - 32px);z-index:45;display:flex;flex-direction:column;min-height:0;background:var(--surface-primary);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:18px;box-shadow:0 8px 32px #00000014;overflow:hidden;}
+.nesmi-assistant[hidden],.nesmi-assistant [hidden] {display:none!important;}
+.nesmi-assistant-header {display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border-subtle);flex-shrink:0;}
+.nesmi-assistant-header h2 {font-size:20px;font-weight:600;}
+.nesmi-assistant-tabs {display:flex;gap:8px;padding:12px 20px;flex-shrink:0;}
+.nesmi-assistant-tabs button {flex:1;min-height:44px;border-radius:8px;color:var(--text-primary);background:transparent;border:1px solid var(--border-subtle);}
+.nesmi-assistant-tabs button[aria-selected=true] {background:#d8ff63;color:#141414;border-color:#d8ff63;}
+.nesmi-assistant :focus-visible {outline:2px solid var(--text-primary);outline-offset:2px;}
+.nesmi-assistant-planning {overflow:auto;padding:0 20px 24px;min-height:0;}
+.nesmi-assistant-description {font-size:14px;color:var(--text-secondary);line-height:1.5;}
+.nesmi-assistant-chat {flex:1;min-height:0;display:flex;}
+.nesmi-chat-content {flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;}
+.nesmi-chat-messages {flex:1;min-height:0;overflow:auto;padding:12px 20px;overflow-wrap:anywhere;}
+.nesmi-chat-user {background:#d8ff63;color:#141414;}
+.nesmi-chat-suggestion {min-height:44px;padding:8px 12px;font-size:14px;border-radius:8px;}
+.nesmi-chat-composer {padding:16px 20px;border-top:1px solid var(--border-subtle);flex-shrink:0;}
+.nesmi-chat-input {min-width:0;flex:1;padding:12px;border:1px solid var(--border-subtle);border-radius:8px;background:var(--surface-primary);color:var(--text-primary);font-size:16px;}
+.nesmi-chat-send {width:48px;min-width:48px;height:48px;padding:12px;}
+.nesmi-add-actions {margin-right:72px;}
+@media(min-width:1100px){body.nesmi-assistant-docked .chore-app {margin-right:432px;}body.nesmi-assistant-docked .chore-floating-actions {right:448px;}}
+@media(max-width:1099px){
+ .nesmi-assistant {inset:0;width:100%;max-width:none;height:100dvh;border:0;border-radius:0;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);}
+ .nesmi-assistant-header,.nesmi-assistant-tabs {padding-left:16px;padding-right:16px;}
+ .nesmi-chat-composer {padding:12px 16px;}
+ .nesmi-chat-messages,.nesmi-assistant-planning {padding-left:16px;padding-right:16px;}
+}
+
+.nesmi-assistant .nesmi-chat-send {padding:12px;}
+.nesmi-chat-send svg {width:20px;height:20px;flex-shrink:0;}

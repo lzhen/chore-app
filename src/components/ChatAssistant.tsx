@@ -9,10 +9,10 @@ import {
 } from '../utils/chatAgent';
 
 interface ChatAssistantProps {
-  onClose: () => void;
+  active: boolean;
 }
 
-export function ChatAssistant({ onClose }: ChatAssistantProps) {
+export function ChatAssistant({ active }: ChatAssistantProps) {
   const { state, addChore, updateChore, completeChore } = useApp();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -38,12 +38,9 @@ export function ChatAssistant({ onClose }: ChatAssistantProps) {
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (active) scrollToBottom();
+  }, [messages, active]);
 
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
 
   const handleQuickAction = (action: string) => {
     if (action.endsWith(' ')) {
@@ -264,37 +261,16 @@ export function ChatAssistant({ onClose }: ChatAssistantProps) {
   };
 
   return (
-    <div className="fixed inset-2 sm:inset-auto sm:bottom-24 sm:right-6 sm:w-96 sm:h-[500px] fluent-card z-50 flex flex-col overflow-hidden animate-slide-up">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-4 py-3 flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-            />
-          </svg>
-          <span className="font-semibold">Chore Assistant</span>
-          <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">AI</span>
-        </div>
-        <button onClick={onClose} className="text-white/80 hover:text-white">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-
+    <div className="nesmi-chat-content">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="nesmi-chat-messages space-y-4" role="log" aria-label="Conversation" aria-live={active ? "polite" : "off"}>
         {messages.map((message) => (
           <div key={message.id}>
             <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div
                 className={`max-w-[85%] px-4 py-2 rounded-2xl ${
                   message.role === 'user'
-                    ? 'bg-accent text-white rounded-br-md'
+                    ? 'nesmi-chat-user rounded-br-md'
                     : 'bg-surface-tertiary text-content-primary rounded-bl-md'
                 }`}
               >
@@ -308,7 +284,7 @@ export function ChatAssistant({ onClose }: ChatAssistantProps) {
                   <button
                     key={idx}
                     onClick={() => handleQuickAction(qa.action)}
-                    className="text-xs px-3 py-1.5 bg-accent/10 text-accent hover:bg-accent/20 rounded-full transition-colors"
+                    className="chore-button secondary nesmi-chat-suggestion" disabled={isProcessing}
                   >
                     {qa.label}
                   </button>
@@ -338,21 +314,21 @@ export function ChatAssistant({ onClose }: ChatAssistantProps) {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="p-4 border-t border-border flex-shrink-0">
+      <form onSubmit={handleSubmit} className="nesmi-chat-composer">
         <div className="flex gap-2">
           <input
             ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-1 px-4 py-2 border border-border rounded-full bg-surface-primary text-content-primary placeholder-content-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+            placeholder="Ask about your chores…" aria-label="Message"
+            className="nesmi-chat-input"
             disabled={isProcessing}
           />
           <button
             type="submit"
             disabled={!input.trim() || isProcessing}
-            className="w-10 h-10 bg-accent text-white rounded-full flex items-center justify-center hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            aria-label="Send message" className="chore-button primary nesmi-chat-send"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
