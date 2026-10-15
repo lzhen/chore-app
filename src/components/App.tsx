@@ -7,6 +7,7 @@ import { ListView } from './ListView';
 import { ChoreModal, type ChoreDefaultValues } from './ChoreModal';
 import { AuthForm } from './AuthForm';
 import { AccountSettings } from './AccountSettings';
+import { HouseholdToolsProvider } from './AccountTools';
 import { AgentPanel } from './AgentPanel';
 import { Dashboard } from './Dashboard';
 import { MemberProfileModal } from './MemberProfileModal';
@@ -218,7 +219,7 @@ export function App() {
   if (state.loading) return <LoadingScreen phase="chores" />;
 
   if(state.error) return <div className="chore-load-error"><h1>Let’s try that again.</h1><p role="alert">{state.error}</p><button className="chore-button primary" onClick={reload}>Retry</button></div>;
-  return <><div className="theme-background" aria-hidden="true"/><a className="skip-link" href="#main-content">Skip to main content</a>
+  return <HouseholdToolsProvider><div className="theme-background" aria-hidden="true"/><a className="skip-link" href="#main-content">Skip to main content</a>
    <div className="chore-app" data-view={viewMode} onKeyDown={handleKeyDown} tabIndex={-1}>
     <Header menuOpen={sidebarOpen} onMenuClick={toggleSidebar} onDashboardClick={handleDashboardClick} viewMode={viewMode} onViewModeChange={mode=>{setViewMode(mode);setSidebarOpen(false);}} searchQuery={searchQuery} onSearchChange={setSearchQuery} searchInputRef={searchInputRef}/>
     <main id="main-content" className="chore-main">
@@ -254,5 +255,5 @@ export function App() {
    {profileMember&&<MemberProfileModal member={profileMember} onClose={()=>setProfileMember(null)}/>}
    {availabilityMember&&<AvailabilityModal member={availabilityMember} onClose={()=>setAvailabilityMember(null)}/>}
    <ShortcutsHelpModal isOpen={shortcutsOpen} onClose={()=>setShortcutsOpen(false)}/>
-  </>;
+  </HouseholdToolsProvider>;
 }

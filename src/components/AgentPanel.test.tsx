@@ -11,10 +11,10 @@ beforeEach(()=>{window.matchMedia=vi.fn().mockReturnValue({matches:false,addEven
 afterEach(cleanup);
 it('keeps the real assistant launcher and panel available without invoking integrations or assignments',async()=>{
  const user=userEvent.setup();render(<AgentPanel/>);
- const trigger=screen.getByRole('button',{name:'Calendar Agent'});
- expect(trigger).toHaveTextContent('99+');expect(trigger).toHaveAttribute('aria-expanded','false');
+ const trigger=screen.getByRole('button',{name:'Assistant'});
+ expect(trigger).toHaveAttribute('aria-expanded','false');
  await user.click(trigger);expect(trigger).toHaveAttribute('aria-expanded','true');
- expect(screen.getByRole('tab',{name:'Chat'})).toBeVisible();
+ expect(screen.getByRole('textbox',{name:'Message'})).toBeVisible();expect(screen.queryByRole('tab')).not.toBeInTheDocument();
  await user.click(screen.getByRole('button',{name:'Close assistant'}));expect(trigger).toHaveAttribute('aria-expanded','false');
  expect(update).not.toHaveBeenCalled();
 });

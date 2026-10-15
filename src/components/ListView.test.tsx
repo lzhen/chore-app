@@ -72,10 +72,11 @@ describe('ListView day scope and progress', () => {
     const user = userEvent.setup();
     const onClearFilters = vi.fn();
     const {rerender} = render(<ListView todayView searchQuery="not found" onAddClick={vi.fn()} onEventClick={vi.fn()} onClearFilters={onClearFilters}/>);
-    await user.selectOptions(screen.getByRole('combobox', {name: 'Filter by family member'}), 'unassigned');
+    await user.click(screen.getByRole('combobox', {name: 'Filter by family member'}));
+    await user.click(screen.getByRole('option',{name:'Unassigned'}));
     await user.click(screen.getAllByRole('button', {name: 'Clear filters'})[1]);
 
-    expect(screen.getByRole('combobox', {name: 'Filter by family member'})).toHaveValue('everyone');
+    expect(screen.getByRole('combobox', {name: 'Filter by family member'})).toHaveTextContent('Everyone');
     expect(onClearFilters).toHaveBeenCalledOnce();
     rerender(<ListView todayView onAddClick={vi.fn()} onEventClick={vi.fn()} onClearFilters={onClearFilters}/>);
     expect(screen.getByRole('button', {name: 'Edit Laundry'})).toBeInTheDocument();

@@ -45,10 +45,10 @@ for(const width of [375,768,1440]) for(const theme of ['light','dark']) test(`fl
  await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
  await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Calendar',exact:true}).click();
  const add=page.getByRole('button',{name:'Add new chore',exact:true});
- const agent=page.getByRole('button',{name:'Calendar Agent',exact:true});
+ const agent=page.getByRole('button',{name:'Assistant',exact:true});
  await expect(add).toBeVisible();await expect(agent).toBeVisible();
  if(width===375){
-  await expect(page.locator('.nesmi-agent-badge')).toHaveText('99+');
+  await expect(page.locator('.nesmi-agent-badge')).toHaveCount(0);
   await add.evaluate(el=>{if(el.lastChild)el.lastChild.textContent='Add a household chore';});
  }
  const a=await add.boundingBox(),b=await agent.boundingBox();
