@@ -68,7 +68,7 @@ for (const width of [320, 375, 390, 430, 1440]) for (const theme of ['light','da
  const dialog=page.getByRole('dialog'); const picker=dialog.getByRole('combobox',{name:'Who completed it?'});
  await expect(dialog.getByRole('button',{name:'Mark done',exact:true})).toBeDisabled();
  await picker.click(); await expect(dialog.getByRole('listbox')).toBeVisible();
- if(theme==='dark') await expect(dialog.getByRole('listbox')).toHaveCSS('background-color','rgb(8, 8, 9)');
+ if(theme==='dark') await expect(dialog.getByRole('listbox')).toHaveCSS('background-color','rgb(25, 25, 28)');
  const familyBox=await dialog.getByRole('listbox').boundingBox(); expect(familyBox!.x).toBeGreaterThanOrEqual(12); expect(familyBox!.x+familyBox!.width).toBeLessThanOrEqual(width-12); expect(familyBox!.y+familyBox!.height).toBeLessThanOrEqual(844-12);
  await page.screenshot({path:info.outputPath(`family-${theme}-${width}.png`)});
  await picker.press('Escape'); await expect(dialog).toBeVisible(); await expect(dialog.getByRole('listbox')).toHaveCount(0);
