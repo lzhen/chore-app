@@ -1,0 +1,34 @@
+/* Preserve the approved geometry and footprint with transparent theme-aware UI artwork. */
+.nesmi-logo .nesmi-header-icon {
+  background: transparent;
+  color: #141414;
+}
+
+.nesmi-logo .nesmi-header-glyph,
+.nesmi-transparent-logo-mark > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.nesmi-logo .nesmi-header-dark-artwork {
+  display: none;
+}
+
+.nesmi-transparent-logo-mark {
+  display: block;
+  color: var(--text-primary);
+}
+
+:is(.dark, [data-theme="dark"], [data-theme="crystal-dark"], [data-theme="midnight"]) .nesmi-logo .nesmi-header-icon {
+  background: transparent;
+  color: #f4f4f4;
+}
+
+:is(.dark, [data-theme="dark"], [data-theme="crystal-dark"], [data-theme="midnight"]) .nesmi-logo .nesmi-header-glyph {
+  display: block;
+}
+
+:is(.dark, [data-theme="dark"], [data-theme="crystal-dark"], [data-theme="midnight"]) .nesmi-logo .nesmi-header-dark-artwork {
+  display: none;
+}
