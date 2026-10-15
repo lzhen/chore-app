@@ -1,0 +1,34 @@
+import {cleanup,render,screen,waitFor} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import {afterEach,beforeEach,expect,it,vi} from 'vitest';
+import {AccountTools,HouseholdToolsProvider} from './AccountTools';
+const mocks=vi.hoisted(()=>({update:vi.fn(),permission:vi.fn(),connect:vi.fn(),disconnect:vi.fn(),sync:vi.fn(),notify:vi.fn(),init:vi.fn()}));
+vi.mock('../context/AppContext',()=>({useApp:()=>({state:{chores:[{id:'chore',title:'Clean kitchen',assigneeId:null}],teamMembers:[{id:'alex',name:'Alex'}]},updateChore:mocks.update})}));
+vi.mock('../utils/schedulingAgent',()=>({analyzeWorkloadBalance:()=>({isBalanced:true,suggestions:[],stats:[{memberId:'alex',memberName:'Alex',recentAssignments:2}]}),autoAssignChores:()=>[['chore','alex']],getUpcomingChores:()=>[],suggestAssignee:()=>({id:'alex',name:'Alex'})}));
+vi.mock('../utils/googleCalendar',()=>({isGoogleCalendarConfigured:()=>true,initGoogleApi:mocks.init,isGoogleSignedIn:()=>false,signInToGoogle:mocks.connect,signOutFromGoogle:mocks.disconnect,syncChoresToGoogleCalendar:mocks.sync}));
+vi.mock('../utils/notifications',()=>({areNotificationsEnabled:()=>false,requestNotificationPermission:mocks.permission,checkAndNotifyUpcomingChores:mocks.notify}));
+beforeEach(()=>{vi.clearAllMocks();mocks.init.mockResolvedValue(undefined);mocks.connect.mockResolvedValue(true);mocks.permission.mockResolvedValue(true);mocks.sync.mockResolvedValue({success:1,failed:0});});
+afterEach(cleanup);
+it('keeps tools in settings without granting permission, connecting or writing on mount',async()=>{
+ render(<HouseholdToolsProvider><AccountTools/></HouseholdToolsProvider>);
+ await screen.findByRole('button',{name:'Connect Google Calendar'});
+ expect(screen.getByText('Workload Balance').closest('details')).not.toHaveAttribute('open');
+ for(const fn of [mocks.permission,mocks.connect,mocks.disconnect,mocks.sync,mocks.update,mocks.notify])expect(fn).not.toHaveBeenCalled();
+});
+it('preserves explicit integration actions and sync state across Account remounts',async()=>{
+ const user=userEvent.setup();const view=render(<HouseholdToolsProvider><AccountTools/></HouseholdToolsProvider>);
+ await user.click(await screen.findByRole('button',{name:'Connect Google Calendar'}));
+ await user.click(screen.getByRole('button',{name:'Sync to Google Calendar'}));
+ await screen.findByText('Synced 1 chores');
+ view.rerender(<HouseholdToolsProvider><span>Today</span></HouseholdToolsProvider>);
+ view.rerender(<HouseholdToolsProvider><AccountTools/></HouseholdToolsProvider>);
+ expect(screen.getByText('Synced 1 chores')).toBeInTheDocument();
+ expect(mocks.connect).toHaveBeenCalledTimes(1);expect(mocks.sync).toHaveBeenCalledTimes(1);
+ await user.click(screen.getByRole('button',{name:'Disconnect'}));
+ expect(mocks.disconnect).toHaveBeenCalledTimes(1);expect(screen.queryByRole('status')).not.toBeInTheDocument();
+ await user.click(screen.getByRole('button',{name:'Enable Reminders'}));
+ expect(mocks.permission).toHaveBeenCalledTimes(1);await screen.findByText('Enabled');
+ await user.click(screen.getByText('Workload Balance'));
+ await user.click(screen.getByRole('button',{name:'Auto-Assign 1 Chore'}));
+ await waitFor(()=>expect(mocks.update).toHaveBeenCalledWith({id:'chore',title:'Clean kitchen',assigneeId:'alex'}));
+});

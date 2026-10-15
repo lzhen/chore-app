@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { AccountTools } from './AccountTools';
 import { ThemeSelector } from './ThemeSelector';
 
 interface AccountSettingsProps {
@@ -49,6 +50,8 @@ export function AccountSettings({ isOpen, onClose, embedded=false }: AccountSett
             <ThemeSelector />
           </div>
         </div>
+
+        <AccountTools/>
 
         <div className="mt-6 border-t border-border pt-5">
           <h3 className="font-medium text-content-primary">Privacy</h3>

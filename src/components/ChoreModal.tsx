@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { Chore, RecurrenceType, Priority } from '../types';
 import { dateKey } from '../utils/dates';
 import { Dialog } from './Dialog';
+import { DatePicker, validDate } from './DatePicker';
 import { ChoicePicker } from './ChoicePicker';
 export interface ChoreDefaultValues {
  title?:string;
@@ -31,17 +32,17 @@ function ChoreEditor({onClose,editChore,defaultDate,defaultValues,instanceDate}:
  const hasDefaultDetails=!!defaultValues?.startTime||(!!defaultValues?.recurrence&&defaultValues.recurrence!=='none')||!!defaultValues?.estimatedMinutes;
  useEffect(()=>{const prevent=(e:BeforeUnloadEvent)=>{if(dirty){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',prevent);return ()=>window.removeEventListener('beforeunload',prevent);},[dirty]);
  function close(){if(busy)return;if(dirty)setConfirmDiscard(true);else onClose();}
- async function save(event:React.FormEvent){event.preventDefault();if(busy)return;setError('');if(!title.trim()||!date){setError('Enter a task name and date.');return;}if(end&&(!start||end<=start)){setError('Choose an end time after the start time, on the same day.');return;}if(estimate&&(!Number.isInteger(Number(estimate))||Number(estimate)<1)){setError('Estimated minutes must be a positive whole number.');return;}
+ async function save(event:React.FormEvent){event.preventDefault();if(busy)return;setError('');if(!title.trim()||!validDate(date)){setError('Enter a task name and a valid date (YYYY-MM-DD).');return;}if(end&&(!start||end<=start)){setError('Choose an end time after the start time, on the same day.');return;}if(estimate&&(!Number.isInteger(Number(estimate))||Number(estimate)<1)){setError('Estimated minutes must be a positive whole number.');return;}
  setBusy(true);try{const values={title:title.trim(),date,assigneeId:member||null,dueTime:start||undefined,endTime:end||undefined,allDay:!start,description:description.trim()||undefined,recurrence:repeat,priority,categoryId:category||undefined,estimatedMinutes:estimate?Number(estimate):undefined};if(editChore)await updateChore({...editChore,...values});else await addChore(values);onClose();}catch(e){setError(e instanceof Error?e.message:'Could not save this chore. Please try again.');}finally{setBusy(false);}}
  async function remove(){if(!editChore||busy)return;setBusy(true);try{await deleteChore(editChore.id);onClose();}catch(e){setError(e instanceof Error?e.message:'Could not delete. Please try again.');}finally{setBusy(false);}}
  const input=(label:string,id:string,value:string,change:(s:string)=>void,type='text',required=false)=><label className="chore-label" htmlFor={id}>{label}<input className="chore-input" id={id} autoComplete={id==='chore-title'?'off':undefined} value={value} type={type} required={required} onChange={e=>change(e.target.value)}/></label>;
  return <Dialog title={editChore?'Edit chore':'Add a chore'} onClose={close} busy={busy} footer={<><button type="button" className="chore-button secondary" disabled={busy} onClick={close}>Cancel</button><button className="chore-button primary" type="submit" form="chore-edit-form" disabled={busy}>{busy?'Saving…':editChore?'Save changes':'Add chore'}</button></>}>
- <form id="chore-edit-form" onSubmit={save} onChange={()=>setDirty(true)}>
+ <form autoComplete="off" id="chore-edit-form" onSubmit={save} onChange={()=>setDirty(true)}>
  {editChore?.recurrence!=='none'&&editChore&&<p className="chore-notice">You are editing the repeating series, starting {editChore.date}. Changes apply to all occurrences{instanceDate&&instanceDate!==editChore.date?`, not just ${instanceDate}`:''}.</p>}
  {error&&<p className="chore-error" role="alert" tabIndex={-1} ref={errorRef}>{error} Your entries are still here.</p>}
- {input('What needs doing?','chore-title',title,setTitle,'text',true)}
+ <label className="chore-label" htmlFor="chore-title">What needs doing?<textarea id="chore-title" className="chore-input nesmi-task-title" rows={1} autoComplete="off" required disabled={busy} value={title} onChange={e=>setTitle(e.target.value.replace(/[\r\n]+/g,' '))} onKeyDown={e=>{if(e.key==='Enter'&&!e.nativeEvent.isComposing){e.preventDefault();e.currentTarget.form?.requestSubmit();}}}/></label>
  <label className="chore-label" htmlFor="chore-member">Who’s responsible?<ChoicePicker id="chore-member" className="chore-input" label="Who’s responsible?" value={member} disabled={busy} onChange={value=>{setMember(value);setDirty(true);}} options={[{id:'',label:'Unassigned — decide later'},...state.teamMembers.map(m=>({id:m.id,label:m.name}))]}/></label>
- {input('When?','chore-date',date,setDate,'date',true)}
+ <DatePicker value={date} disabled={busy} onChange={value=>{setDate(value);setDirty(true);}}/>
  <details className="chore-more" open={!!editChore||hasDefaultDetails||undefined}><summary>More options <small>Repeat, time estimate, notes</small></summary>
  <div className="chore-time-row">{input('Start time · optional','chore-start',start,setStart,'time')}{input('End time · optional','chore-end',end,setEnd,'time')}</div><p className="chore-muted">Leave times blank for an all-day chore. End times must be on the same day.</p>
  <label className="chore-label" htmlFor="chore-repeat">Repeat<ChoicePicker id="chore-repeat" className="chore-input" label="Repeat" value={repeat} disabled={busy} onChange={value=>{setRepeat(value as RecurrenceType);setDirty(true);}} options={[{id:'none',label:'Does not repeat'},{id:'daily',label:'Every day'},{id:'weekly',label:'Every week'},{id:'monthly',label:'Every month'}]}/></label>

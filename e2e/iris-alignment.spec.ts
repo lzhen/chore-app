@@ -56,10 +56,10 @@ for(const width of [320,390,1440]) for(const theme of ['light','dark']) test(`al
  await person.click();await page.keyboard.press('Escape');await expect(menu).toHaveCount(0);await expect(page.getByRole('dialog',{name:'Add a chore'})).toBeVisible();
  await page.getByRole('button',{name:'Cancel',exact:true}).click();await page.getByRole('button',{name:'Discard changes',exact:true}).click();
  await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Calendar',exact:true}).click();
- await page.getByRole('button',{name:'Calendar Agent',exact:true}).click();
+ await page.getByRole('button',{name:'Assistant',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Assistant',exact:true});await expect(dialog).toBeVisible();
- const chat=dialog.getByRole('tab',{name:'Chat',exact:true});await expect(chat).toHaveCSS('background-image','none');
+ const chat=dialog.getByRole('button',{name:'Send message',exact:true});await expect(chat).toHaveCSS('background-image','none');
  const d=await dialog.boundingBox();expect(d!.x).toBeGreaterThanOrEqual(0);expect(d!.x+d!.width).toBeLessThanOrEqual(width);expect(d!.height).toBeLessThanOrEqual(844);
  await page.screenshot({path:info.outputPath(`planning-${width}-${theme}.png`)});
- await page.keyboard.press('Escape');await expect(dialog).toBeHidden();await expect(page.getByRole('button',{name:'Calendar Agent',exact:true})).toBeFocused();
+ await page.keyboard.press('Escape');await expect(dialog).toBeHidden();await expect(page.getByRole('button',{name:'Assistant',exact:true})).toBeFocused();
 });
