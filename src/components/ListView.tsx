@@ -37,7 +37,12 @@ export function ListView({onAddClick, searchQuery='', hiddenMembers=noHiddenMemb
   const pageRef = useRef<HTMLElement>(null);
   const restoreFocusAfterRender = useRef(false);
   const transition = (action: () => void) => editorRef.current ? editorRef.current.requestTransition(action) : action();
-  const closeEditor = () => {restoreFocusAfterRender.current=true;setEditing(null);};
+  const editorSource = useRef<ChoreInstance | null>(null);
+  const closeEditor = (reason?:'cancel'|'transition'|'saved'|'deleted') => {
+    const source=editorSource.current;editorSource.current=null;
+    restoreFocusAfterRender.current=true;setEditing(null);
+    if(reason==='cancel' && source && state.chores.some(chore=>chore.id===source.choreId))setActions(source);
+  };
   useLayoutEffect(() => {
     if(!restoreFocusAfterRender.current || editing || actions || deleting)return;
     restoreFocusAfterRender.current=false;
@@ -56,7 +61,7 @@ export function ListView({onAddClick, searchQuery='', hiddenMembers=noHiddenMemb
   function edit(instance: ChoreInstance) {
     if(editing?.id === instance.id) {document.getElementById('chore-title')?.focus();return;}
     const trigger=document.activeElement as HTMLElement;
-    transition(() => {if(!actions)returnFocus.current=trigger;setActions(null);setEditing(instance);});
+    transition(() => {if(!actions)returnFocus.current=trigger;editorSource.current=actions;setActions(null);setEditing(instance);});
   }
   function showActions(instance: ChoreInstance) {
     const trigger=document.activeElement as HTMLElement;

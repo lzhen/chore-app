@@ -24,7 +24,7 @@ export interface ChoreDefaultValues {
  estimatedMinutes?:number;
 }
 export interface ChoreEditorHandle { requestTransition: (action: () => void) => void; }
-interface Props {isOpen?:boolean;onClose:()=>void;editChore?:Chore|null;defaultDate?:string;instanceDate?:string;defaultValues?:ChoreDefaultValues;presentation?:'dialog'|'inline'|'sheet';editorRef?:Ref<ChoreEditorHandle>;}
+interface Props {isOpen?:boolean;onClose:(reason?:'cancel'|'transition'|'saved'|'deleted')=>void;editChore?:Chore|null;defaultDate?:string;instanceDate?:string;defaultValues?:ChoreDefaultValues;presentation?:'dialog'|'inline'|'sheet';editorRef?:Ref<ChoreEditorHandle>;}
 export function ChoreModal(props:Props){const mode=useInteractionMode();return props.isOpen?<ChoreEditor {...props} presentation={props.presentation || (mode==='app'?'sheet':'dialog')} ref={props.editorRef}/>:null;}
 export const ChoreEditor = forwardRef<ChoreEditorHandle, Props>(function ChoreEditor({onClose,editChore,defaultDate,defaultValues,instanceDate,presentation='dialog'},ref){
  const {state,addChore,updateChore}=useApp();
@@ -68,13 +68,13 @@ export const ChoreEditor = forwardRef<ChoreEditorHandle, Props>(function ChoreEd
  const errorRef=useRef<HTMLParagraphElement>(null);
  useEffect(()=>{if(error){errorRef.current?.focus();errorRef.current?.scrollIntoView?.({block:'nearest'});}},[error]);
  useEffect(()=>{const prevent=(e:BeforeUnloadEvent)=>{if(dirty){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',prevent);return ()=>window.removeEventListener('beforeunload',prevent);},[dirty]);
- function requestTransition(action:()=>void){if(busyRef.current){pendingWhileBusy.current=action;return;}if(dirty){pendingAction.current=()=>{onClose();action();};returnPoint.current={focus:inline&&!formRef.current?.contains(document.activeElement)?titleRef.current:document.activeElement as HTMLElement,scroll:formRef.current?.parentElement?.scrollTop||0};setConfirmDiscard(true);}else {onClose();action();}}
+ function requestTransition(action:()=>void, reason:'cancel'|'transition'='transition'){if(busyRef.current){pendingWhileBusy.current=action;return;}if(dirty){pendingAction.current=()=>{onClose(reason);action();};returnPoint.current={focus:inline&&!formRef.current?.contains(document.activeElement)?titleRef.current:document.activeElement as HTMLElement,scroll:formRef.current?.parentElement?.scrollTop||0};setConfirmDiscard(true);}else {onClose(reason);action();}}
  useImperativeHandle(ref,()=>({requestTransition}));
  useEffect(()=>{if(!busy&&pendingWhileBusy.current){const action=pendingWhileBusy.current;pendingWhileBusy.current=null;requestTransition(action);}},[busy]);
- function close(){if(busyRef.current)return;if(confirmDiscard){keepEditing();return;}requestTransition(()=>{});}
+ function close(){if(busyRef.current)return;if(confirmDiscard){keepEditing();return;}requestTransition(()=>{},'cancel');}
  function discard(){const next=pendingAction.current;pendingAction.current=null;setConfirmDiscard(false);if(next)next();else onClose();}
  async function save(event:React.FormEvent){event.preventDefault();if(busyRef.current)return;setError('');if(!title.trim()||!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number.isNaN(new Date(date+'T12:00:00').getTime())||new Date(date+'T12:00:00').getDate()!==Number(date.slice(-2))){setError('Enter a task name and date.');return;}if([start,end].some(value=>value&&!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value))){setError('Enter a valid start and end time.');return;}if(end&&(!start||end<=start)){setError('Choose an end time after the start time, on the same day.');return;}if(estimate&&(!Number.isInteger(Number(estimate))||Number(estimate)<1)){setError('Estimated minutes must be a positive whole number.');return;}
- busyRef.current=true;setBusy(true);try{const values={title:title.trim(),date,assigneeId:member||null,dueTime:start||undefined,endTime:end||undefined,allDay:!start,description:description.trim()||undefined,recurrence:repeat,priority,categoryId:category||undefined,estimatedMinutes:estimate?Number(estimate):undefined};if(editChore)await updateChore({...editChore,...values});else await addChore(values);const action=pendingWhileBusy.current;pendingWhileBusy.current=null;onClose();action?.();}catch(e){setError(e instanceof Error?e.message:'Could not save this chore. Please try again.');}finally{busyRef.current=false;setBusy(false);}}
+ busyRef.current=true;setBusy(true);try{const values={title:title.trim(),date,assigneeId:member||null,dueTime:start||undefined,endTime:end||undefined,allDay:!start,description:description.trim()||undefined,recurrence:repeat,priority,categoryId:category||undefined,estimatedMinutes:estimate?Number(estimate):undefined};if(editChore)await updateChore({...editChore,...values});else await addChore(values);const action=pendingWhileBusy.current;pendingWhileBusy.current=null;onClose('saved');action?.();}catch(e){setError(e instanceof Error?e.message:'Could not save this chore. Please try again.');}finally{busyRef.current=false;setBusy(false);}}
  const input=(label:string,id:string,value:string,change:(s:string)=>void,type='text',required=false)=><label className="chore-label" htmlFor={id}>{label}<input className="chore-input" id={id} ref={id==='chore-title'?titleRef:undefined} value={value} type={type} required={required} onChange={e=>change(e.target.value)}/></label>;
  const footer=<><button type="button" className="chore-button secondary" disabled={busy} onClick={close}>Cancel</button><button className="chore-button primary" type="submit" form="chore-edit-form" disabled={busy}>{busy?'Saving…':editChore?'Save changes':'Add chore'}</button></>;
  const discardFooter=<><button ref={keepRef} type="button" className="chore-button secondary" onClick={keepEditing}>Keep editing</button><button type="button" className="chore-button secondary" onClick={discard}>Discard changes</button></>;
@@ -99,7 +99,7 @@ export const ChoreEditor = forwardRef<ChoreEditorHandle, Props>(function ChoreEd
 
  {!inline&&editChore&&<div className="chore-delete"><button type="button" disabled={busy} className="chore-button danger" onClick={()=>setConfirmDelete(true)}>Delete {editChore.recurrence==='none'?'chore':'series'}</button></div>}
  </fieldset></form></>;
- const deleteDialog=confirmDelete&&editChore?<DeleteChoreDialog chore={editChore} onClose={()=>setConfirmDelete(false)} onDeleted={onClose}/>:null;
+ const deleteDialog=confirmDelete&&editChore?<DeleteChoreDialog chore={editChore} onClose={()=>setConfirmDelete(false)} onDeleted={()=>onClose('deleted')}/>:null;
  if(inline)return <><section className="nesmi-inline-editor" aria-label={`Edit ${editChore?.title||'chore'}`} onKeyDown={event=>{if(event.key==='Escape'&&!event.defaultPrevented){event.preventDefault();event.stopPropagation();close();}}}>
    <div className="nesmi-inline-editor-heading"><h4>Edit chore</h4></div>
    {form}<div className="nesmi-inline-editor-footer">{footer}</div>

@@ -87,7 +87,11 @@ describe('App task rows and deliberate deletion', () => {
   const trigger=screen.getByRole('button',{name:'Actions: Wash dishes'});await user.click(trigger);
   expect(trigger).toHaveAttribute('aria-expanded','true');expect(screen.getByRole('dialog',{name:'Wash dishes'})).toHaveTextContent('Use the gentle soap');
   await user.click(screen.getByRole('button',{name:'Edit Wash dishes'}));expect(screen.queryByRole('dialog',{name:'Wash dishes'})).toBeNull();expect(screen.getByRole('textbox',{name:'Chore'})).toHaveFocus();
-  expect(screen.getByRole('dialog',{name:'Edit chore'})).toBeVisible();await user.click(screen.getByRole('button',{name:'Cancel'}));expect(trigger).toHaveFocus();expect(document.body.style.overflow).not.toBe('hidden');
+  expect(screen.getByRole('dialog',{name:'Edit chore'})).toBeVisible();await user.click(screen.getByRole('button',{name:'Cancel'}));expect(screen.getByRole('dialog',{name:'Wash dishes'})).toBeVisible();
+  await user.click(screen.getByRole('button',{name:'Edit Wash dishes'}));await user.type(screen.getByRole('textbox',{name:'Chore'}),' draft');
+  await user.click(screen.getByRole('button',{name:'Close dialog'}));await user.click(screen.getByRole('button',{name:'Keep editing'}));expect(screen.getByRole('textbox',{name:'Chore'})).toHaveValue('Wash dishes draft');
+  await user.keyboard('{Escape}');await user.click(screen.getByRole('button',{name:'Discard changes'}));expect(screen.getByRole('dialog',{name:'Wash dishes'})).toBeVisible();expect(screen.queryByText('Wash dishes draft')).toBeNull();
+  await user.click(screen.getByRole('button',{name:'Close dialog'}));expect(trigger).toHaveFocus();expect(document.body.style.overflow).not.toBe('hidden');
  });
  it('uses a topmost safe-Cancel alertdialog; Escape cancels only deletion and preserves the underlying sheet', async () => {
   mode.value='app';const user=userEvent.setup();render(<ListView {...props} todayView/>);

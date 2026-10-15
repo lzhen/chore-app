@@ -12,7 +12,7 @@ export function TimeInput({ id, label, value, onChange, className = 'chore-input
   const example = formatTime('13:30');
   return <><input ref={input} id={id} aria-label={label} aria-describedby={[descriptionId, invalid ? hint : undefined].filter(Boolean).join(" ") || undefined} aria-invalid={invalid || undefined}
     type="text" inputMode="text" autoComplete="off" spellCheck={false} disabled={disabled}
-    className={className} value={draft ?? formatTime(value)} placeholder={example}
+    className={className} value={draft ?? formatTime(value)}
     onChange={event => {
       const text = event.target.value; setDraft(text);
       const parsed = parseTime(text);

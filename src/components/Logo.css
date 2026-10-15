@@ -1,4 +1,4 @@
-/* Preserve the existing header footprint; only the light artwork loses its tile. */
+/* Preserve the approved geometry and footprint with transparent theme-aware UI artwork. */
 .nesmi-logo .nesmi-header-icon {
   background: transparent;
   color: #141414;
@@ -21,13 +21,14 @@
 }
 
 :is(.dark, [data-theme="dark"], [data-theme="crystal-dark"], [data-theme="midnight"]) .nesmi-logo .nesmi-header-icon {
-  background: #000;
+  background: transparent;
+  color: #f4f4f4;
 }
 
 :is(.dark, [data-theme="dark"], [data-theme="crystal-dark"], [data-theme="midnight"]) .nesmi-logo .nesmi-header-glyph {
-  display: none;
+  display: block;
 }
 
 :is(.dark, [data-theme="dark"], [data-theme="crystal-dark"], [data-theme="midnight"]) .nesmi-logo .nesmi-header-dark-artwork {
-  display: block;
+  display: none;
 }

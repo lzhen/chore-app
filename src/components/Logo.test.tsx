@@ -25,15 +25,15 @@ describe('approved Nesmi web artwork', () => {
     expect(logoCss).toMatch(/\.nesmi-logo \.nesmi-header-dark-artwork\s*\{\s*display: none;/);
   });
 
-  it('preserves the approved original PNG and tile in all dark themes', () => {
+  it('preserves approved geometry with transparent light artwork in all dark themes', () => {
     const { container } = render(<Logo />);
     const icon = container.querySelector<HTMLImageElement>('.nesmi-header-dark-artwork');
     expect(icon?.getAttribute('src')).toBe(artworkUrl);
     expect(icon?.getAttribute('alt')).toBe('');
     const darkSelector = ':is(.dark, [data-theme="dark"], [data-theme="crystal-dark"], [data-theme="midnight"])';
-    expect(logoCss).toContain(`${darkSelector} .nesmi-logo .nesmi-header-icon {\n  background: #000;`);
-    expect(logoCss).toContain(`${darkSelector} .nesmi-logo .nesmi-header-glyph {\n  display: none;`);
-    expect(logoCss).toContain(`${darkSelector} .nesmi-logo .nesmi-header-dark-artwork {\n  display: block;`);
+    expect(logoCss).toContain(`${darkSelector} .nesmi-logo .nesmi-header-icon {\n  background: transparent;`);
+    expect(logoCss).toContain(`${darkSelector} .nesmi-logo .nesmi-header-glyph {\n  display: block;`);
+    expect(logoCss).toContain(`${darkSelector} .nesmi-logo .nesmi-header-dark-artwork {\n  display: none;`);
   });
 
   it('gives repeated logos independent mask and filter IDs', () => {
