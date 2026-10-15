@@ -20,15 +20,15 @@ describe('ChoreModal starter drafts', () => {
     render(<ChoreModal isOpen onClose={onClose} defaultValues={{title: 'Wash dishes', recurrence: 'daily', estimatedMinutes: 15}}/>);
 
     expect(screen.getByRole('textbox', {name: 'What needs doing?'})).toHaveValue('Wash dishes');
-    expect(screen.getByRole('combobox', {name: 'Who’s responsible?'})).toHaveValue('');
-    expect(screen.getByRole('combobox', {name: 'Repeat'})).toHaveValue('daily');
+    expect(screen.getByRole('combobox', {name: 'Who’s responsible?'})).toHaveTextContent('Unassigned — decide later');
+    expect(screen.getByRole('combobox', {name: 'Repeat'})).toHaveTextContent('Every day');
     expect(screen.getByRole('spinbutton', {name: 'Estimated minutes · optional'})).toHaveValue(15);
     expect(app.addChore).not.toHaveBeenCalled();
     await user.clear(screen.getByRole('textbox', {name: 'What needs doing?'}));
     await user.type(screen.getByRole('textbox', {name: 'What needs doing?'}), 'Clean the kitchen');
-    await user.selectOptions(screen.getByRole('combobox', {name: 'Who’s responsible?'}), 'alex');
-    await user.selectOptions(screen.getByRole('combobox', {name: 'Repeat'}), 'weekly');
-    await user.selectOptions(screen.getByRole('combobox', {name: 'Category'}), 'cleaning');
+    await user.click(screen.getByRole('combobox', {name: 'Who’s responsible?'})); await user.click(screen.getByRole('option', {name: 'Alex'}));
+    await user.click(screen.getByRole('combobox', {name: 'Repeat'})); await user.click(screen.getByRole('option', {name: 'Every week'}));
+    await user.click(screen.getByRole('combobox', {name: 'Category'})); await user.click(screen.getByRole('option', {name: 'Cleaning'}));
     await user.clear(screen.getByRole('spinbutton', {name: 'Estimated minutes · optional'}));
     await user.type(screen.getByRole('spinbutton', {name: 'Estimated minutes · optional'}), '20');
     await user.click(screen.getByRole('button', {name: 'Add chore'}));

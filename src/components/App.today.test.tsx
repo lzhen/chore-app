@@ -34,7 +34,7 @@ describe('App first chore and Today entry', () => {
 
     expect(screen.getByRole('dialog', {name: 'Add a chore'})).toBeInTheDocument();
     expect(screen.getByRole('textbox', {name: 'What needs doing?'})).toHaveValue('Wash dishes');
-    expect(screen.getByRole('combobox', {name: 'Repeat'})).toHaveValue('daily');
+    expect(screen.getByRole('combobox', {name: 'Repeat'})).toHaveTextContent('Every day');
     expect(screen.getByRole('spinbutton', {name: 'Estimated minutes · optional'})).toHaveValue(15);
     expect(app.addChore).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', {name: 'Cancel'}));
