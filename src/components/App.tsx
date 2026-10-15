@@ -244,10 +244,11 @@ export function App() {
     {viewMode==='dashboard'&&(state.chores.length>0?<Dashboard embedded onClose={()=>setViewMode('today')}/>:<section className="chore-list-page"><div className="chore-empty"><h2>Small wins will show up here.</h2><p>Add your first chore to start seeing your household’s progress.</p><button className="chore-button primary" onClick={()=>handleAddClick()}>Add your first chore</button></div></section>)}
     {viewMode==='account'&&<AccountSettings embedded isOpen onClose={()=>setViewMode('today')}/>}
     </main>
-    {!modalOpen&&!profileMember&&!availabilityMember&&!sidebarOpen&&<div className="chore-floating-actions" aria-label="Calendar actions">
+    {!modalOpen&&!profileMember&&!availabilityMember&&!sidebarOpen&&<div className="chore-floating-actions nesmi-add-actions" aria-label="Calendar actions">
       {state.chores.length>0&&['calendar','list'].includes(viewMode)&&<QuickAddButton onClick={()=>handleAddClick()}/>}
-      {viewMode==='calendar'&&<div className="chore-desktop-assistant"><AgentPanel/></div>}
+      
     </div>}
+    <div className="chore-floating-actions" aria-label="Assistant actions"><AgentPanel suspended={modalOpen || !!profileMember || !!availabilityMember || sidebarOpen || shortcutsOpen} showTrigger={viewMode !== 'account'}/></div>
    </div>
    <ChoreModal isOpen={modalOpen} onClose={handleCloseModal} editChore={editChore} instanceDate={instanceDate} defaultValues={defaultValues}/>
    {profileMember&&<MemberProfileModal member={profileMember} onClose={()=>setProfileMember(null)}/>}
