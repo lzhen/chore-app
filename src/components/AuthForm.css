@@ -3,3 +3,25 @@
   font-size: max(16px, 1rem);
   min-height: 48px;
 }
+
+/* Compact entry: the form remains the first task on small screens. */
+.chore-auth .nesmi-auth-header { margin-bottom: 24px; }
+.chore-auth .nesmi-auth-layout { gap: 48px; }
+.chore-auth .nesmi-auth-form { min-width: 0; }
+.chore-auth .nesmi-auth-message { overflow-wrap: anywhere; }
+.chore-auth button:disabled { opacity: .65; cursor: wait; }
+@media (max-width: 767px) {
+  .chore-auth { padding-inline: 20px; }
+  .chore-auth .nesmi-auth-layout { display: block; flex: none; margin-block: 0; }
+  .chore-auth .nesmi-auth-story { display: none; }
+  .chore-auth .nesmi-auth-form { padding: 24px 20px; }
+  .chore-auth .nesmi-auth-footer { margin-top: 24px; flex-wrap: wrap; gap: 8px; }
+}
+@media (max-width: 360px) {
+  .chore-auth { padding-inline: 12px; }
+  .chore-auth .nesmi-auth-form { padding: 20px 16px; }
+}
+
+/* Explicit focus state survives the loaded input cascade without changing bounds. */
+.chore-auth .fluent-input:focus-visible,
+.chore-auth button:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 3px; }

@@ -14,8 +14,8 @@ export function EventPopover({ instance, onEdit, onComplete, onClose }: EventPop
   const date = parseDate(instance.date).toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric', year:'numeric' });
   const time = instance.dueTime ? `${formatTime(instance.dueTime)}${instance.endTime ? ` – ${formatTime(instance.endTime)}` : ''}` : 'All day';
   return <Dialog title={instance.title} variant="centered" onClose={onClose} footer={<>
-    <button type="button" onClick={onComplete} className="chore-button secondary">{instance.isCompleted ? 'Mark incomplete' : 'Mark complete'}</button>
-    <button type="button" onClick={onEdit} className="chore-button primary">Edit</button>
+    <button type="button" onClick={onComplete} className="chore-button primary">{instance.isCompleted ? 'Mark incomplete' : 'Mark complete'}</button>
+    <button type="button" onClick={onEdit} className="chore-button secondary">Edit</button>
   </>}>
     <div className="nesmi-task-details">
       <p>{date}<span aria-hidden="true"> · </span>{time}</p>

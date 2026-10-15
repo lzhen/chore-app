@@ -23,7 +23,7 @@ const calendarViews = [
 
 interface CalendarProps {
   onAddClick: (defaultValues?: { date?: string; startTime?: string; endTime?: string; allDay?: boolean }) => void;
-  onEventClick: (chore: Chore, instanceDate: string) => void;
+  onEventClick: (chore: Chore, instanceDate: string, onReturn?: () => void) => void;
   searchQuery?: string;
   hiddenMembers?: Set<string>;
 }
@@ -86,6 +86,13 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
         end
       );
     }, [state.chores, state.teamMembers, state.completions]);
+
+    // Resolve details from current data after editing; never resurrect deleted tasks.
+    const detailChore = state.chores.find(chore => chore.id === popover.chore?.id);
+    const detailDate = detailChore?.recurrence === 'none' ? detailChore.date : popover.instance?.date;
+    const detailInstance = detailChore && detailDate
+      ? generateChoreInstances([detailChore], state.teamMembers, state.completions, new Date(detailDate + 'T12:00:00'), new Date(detailDate + 'T12:00:00'))[0]
+      : undefined;
 
     // Apply search filter and visibility filter
     const filteredInstances = useMemo(() => {
@@ -254,14 +261,14 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
 
     // Popover actions
     const handlePopoverEdit = () => {
-      if (popover.chore && popover.instance) {
-        onEventClick(popover.chore, popover.instance.date);
+      if (detailChore && detailInstance) {
+        onEventClick(detailChore, detailInstance.date, () => setPopover(previous => ({ ...previous, visible: true })));
         setPopover(prev => ({ ...prev, visible: false }));
       }
     };
 
     const handlePopoverComplete = () => {
-      if(popover.instance) setCompletionInstance(popover.instance);
+      if(detailInstance) setCompletionInstance(detailInstance);
       setPopover(prev=>({...prev,visible:false}));
     };
 
@@ -361,10 +368,10 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
         </section>
 
         {/* Event Popover */}
-        {popover.visible && popover.instance && popover.chore && (
+        {popover.visible && detailInstance && detailChore && (
           <EventPopover
-            instance={popover.instance}
-            chore={popover.chore}
+            instance={detailInstance}
+            chore={detailChore}
             position={popover.position}
             onEdit={handlePopoverEdit}
             onComplete={handlePopoverComplete}

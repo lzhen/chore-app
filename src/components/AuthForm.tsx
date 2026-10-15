@@ -12,18 +12,28 @@ export function AuthForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const previousMode = useRef(mode);
+  useLayoutEffect(() => {
+    if (previousMode.current !== mode) titleRef.current?.focus();
+    previousMode.current = mode;
+  }, [mode]);
   const passwordRef = useRef<HTMLInputElement>(null);
   const passwordSelection = useRef<[number|null,number|null]|null>(null);
   useLayoutEffect(()=>{const selection=passwordSelection.current;if(selection&&passwordRef.current){passwordRef.current.setSelectionRange(selection[0],selection[1]);passwordSelection.current=null;}},[showPassword]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const submitting = useRef(false);
   const [message, setMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting.current) return;
+    submitting.current = true;
     setError(null);
     setMessage(null);
     setLoading(true);
+    try {
 
     if (mode === 'forgotPassword') {
       const { error } = await resetPassword(email.trim().toLowerCase());
@@ -46,10 +56,18 @@ export function AuthForm() {
       }
     }
 
-    setLoading(false);
+    } catch {
+      setError("We couldn’t connect. Check your connection and try again. Your entries are still here.");
+    } finally {
+      submitting.current = false;
+      setLoading(false);
+    }
   };
 
   const switchMode = (newMode: AuthMode) => {
+    if (submitting.current) return;
+    setPassword('');
+    setShowPassword(false);
     setMode(newMode);
     setError(null);
     setMessage(null);
@@ -67,7 +85,7 @@ export function AuthForm() {
   };
 
   const getButtonText = () => {
-    if (loading) return 'Loading...';
+    if (loading) return mode === 'signUp' ? 'Creating account…' : mode === 'forgotPassword' ? 'Sending reset link…' : 'Signing in…';
     switch (mode) {
       case 'signUp':
         return 'Sign Up';
@@ -99,16 +117,18 @@ export function AuthForm() {
           </section>
           <section className="nesmi-auth-form">
           <p className="nesmi-eyebrow">{mode === 'signUp' ? 'MAKE YOURSELF AT HOME' : mode === 'forgotPassword' ? 'LET’S GET YOU BACK IN' : 'WELCOME HOME'}</p>
-          <h2 id="nesmi-auth-title">{getTitle()}</h2>
+          <h2 id="nesmi-auth-title" ref={titleRef} tabIndex={-1}>{getTitle()}</h2>
           <p className="nesmi-auth-form-description">{isPreview ? (mode === 'signUp' ? 'Account creation is unavailable in this preview.' : mode === 'forgotPassword' ? 'Password resets are unavailable in this preview.' : 'Return to the sample household.') : mode === 'signUp' ? 'Start with one chore. Build a routine that works for you.' : mode === 'forgotPassword' ? 'We’ll email you a link to reset your password.' : 'Your household, all in one place.'}</p>
 
           {isPreview&&<p className="chore-notice" role="note">Preview only. Use preview@example.test and a sample password (6+ characters), not your real password. No real accounts or emails.</p>}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" aria-labelledby="nesmi-auth-title" aria-busy={loading}>
             <div>
               <label htmlFor="email" className="fluent-label block text-sm font-medium text-content-primary mb-1">
                 Email
               </label>
               <input
+                disabled={loading}
+                aria-describedby={error || message ? 'nesmi-auth-feedback' : undefined}
                 id="email"
                 type="email"
                 value={email}
@@ -130,6 +150,8 @@ export function AuthForm() {
                 </label>
                 <div className="relative">
                   <input
+                    disabled={loading}
+                    aria-describedby={error || message ? 'nesmi-auth-feedback' : undefined}
                     id="password"
                     ref={passwordRef}
                     type={showPassword ? 'text' : 'password'}
@@ -141,7 +163,7 @@ export function AuthForm() {
                     autoComplete={isPreview || mode === 'signUp' ? 'new-password' : 'current-password'}
                     className="fluent-input w-full pr-16"
                     required
-                    minLength={6}
+                    minLength={mode === 'signUp' ? 6 : undefined}
                   />
                   <button
                     type="button"
@@ -159,13 +181,13 @@ export function AuthForm() {
 
             {error && (
               <div className="chore-error nesmi-auth-message">
-                <span role="alert">{error}</span>
+                <span id="nesmi-auth-feedback" role="alert">{error}</span>
               </div>
             )}
 
             {message && (
               <div className="nesmi-auth-message is-success">
-                <span role="status">{message}</span>
+                <span id="nesmi-auth-feedback" role="status">{message}</span>
               </div>
             )}
 
@@ -181,6 +203,7 @@ export function AuthForm() {
           {mode === 'signIn' && (
             <div className="mt-3 text-center">
               <button
+                disabled={loading}
                 onClick={() => switchMode('forgotPassword')}
                 className="nesmi-auth-text-action"
               >
@@ -192,6 +215,7 @@ export function AuthForm() {
           <div className="mt-4 text-center">
             {mode === 'forgotPassword' ? (
               <button
+                disabled={loading}
                 onClick={() => switchMode('signIn')}
                 className="nesmi-auth-text-action"
               >
@@ -199,6 +223,7 @@ export function AuthForm() {
               </button>
             ) : (
               <button
+                disabled={loading}
                 onClick={() => switchMode(mode === 'signUp' ? 'signIn' : 'signUp')}
                 className="nesmi-auth-text-action"
               >

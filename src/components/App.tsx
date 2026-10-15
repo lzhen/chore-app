@@ -26,6 +26,7 @@ export function App() {
   const { user, loading: authLoading, isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset } = useAuth();
   const calendarRef = useRef<CalendarRef>(null);
   const activeEditorRef = useRef<ChoreEditorHandle>(null);
+  const editorReturnRef = useRef<(() => void) | undefined>(undefined);
   const requestTransition = useCallback((action: () => void) => {
     if(activeEditorRef.current)activeEditorRef.current.requestTransition(action);else action();
   }, []);
@@ -78,13 +79,15 @@ export function App() {
   }), [requestTransition]);
 
   const handleAddClick = (values?: ChoreDefaultValues) => requestTransition(() => {
+    editorReturnRef.current = undefined;
     setEditChore(null);
     setInstanceDate(undefined);
     setDefaultValues(values);
     setModalOpen(true);
   });
 
-  const handleEventClick = (chore: Chore, date: string) => requestTransition(() => {
+  const handleEventClick = (chore: Chore, date: string, onReturn?: () => void) => requestTransition(() => {
+    editorReturnRef.current = onReturn;
     setEditChore(chore);
     setInstanceDate(date);
     setDefaultValues(undefined);
@@ -92,6 +95,9 @@ export function App() {
   });
 
   const handleCloseModal = () => {
+    const returnToDetails = editorReturnRef.current;
+    editorReturnRef.current = undefined;
+    returnToDetails?.();
     setModalOpen(false);
     setEditChore(null);
     setInstanceDate(undefined);

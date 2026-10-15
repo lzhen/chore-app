@@ -153,3 +153,24 @@ describe('calendar scheduling contracts remain unchanged', () => {
     expect((calendar.props.events as EventInput[]).map(event => event.id)).toEqual(['two']);
   });
 });
+
+
+it('returns from editing to current details, and never revives a deleted task', async () => {
+  const user = userEvent.setup();
+  const onEventClick = vi.fn();
+  const view = render(<Calendar onAddClick={vi.fn()} onEventClick={onEventClick}/>);
+  act(() => (calendar.props.eventClick as Function)({event: {extendedProps: {choreId: 'one', instanceDate: chore.date}}, el: document.createElement('button')}));
+  await user.click(screen.getByRole('button', {name: 'Edit'}));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  const returnToDetails = onEventClick.mock.calls[0][2];
+  app.state.chores = [{...chore, title: 'Updated plants', date: '2026-10-14', dueTime: '14:30'}];
+  view.rerender(<Calendar onAddClick={vi.fn()} onEventClick={onEventClick}/>);
+  act(returnToDetails);
+  expect(screen.getByRole('dialog', {name: 'Updated plants'})).toHaveTextContent('Oct 14');
+  await user.click(screen.getByRole('button', {name: 'Edit'}));
+  expect(onEventClick.mock.calls[1][0].title).toBe('Updated plants');
+  app.state.chores = [];
+  view.rerender(<Calendar onAddClick={vi.fn()} onEventClick={onEventClick}/>);
+  act(onEventClick.mock.calls[1][2]);
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});

@@ -9,6 +9,7 @@ import { useInteractionMode } from '../hooks/useInteractionMode';
 import './ChoreModal.css';
 import { DateField } from './DateField';
 import { TimeInput } from './TimeInput';
+import { EstimateField } from './EstimateField';
 export interface ChoreDefaultValues {
  title?:string;
  date?:string;
@@ -94,7 +95,7 @@ export const ChoreEditor = forwardRef<ChoreEditorHandle, Props>(function ChoreEd
  <details className="chore-advanced" open={hasAdvancedDetails||undefined}><summary>Advanced</summary>
  <label className="chore-label" htmlFor="chore-priority">Priority<ChoicePicker id="chore-priority" className="chore-input" label="Priority" value={priority} onChange={value=>setPriority(value as Priority)} options={[{id:'low',label:'Low'},{id:'medium',label:'Normal'},{id:'high',label:'High'}]}/></label>
  {state.categories.length>0&&<label className="chore-label" htmlFor="chore-category">Category<ChoicePicker id="chore-category" className="chore-input" label="Category" value={category} onChange={setCategory} options={[{id:'',label:'No category'},...state.categories.map(c=>({id:c.id,label:c.name}))]}/></label>}
- {input('Estimated minutes · optional','chore-estimate',estimate,setEstimate,'number')}
+ <EstimateField value={estimate} onChange={setEstimate}/>
  </details>
  </details>
 

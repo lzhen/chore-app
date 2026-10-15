@@ -196,7 +196,7 @@ describe('Integration Tests: Full Auth Flows', () => {
       expect(screen.getByText('Reset your password')).toBeInTheDocument();
 
       // Step 2: Password field should be hidden
-      expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/^password$/i, { selector: 'input' })).not.toBeInTheDocument();
 
       // Step 3: Enter email
       await user.type(screen.getByLabelText(/email/i), 'forgot@example.com');

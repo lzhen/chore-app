@@ -78,3 +78,21 @@
 .chore-empty p.chore-muted { font-size: var(--nesmi-type-support); }
 .chore-summary-line { font-size: var(--nesmi-type-support); line-height: var(--nesmi-leading-support); }
 .chore-summary-minute-note, .chore-filter-reset { font-size: var(--nesmi-type-label); line-height: var(--nesmi-leading-label); }
+
+/* Final shared control contract: one source, resolved through the active theme. */
+.chore-input, .chore-auth .fluent-input, .nesmi-auth-state .fluent-input {
+  padding: 12px;
+}
+:root:not(.dark):not([data-theme="dark"]):not([data-theme="crystal-dark"]):not([data-theme="midnight"]) :is(.chore-input, .chore-auth .fluent-input, .nesmi-auth-state .fluent-input),
+:root:not(.dark):not([data-theme="dark"]):not([data-theme="crystal-dark"]):not([data-theme="midnight"]) button.nesmi-choice-trigger.chore-input {
+  background: #fff;
+}
+.chore-input::placeholder, .chore-auth .fluent-input::placeholder, .nesmi-auth-state .fluent-input::placeholder { color: var(--text-secondary); opacity: 1; }
+.chore-dialog-header > .touch-button { width: 44px; height: 48px; flex-shrink: 0; }
+.chore-dialog .nesmi-date-toolbar { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 8px; }
+.nesmi-date-toolbar > strong { text-align: center; overflow-wrap: anywhere; }
+.chore-dialog-footer > .chore-button, .nesmi-inline-editor-footer > .chore-button { min-height: 48px; }
+.nesmi-estimate-field { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.nesmi-estimate-field > input { min-width: 0; flex: 1; }
+.nesmi-estimate-field > button { width: 48px; height: 48px; padding: 0; flex: 0 0 48px; }
+.nesmi-estimate-field > button:disabled { opacity: .5; cursor: not-allowed; }

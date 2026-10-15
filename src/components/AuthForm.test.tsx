@@ -64,7 +64,7 @@ describe('AuthForm', () => {
 
     expect(screen.getByText('Reset your password')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send reset link/i })).toBeInTheDocument();
-    expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/password/i, { selector: 'input' })).not.toBeInTheDocument();
   });
 
   it('returns to sign in mode from forgot password mode', async () => {

@@ -99,7 +99,7 @@ describe('calendar presentation with FullCalendar', () => {
     expect(within(details).getByText('Keep the full chore details available.')).toBeVisible();
     expect(within(details).getByText(`${formatTime('09:30')} – ${formatTime('10:30')}`, {exact:false})).toBeVisible();
     await user.click(within(details).getByRole('button', { name: 'Edit' }));
-    expect(onEventClick).toHaveBeenCalledExactlyOnceWith(chore, '2026-10-10');
+    expect(onEventClick).toHaveBeenCalledExactlyOnceWith(chore, '2026-10-10', expect.any(Function));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
