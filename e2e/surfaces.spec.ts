@@ -37,14 +37,18 @@ async function fixture(page:Page,width=390,empty=false){
 
 for(const theme of ['light','dark']) for(const width of [390,1440]) test(`unified product surfaces ${theme} ${width}`,async({page},info)=>{
  const {calls}=await fixture(page,width);
- await page.getByRole('combobox',{name:/Theme:/}).click();
- await page.getByRole('option',{name:theme==='dark'?/Dark A quieter/:/Light A brighter/}).click();
+ if(await page.locator('html').getAttribute('data-theme')!==theme) await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
+ await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
  const brand=page.locator('.chore-brand .nesmi-logo');
  const mark=brand.locator('.nesmi-header-icon');
  await expect(mark).toBeVisible();
  await expect(mark).toHaveCSS('width','32px');
  await expect(mark).toHaveCSS('height','32px');
- await expect(mark).toHaveCSS('background-color','rgb(0, 0, 0)');
+ await expect(mark).toHaveCSS('background-color','rgba(0, 0, 0, 0)');
+ await expect(mark).toHaveCSS('color',theme==='dark'?'rgb(244, 244, 244)':'rgb(20, 20, 20)');
+ await expect(mark.locator('svg')).toBeVisible();
+ await expect(mark.locator('svg image')).toHaveAttribute('href',/icons\/nesmi-1024-20261008\.png$/);
+ await expect(mark.locator('img')).toBeHidden();
  const icon=mark.locator('img');
  await expect(icon).toHaveAttribute('src',/icons\/nesmi-1024-20261008\.png$/);
  await expect(icon).toHaveAttribute('alt','');
