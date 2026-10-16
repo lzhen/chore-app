@@ -51,7 +51,7 @@ for(const width of [375,390,430])test(`normal save reachable; time and date surv
  await dialog.getByLabel('What needs doing?').fill('A new shared chore');
  await dialog.getByLabel('When?').fill('2026-09-27');
  await dialog.locator('summary').click();
- await dialog.getByLabel('Start time').fill('18:00');await dialog.getByLabel('End time').fill('19:00');
+ await dialog.getByRole('combobox',{name:'Start time hour',exact:true}).click();await page.getByRole('option',{name:'18',exact:true}).click();await dialog.getByRole('combobox',{name:'End time hour',exact:true}).click();await page.getByRole('option',{name:'19',exact:true}).click();
  const save=dialog.getByRole('button',{name:'Add chore',exact:true});
  const box=await save.boundingBox();expect(box).not.toBeNull();expect(box!.y+box!.height).toBeLessThanOrEqual(844);
  await page.screenshot({path:info.outputPath(`new-chore-${width}.png`),fullPage:true});
@@ -60,7 +60,7 @@ for(const width of [375,390,430])test(`normal save reachable; time and date surv
  expect(calls.filter(c=>c.table==='chores'&&c.method==='POST')).toHaveLength(1);
  await page.reload();await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Chores',exact:true}).click();
  await expect(page.getByRole('button',{name:'Edit A new shared chore'})).toContainText('Sun, Sep 27');
- await page.getByRole('button',{name:'Edit A new shared chore'}).click();await expect(page.getByLabel('End time')).toHaveValue('19:00');
+ await page.getByRole('button',{name:'Edit A new shared chore'}).click();await expect(page.getByRole('combobox',{name:'End time hour',exact:true})).toHaveText('19');await expect(page.getByRole('combobox',{name:'End time minute',exact:true})).toHaveText('00');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 test('failed save retains draft, reports error and allows retry',async({page})=>{
@@ -78,7 +78,7 @@ test('Insights and Account are top-level pages, with the correct selected tab',a
  await fixture(page);const nav=page.getByRole('navigation',{name:'Primary navigation'});for(const name of ['Insights','Account','Calendar','Today']){await nav.getByRole('button',{name,exact:true}).click();await expect(nav.getByRole('button',{name,exact:true})).toHaveAttribute('aria-current','page');await expect(page.getByRole('dialog')).toHaveCount(0);}
 });
 test('dialog isolates background controls, keeps focus and confirms draft discard',async({page})=>{
- await fixture(page);await page.getByRole('button',{name:'Add new chore'}).click();expect(await page.locator('#root').evaluate(el=>(el as HTMLElement).inert)).toBe(true);await page.getByLabel('What needs doing?').fill('Do not silently discard');await page.keyboard.press('Escape');await expect(page.getByText('Discard your unsaved changes?')).toBeVisible();await page.getByRole('button',{name:'Keep editing'}).click();await expect(page.getByLabel('What needs doing?')).toHaveValue('Do not silently discard');
+ await fixture(page);await page.getByRole('button',{name:'Add new chore'}).click();expect(await page.locator('#root').evaluate(el=>(el as HTMLElement).inert)).toBe(true);await page.getByLabel('What needs doing?').fill('Do not silently discard');await page.keyboard.press('Escape');await expect(page.getByRole('dialog',{name:'Discard changes?'})).toBeVisible();await page.getByRole('button',{name:'Keep editing'}).click();await expect(page.getByLabel('What needs doing?')).toHaveValue('Do not silently discard');
 });
 test('data load failure has retry, not a misleading empty family',async({page})=>{
  const f=await fixture(page);f.failReads();await page.reload();await expect(page.getByRole('alert')).toContainText('could not be loaded');f.recover();await page.getByRole('button',{name:'Retry',exact:true}).click();await expect(page.getByRole('button',{name:'Edit Water the plants'})).toBeVisible();

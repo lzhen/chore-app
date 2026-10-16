@@ -1,0 +1,2 @@
+import {defineConfig} from '@playwright/test';
+export default defineConfig({testDir:'./e2e',testMatch:['form-followup.spec.ts','calendar-overlay.spec.ts','ux.spec.ts','iris-alignment.spec.ts'],timeout:30000,workers:2,reporter:[['list']],use:{baseURL:'http://127.0.0.1:5202',timezoneId:'America/Los_Angeles',channel:'chrome',screenshot:'only-on-failure'},projects:[{name:'en',use:{locale:'en-US'}},{name:'zh',use:{locale:'zh-CN'}}],webServer:{command:'npm run dev -- --host 127.0.0.1 --port 5202',url:'http://127.0.0.1:5202/chore-app/',reuseExistingServer:false}});
