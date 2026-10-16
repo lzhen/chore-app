@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Nesmi",
-  "version": "1.0.0",
-  "description": "Open Nesmi and keep household tasks within reach.",
+  "version": "1.0.1",
+  "description": "Keep a private household checklist in your browser. Add, complete, and remove chores offline.",
   "action": {
     "default_title": "Nesmi",
     "default_popup": "popup.html",
@@ -17,5 +17,8 @@
     "32": "icons/nesmi-32.png",
     "48": "icons/nesmi-48.png",
     "128": "icons/nesmi-128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'none'"
   }
 }
