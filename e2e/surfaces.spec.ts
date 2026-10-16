@@ -92,7 +92,9 @@ for(const theme of ['light','dark']) for(const width of [390,1440]) test(`unifie
  await dialog.getByLabel('Notes · optional').fill('Fictional preview only');
  await page.screenshot({path:info.outputPath(`form-${theme}-${width}.png`),fullPage:true});
  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
- await dialog.getByRole('button',{name:'Discard changes',exact:true}).click();
+ const discardDialog=page.getByRole('dialog',{name:'Discard changes?',exact:true});
+ await expect(discardDialog).toBeVisible();
+ await discardDialog.getByRole('button',{name:'Discard changes',exact:true}).click();
  await expect(dialog).toHaveCount(0);
  await nav.getByRole('button',{name:'Chores',exact:true}).click();
  await page.getByRole('button',{name:'Edit Clean the kitchen counters',exact:true}).first().click();
