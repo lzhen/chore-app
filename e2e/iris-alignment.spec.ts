@@ -51,7 +51,7 @@ for(const width of [320,390,1440]) for(const theme of ['light','dark']) test(`al
  await expect(person.locator('.nesmi-choice-chevron')).toHaveCSS('transform','matrix(-1, 0, 0, -1, 0, 0)');
  await page.screenshot({path:info.outputPath(`picker-${width}-${theme}.png`)});
  await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');await expect(person).toContainText('Alex');
- await page.getByRole('button',{name:'Cancel',exact:true}).click();await expect(page.getByText('Discard your unsaved changes?')).toBeVisible();
+ await page.getByRole('button',{name:'Cancel',exact:true}).click();await expect(page.getByRole('dialog',{name:'Discard changes?'})).toBeVisible();
  await page.getByRole('button',{name:'Keep editing',exact:true}).click();await expect(person).toContainText('Alex');
  await person.click();await page.keyboard.press('Escape');await expect(menu).toHaveCount(0);await expect(page.getByRole('dialog',{name:'Add a chore'})).toBeVisible();
  await page.getByRole('button',{name:'Cancel',exact:true}).click();await page.getByRole('button',{name:'Discard changes',exact:true}).click();
