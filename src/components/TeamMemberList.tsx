@@ -103,18 +103,16 @@ export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMember
                       {onToggleMemberVisibility && (
                         <button
                           onClick={() => onToggleMemberVisibility(member.id)}
-                          className={`w-4 h-4 flex-shrink-0 rounded border transition-all ${
-                            isVisible
-                              ? 'border-accent bg-accent'
-                              : 'border-border bg-surface-tertiary'
-                          }`}
+                          className="nesmi-member-visibility"
+                          aria-label={`Show events for ${member.name}`}
+                          aria-pressed={isVisible}
                           title={isVisible ? 'Hide events' : 'Show events'}
                         >
-                          {isVisible && (
-                            <svg className="w-full h-full text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <span className="nesmi-member-check" aria-hidden="true">{isVisible && (
+                            <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                             </svg>
-                          )}
+                          )}</span>
                         </button>
                       )}
                       {/* Avatar or color dot */}

@@ -47,14 +47,24 @@ for(const width of [320,390,1440])for(const theme of ['light','dark'])test(`inli
  expect(calls.filter(c=>c.method!=='GET')).toHaveLength(0);await save.click();await expect(page.getByRole('dialog')).toHaveCount(0);expect(calls.filter(c=>c.method==='POST'&&c.table==='chores')).toHaveLength(1);
 });
 
-for(const width of [320,390,1440])for(const theme of ['light','dark'])test(`neutral task details ${width} ${theme}`,async({page},info)=>{
+for(const width of [320,390,1440])for(const theme of ['light','dark'])test(`task action hierarchy ${width} ${theme}`,async({page},info)=>{
  const {calls}=await fixture(page,width);if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
  await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Calendar',exact:true}).click();
  const event=page.locator('.fc-event').filter({hasText:'Take out the recycling'}).first();await event.click();const popover=page.locator('.event-popover');await expect(popover).toBeVisible();
  await expect(popover.getByText('Alex',{exact:true})).toBeVisible();await expect(popover.getByText('Medium',{exact:true})).toBeVisible();await expect(popover.locator('span[style*="background-color"]')).toHaveCSS('background-color','rgb(7, 93, 184)');expect(await popover.locator(':scope > div').count()).toBe(1);
- for(const name of ['Mark Complete','Edit']){const button=popover.getByRole('button',{name,exact:true});await expect(button).toHaveClass(/secondary/);const color=await button.evaluate(el=>getComputedStyle(el).backgroundColor);const channels=color.match(/\d+/g)!.slice(0,3).map(Number);expect(Math.max(...channels)-Math.min(...channels)).toBeLessThanOrEqual(5);}
+ await expect(popover.getByRole('button',{name:'Mark Complete',exact:true})).toHaveClass(/secondary/);
+ await expect(popover.getByRole('button',{name:'Edit',exact:true})).toHaveClass(/primary/);
+
  const box=await popover.boundingBox();expect(box!.x).toBeGreaterThanOrEqual(0);expect(box!.x+box!.width).toBeLessThanOrEqual(width);await page.screenshot({animations:"disabled",path:info.outputPath(`details-${width}-${theme}.png`)});
  await popover.getByRole('button',{name:'Edit',exact:true}).click();await expect(page.locator('#chore-title')).toHaveValue('Take out the recycling');await page.getByRole('button',{name:'Close dialog',exact:true}).click();
  await event.click();await popover.getByRole('button',{name:'Mark Complete',exact:true}).click();await expect(page.getByRole('dialog',{name:'Complete chore'})).toBeVisible();await page.getByRole('button',{name:'Mark done',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);expect(calls.filter(c=>c.method==='POST'&&c.table==='chore_completions')).toHaveLength(1);
  await event.click();await expect(popover.getByText('Completed',{exact:true})).toBeVisible();await expect(popover.getByRole('button',{name:'Mark Incomplete',exact:true})).toHaveClass(/secondary/);
+});
+
+for(const width of [320,1440])for(const theme of ['light','dark'])test(`layout alignment ${width} ${theme}`,async({page},info)=>{
+ const {db,calls}=await fixture(page,width);if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
+ await page.getByRole('button',{name:'Search chores',exact:true}).click();
+ const search=await page.locator('#chore-search-input').boundingBox(),content=await page.locator('.today-intro').boundingBox();expect(search!.x).toBeCloseTo(content!.x,0);expect(search!.width).toBeCloseTo(content!.width,0);
+ await page.getByRole('button',{name:'Open family menu'}).click();const check=page.locator('.nesmi-member-visibility').first();await expect(check).toHaveAttribute('aria-pressed','true');const target=await check.boundingBox(),visual=await check.locator('span').boundingBox();expect(target!.width).toBeGreaterThanOrEqual(44);expect(visual!.width).toBe(22);await check.focus();await page.keyboard.press('Space');await expect(check).toHaveAttribute('aria-pressed','false');await page.keyboard.press('Space');await expect(check).toHaveAttribute('aria-pressed','true');await page.getByRole('button',{name:'Close sidebar'}).click();
+ db.chores[0].title='Long completed task '.repeat(12);db.chore_completions=Array.from({length:8},(_,i)=>({id:`completion-${i}`,chore_id:db.chores[0].id,completed_by:A,completed_at:`2026-09-25T${String(10+i).padStart(2,'0')}:00:00Z`,instance_date:TODAY}));await page.reload();await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Insights',exact:true}).click();const list=page.locator('.nesmi-recent-completions');await expect(list.locator('.nesmi-recent-row')).toHaveCount(8);expect(await list.evaluate(el=>el.scrollHeight<=el.clientHeight+1)).toBe(true);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await list.locator('.nesmi-recent-row').last().scrollIntoViewIfNeeded();await page.screenshot({animations:'disabled',path:info.outputPath(`recent-${width}-${theme}.png`)});expect(calls.filter(c=>c.method!=='GET')).toHaveLength(0);
 });

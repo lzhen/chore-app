@@ -1,3 +1,5 @@
+import { useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { parseDate } from '../utils/dates';
 import { Chore, ChoreInstance } from '../types';
 
@@ -30,12 +32,22 @@ export function EventPopover({
   onComplete,
   onClose,
 }: EventPopoverProps) {
-  // Note: _chore is available for future enhancements (e.g., showing recurrence rule details)
-  // Adjust position to stay within viewport
-  const adjustedPosition = {
-    x: Math.max(8, Math.min(position.x, window.innerWidth - 328)),
-    y: Math.max(8, Math.min(position.y, window.innerHeight - 410)),
-  };
+  const popupRef = useRef<HTMLDivElement>(null);
+  const [adjustedPosition, setAdjustedPosition] = useState({x:16,y:16});
+  useLayoutEffect(() => {
+    const place = () => {
+      const popup = popupRef.current;
+      if (!popup) return;
+      const width = popup.offsetWidth, height = popup.offsetHeight;
+      setAdjustedPosition({
+        x: Math.max(16, Math.min(position.x, window.innerWidth - width - 16)),
+        y: Math.max(16, Math.min(position.y, window.innerHeight - height - 16)),
+      });
+    };
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [position.x, position.y, instance]);
 
   // Format date for display
   const formatDate = (dateStr: string) => {
@@ -57,8 +69,8 @@ export function EventPopover({
     return instance.dueTime;
   };
 
-  return (
-    <div
+  return createPortal(
+    <div ref={popupRef}
       className="event-popover fixed z-[200] bg-surface-primary border border-border rounded-fluent-lg shadow-fluent-28 w-80 animate-fluent-appear"
       style={{
         left: adjustedPosition.x,
@@ -67,7 +79,7 @@ export function EventPopover({
     >
       <div className="p-4">
         {/* Title */}
-        <div className="flex items-start justify-between mb-3">
+        <div className="nesmi-detail-title flex justify-between">
           <h3 className={`text-lg font-semibold text-content-primary pr-2 ${instance.isCompleted ? 'line-through opacity-70' : ''}`}>
             {instance.title}
           </h3>
@@ -82,7 +94,7 @@ export function EventPopover({
         </div>
 
         {/* Date and time */}
-        <div className="flex items-center gap-2 text-sm text-content-secondary mb-2">
+        <div className="nesmi-detail-meta text-sm text-content-secondary mb-2">
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
@@ -94,7 +106,7 @@ export function EventPopover({
 
         {/* Assignee */}
         {instance.assigneeName && (
-          <div className="flex items-center gap-2 text-sm text-content-secondary mb-2">
+          <div className="nesmi-detail-meta text-sm text-content-secondary mb-2">
             <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
@@ -109,7 +121,7 @@ export function EventPopover({
         )}
 
         {/* Priority */}
-        <div className="flex items-center gap-2 text-sm text-content-secondary mb-2">
+        <div className="nesmi-detail-meta text-sm text-content-secondary mb-2">
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
           </svg>
@@ -155,12 +167,12 @@ export function EventPopover({
           </button>
           <button
             onClick={onEdit}
-            className="chore-button secondary flex-1"
+            className="chore-button primary flex-1"
           >
             Edit
           </button>
         </div>
       </div>
-    </div>
+    </div>, document.body
   );
 }
