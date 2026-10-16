@@ -95,8 +95,9 @@
 .chore-tabs .active svg { color: var(--text-primary); background: var(--chore-blue); border-radius: 6px; box-sizing: content-box; padding: 6px 10px; margin: -6px -10px; }
 .chore-tabs .active svg { stroke: #141414; }
 
-.chore-list-page { padding: 28px 24px 100px; }
-.chore-list-page > * { max-width: 760px; }
+:root { --nesmi-page-gutter:24px; }
+.chore-list-page { padding: 28px var(--nesmi-page-gutter) 100px; }
+.chore-list-page > * { max-width: var(--nesmi-content-width); }
 .today-intro { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 22px; }
 .today-intro > div > p { font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; }
 .today-intro h2 { font-size: 40px; line-height: 1.08; font-weight: 600; letter-spacing: -.05em; margin: 0; }
@@ -175,12 +176,13 @@
   .chore-header > .touch-button:first-child { order: 2; }
   .chore-header > .touch-button:nth-last-child(2) { order: 1; }
   .chore-header > .nesmi-theme { order: 3; }
-  .chore-tabs { position: absolute; left: 0; top: 80px; bottom: 0; width: 208px; height: auto; border: 0; border-right: 1px solid var(--border-subtle); padding: 30px 20px; flex-direction: column; justify-content: flex-start; gap: 8px; }
+  .chore-tabs { position: absolute; left: 0; top: 80px; bottom: 0; width: var(--nesmi-navigation-width); height: auto; border: 0; border-right: 1px solid var(--border-subtle); padding: 30px 20px; flex-direction: column; justify-content: flex-start; gap: 8px; }
   .chore-tabs button { flex: 0 0 auto; width: 100%; max-width: none; min-height: 48px; align-items: center; justify-content: flex-start; flex-direction: row; gap: 13px; padding: 12px 16px; font-size: 13px; }
   .chore-tabs .active { background: var(--surface-tertiary); }
   .chore-tabs .active svg { background: transparent; padding: 0; margin: 0; stroke: var(--text-primary); }
-  .chore-main { margin-left: 208px; }
-  .chore-list-page { padding: 52px 48px 90px; }
+  .chore-main, .chore-search { margin-left: var(--nesmi-navigation-width); }
+  :root { --nesmi-page-gutter:48px; --nesmi-navigation-width:208px; }
+  .chore-list-page { padding: 52px var(--nesmi-page-gutter) 90px; }
   .today-intro { margin-bottom: 32px; }
   .today-intro > div > p { font-size: 12px; margin-bottom: 12px; }
   .today-intro h2 { font-size: 60px; line-height: 1.05; font-weight: 550; }

@@ -311,14 +311,14 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
               {/* Recent Activity */}
               <div>
                 <h3 className="fluent-title text-lg font-semibold text-content-primary mb-4">Recent Completions</h3>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {sortedCompletions.slice(0, 5).map((completion) => {
+                <div className="space-y-2 nesmi-recent-completions">
+                  {sortedCompletions.map((completion) => {
                     const chore = state.chores.find(c => c.id === completion.choreId);
                     const member = state.teamMembers.find(m => m.id === completion.completedBy);
                     return (
                       <div
                         key={completion.id}
-                        className="flex items-center gap-3 p-2 rounded-fluent-sm hover:bg-subtle-background-hover"
+                        className="nesmi-recent-row p-2 rounded-fluent-sm hover:bg-subtle-background-hover"
                       >
                         <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -329,9 +329,9 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                             by {member?.name || 'Unknown'}
                           </span>
                         </div>
-                        <span className="text-xs text-content-secondary flex-shrink-0">
+                        <time className="text-xs text-content-secondary" dateTime={completion.completedAt}>
                           {formatRelativeTime(completion.completedAt)}
-                        </span>
+                        </time>
                       </div>
                     );
                   })}
