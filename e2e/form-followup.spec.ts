@@ -52,6 +52,7 @@ for(const [width,height] of [[320,480],[390,844],[1440,900]])for(const theme of 
  const gap=await page.locator('.nesmi-date-field').evaluate(el=>{const a=el.querySelector('label')!.getBoundingClientRect(),b=el.querySelector('.nesmi-date-entry')!.getBoundingClientRect();return b.top-a.bottom;});expect(gap).toBe(8);
  await dialog.locator('summary').click();await expect(dialog.locator('summary')).toHaveText('More options');await expect(dialog.locator('summary small')).toHaveCount(0);await expect(dialog.locator('input[type=time],select')).toHaveCount(0);
  const hour=page.getByRole('combobox',{name:'Start time hour',exact:true}),minute=page.getByRole('combobox',{name:'Start time minute',exact:true});
+ for(const control of await dialog.locator('.nesmi-time-entry .nesmi-choice-trigger').all()){const label=control.locator('span').first();expect(await label.evaluate(el=>el.getBoundingClientRect().height)).toBeLessThan(30);}
  await hour.click();await expect(page.getByRole('listbox')).toHaveClass(/nesmi-choice-menu/);await page.getByRole('option',{name:'09',exact:true}).click();await minute.click();await page.keyboard.press('End');await page.keyboard.press('Enter');await expect(minute).toHaveText('59');await expect(minute).toBeFocused();
  await minute.click();await page.keyboard.press('Escape');await expect(page.getByRole('listbox')).toHaveCount(0);await expect(dialog).toBeVisible();
  await hour.click();await close.click();
