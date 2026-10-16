@@ -4,8 +4,8 @@ import './ChoicePicker.css';
 
 type Option = { id: string; label: string; content?: ReactNode };
 /** App-owned select: one predictable surface across browsers and input methods. */
-export function ChoicePicker({ value, options, onChange, label, children, className = '', align = 'start', id, placeholder = 'Choose an option', disabled = false }: {
-  disabled?: boolean; value: string; options: Option[]; onChange: (value: string) => void; label: string;
+export function ChoicePicker({ value, options, onChange, label, children, className = '', align = 'start', id, placeholder = 'Choose an option', disabled = false, invalid, describedBy }: {
+  invalid?:boolean; describedBy?:string; disabled?: boolean; value: string; options: Option[]; onChange: (value: string) => void; label: string;
   children?: ReactNode; className?: string; align?: 'start' | 'end'; id?: string; placeholder?: string;
 }) {
   const listId = useId();
@@ -76,7 +76,7 @@ export function ChoicePicker({ value, options, onChange, label, children, classN
     if (open) list.current?.children[activeIndex]?.scrollIntoView?.({ block: 'nearest' });
   }, [activeIndex, open]);
   return <>
-    <button disabled={disabled} id={id} ref={trigger} type="button" className={`nesmi-choice-trigger ${className}`} role="combobox" aria-label={label} aria-haspopup="listbox" aria-expanded={open} aria-controls={open ? listId : undefined} aria-activedescendant={open && options.length ? `${listId}-${activeIndex}` : undefined}
+    <button disabled={disabled} id={id} ref={trigger} type="button" className={`nesmi-choice-trigger ${className}`} role="combobox" aria-label={label} aria-invalid={invalid} aria-describedby={describedBy} aria-haspopup="listbox" aria-expanded={open} aria-controls={open ? listId : undefined} aria-activedescendant={open && options.length ? `${listId}-${activeIndex}` : undefined}
       onClick={() => open ? close() : show()} onKeyDown={event => {
         if (event.key === 'Escape' && open) { event.preventDefault(); event.stopPropagation(); close(); }
         else if (event.key === 'Tab') close(false);

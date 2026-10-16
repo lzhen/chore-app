@@ -65,12 +65,6 @@ export function EventPopover({
         top: adjustedPosition.y,
       }}
     >
-      {/* Header with color stripe */}
-      <div
-        className="h-2 rounded-t-fluent-lg"
-        style={{ backgroundColor: instance.color }}
-      />
-
       <div className="p-4">
         {/* Title */}
         <div className="flex items-start justify-between mb-3">
@@ -143,7 +137,7 @@ export function EventPopover({
 
         {/* Completion status */}
         {instance.isCompleted && (
-          <div className="flex items-center gap-2 text-sm text-green-600 mb-3">
+          <div className="flex items-center gap-2 text-sm text-content-secondary mb-3">
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
@@ -155,17 +149,13 @@ export function EventPopover({
         <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border">
           <button
             onClick={onComplete}
-            className={`flex-1 py-2 px-3 rounded-fluent-sm text-sm font-medium transition-all ${
-              instance.isCompleted
-                ? 'bg-surface-tertiary text-content-secondary hover:bg-subtle-background-hover'
-                : 'bg-green-500 text-white hover:bg-green-600'
-            }`}
+            className="chore-button secondary flex-1"
           >
             {instance.isCompleted ? 'Mark Incomplete' : 'Mark Complete'}
           </button>
           <button
             onClick={onEdit}
-            className="flex-1 py-2 px-3 rounded-fluent-sm text-sm font-medium bg-accent text-white hover:bg-accent-hover transition-all"
+            className="chore-button secondary flex-1"
           >
             Edit
           </button>
