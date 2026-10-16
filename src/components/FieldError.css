@@ -1,0 +1,4 @@
+.nesmi-field-error{display:flex;align-items:flex-start;gap:6px;margin-top:8px;color:var(--color-status-danger);font-size:13px;font-weight:400;line-height:1.5;}
+.nesmi-field-error svg{flex-shrink:0;margin-top:2px;}
+.chore-input[aria-invalid="true"]{border-color:var(--color-status-danger);}
+.chore-input[aria-invalid="true"]:focus{outline-color:var(--color-status-danger);}
