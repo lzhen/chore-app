@@ -3,3 +3,4 @@
 .nesmi-time-entry{display:flex;gap:4px;align-items:center;}
 .nesmi-time-entry>.nesmi-choice-trigger.chore-input{min-width:0;flex:1;padding:12px 8px;gap:4px;}
 .nesmi-time-clear{min-height:44px;font-size:13px;color:var(--text-secondary);text-decoration:underline;}
+@media(max-width:480px){.chore-time-row:has(.nesmi-time-field){grid-template-columns:minmax(0,1fr);gap:0;}}
