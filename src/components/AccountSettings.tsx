@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { AccountTools } from './AccountTools';
-import { ThemeSelector } from './ThemeSelector';
 
 interface AccountSettingsProps {
   isOpen: boolean;
@@ -41,14 +40,6 @@ export function AccountSettings({ isOpen, onClose, embedded=false }: AccountSett
             <p className="mt-1 text-sm text-content-secondary">{user?.email}</p>
           </div>
           <button hidden={embedded} onClick={onClose} className="p-2 text-content-secondary hover:text-content-primary" aria-label="Close account settings">✕</button>
-        </div>
-
-        <div className="mt-6 border-t border-border pt-5">
-          <h3 className="font-medium text-content-primary">Appearance</h3>
-          <p className="mt-1 text-sm text-content-secondary">Choose how Nesmi looks on this device.</p>
-          <div className="mt-3 inline-flex rounded-fluent-md border border-border">
-            <ThemeSelector />
-          </div>
         </div>
 
         <AccountTools/>

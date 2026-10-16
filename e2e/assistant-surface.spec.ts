@@ -69,9 +69,8 @@ for(const width of [320,390,768,1440]) for(const theme of ['light','dark']) test
  await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Notifications',exact:true})).toBeVisible();
  await expect(page.getByRole('heading',{name:'Google Calendar',exact:true})).toBeVisible();
- await expect(page.locator('.nesmi-workload')).not.toHaveAttribute('open','');
- await page.locator('.nesmi-workload summary').click();
- await expect(page.getByRole('heading',{name:'Team Stats (Last 7 Days)',exact:true})).toBeVisible();
+ await expect(page.locator('.nesmi-workload')).toHaveCount(0);
+ await expect(page.getByRole('heading',{name:'Appearance',exact:true})).toHaveCount(0);
  await page.screenshot({path:info.outputPath(`account-${width}-${theme}.png`),fullPage:true});
  await expect(page.locator('body')).toHaveJSProperty('scrollWidth',width);
  await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Today',exact:true}).click();
