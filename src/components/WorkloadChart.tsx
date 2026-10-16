@@ -65,12 +65,6 @@ export function WorkloadChart({ members, chores, dateRange }: WorkloadChartProps
 
   const maxMinutes = Math.max(...workloadData.map(d => Math.max(d.assignedMinutes, d.capacityMinutes)), 1);
 
-  const getUtilizationColor = (percent: number) => {
-    if (percent <= 70) return 'bg-green-500';
-    if (percent <= 90) return 'bg-yellow-500';
-    return 'bg-red-500';
-  };
-
   const formatMinutes = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -92,19 +86,19 @@ export function WorkloadChart({ members, chores, dateRange }: WorkloadChartProps
       {/* Summary */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="fluent-surface p-3 rounded-fluent-md border border-border text-center">
-          <div className="text-lg font-bold text-green-500">
+          <div className="text-lg font-bold text-content-primary">
             {workloadData.filter(d => d.utilizationPercent <= 70).length}
           </div>
           <div className="text-xs text-content-secondary">Under Capacity</div>
         </div>
         <div className="fluent-surface p-3 rounded-fluent-md border border-border text-center">
-          <div className="text-lg font-bold text-yellow-500">
+          <div className="text-lg font-bold text-content-primary">
             {workloadData.filter(d => d.utilizationPercent > 70 && d.utilizationPercent <= 90).length}
           </div>
           <div className="text-xs text-content-secondary">Near Capacity</div>
         </div>
         <div className="fluent-surface p-3 rounded-fluent-md border border-border text-center">
-          <div className="text-lg font-bold text-red-500">
+          <div className="text-lg font-bold text-content-primary">
             {workloadData.filter(d => d.utilizationPercent > 90).length}
           </div>
           <div className="text-xs text-content-secondary">Over Capacity</div>
@@ -115,8 +109,8 @@ export function WorkloadChart({ members, chores, dateRange }: WorkloadChartProps
       <div className="space-y-3">
         {workloadData.map(({ member, assignedMinutes, capacityMinutes, utilizationPercent, choreCount }) => (
           <div key={member.id} className="fluent-surface p-3 rounded-fluent-md border border-border">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 {member.avatarUrl ? (
                   <img
                     src={member.avatarUrl}
@@ -135,10 +129,7 @@ export function WorkloadChart({ members, chores, dateRange }: WorkloadChartProps
                 <span className="text-xs text-content-secondary">({choreCount} chores)</span>
               </div>
               <div className="text-right">
-                <span className={`text-sm font-bold ${
-                  utilizationPercent <= 70 ? 'text-green-500' :
-                  utilizationPercent <= 90 ? 'text-yellow-500' : 'text-red-500'
-                }`}>
+                <span className="text-sm font-bold text-content-primary">
                   {utilizationPercent}%
                 </span>
                 <span className="text-xs text-content-secondary ml-1">
@@ -156,7 +147,7 @@ export function WorkloadChart({ members, chores, dateRange }: WorkloadChartProps
               />
               {/* Assigned bar */}
               <div
-                className={`absolute h-full ${getUtilizationColor(utilizationPercent)} transition-all duration-300`}
+                className="absolute h-full bg-content-primary transition-all duration-300"
                 style={{ width: `${(assignedMinutes / maxMinutes) * 100}%` }}
               />
               {/* Capacity line */}
@@ -169,21 +160,6 @@ export function WorkloadChart({ members, chores, dateRange }: WorkloadChartProps
         ))}
       </div>
 
-      {/* Legend */}
-      <div className="flex justify-center gap-6 pt-4 text-xs text-content-secondary">
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-green-500" />
-          <span>Under 70%</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-yellow-500" />
-          <span>70-90%</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-red-500" />
-          <span>Over 90%</span>
-        </div>
-      </div>
     </div>
   );
 }

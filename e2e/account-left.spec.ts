@@ -8,6 +8,7 @@ async function fixture(page:Page,width=390,empty=false){
  await page.setViewportSize({width,height:844});await page.clock.setFixedTime(new Date('2026-09-25T19:00:00Z'));
  const user={id:OWNER,email:'release-test@example.test',aud:'authenticated',role:'authenticated',app_metadata:{},user_metadata:{},created_at:'2026-01-01T00:00:00Z'};
  const token='eyJhbGciOiJIUzI1NiJ9.'+Buffer.from(JSON.stringify({sub:OWNER,exp:2000000000,role:'authenticated'})).toString('base64url')+'.test-only';
+ await page.addInitScript(()=>{Object.defineProperty(window,'Notification',{configurable:true,value:class {static permission='default';static requestPermission=async()=> 'default';}})});
  await page.addInitScript(({user,token})=>{localStorage.setItem('sb-rosofbnimiothwxsabyr-auth-token',JSON.stringify({access_token:token,refresh_token:'mock-only',expires_at:2000000000,expires_in:999999,user,token_type:'bearer'}));},{user,token});
  const db:Record<string,any[]>={team_members:[{id:A,name:'Alex',color:'#075db8',points:0,badges:[],created_at:TODAY},{id:B,name:'Jamie',color:'#8759bb',points:0,badges:[],created_at:TODAY}],categories:[],chore_completions:[],member_availability:[],chores:empty?[]:[
   {id:'11111111-1111-4111-8111-111111111111',title:'Take out the recycling',date:TODAY,due_time:'18:00:00',end_time:'19:00:00',assignee_id:A,recurrence:'none',priority:'medium'},
@@ -40,7 +41,15 @@ for(const width of [320,390,768,1440]) for(const theme of ['light','dark']) test
  const {calls}=await fixture(page,width);
  if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
  await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
- const appearance=await page.getByRole('heading',{name:'Appearance',exact:true}).boundingBox();
+ const opposite=theme==='light'?'dark':'light';
+ await expect(page.getByRole('button',{name:`Switch to ${opposite} mode`,exact:true})).toHaveCount(1);
+ await page.getByRole('button',{name:`Switch to ${opposite} mode`,exact:true}).click();
+ await expect(page.locator('html')).toHaveAttribute('data-theme',opposite);
+ await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
+ await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
+ await expect(page.getByRole('heading',{name:'Appearance',exact:true})).toHaveCount(0);
+ await expect(page.getByText('Workload Balance',{exact:true})).toHaveCount(0);
+ const appearance=await page.getByRole('heading',{name:'Notifications',exact:true}).boundingBox();
  for(const [heading,button] of [['Notifications','Enable Reminders'],['Google Calendar','Connect Google Calendar']]){
   const h=page.getByRole('heading',{name:heading,exact:true}),b=page.getByRole('button',{name:button,exact:true});
   await expect(b).toBeVisible();const hb=await h.boundingBox(),bb=await b.boundingBox();
@@ -51,4 +60,42 @@ for(const width of [320,390,768,1440]) for(const theme of ['light','dark']) test
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.screenshot({path:info.outputPath(`account-${width}-${theme}.png`),fullPage:true});
  expect(calls.filter(c=>c.method!=='GET')).toHaveLength(0);
+});
+
+for(const width of [320,1440]) for(const theme of ['light','dark']) test(`neutral workload ${width} ${theme}`,async({page},info)=>{
+ const {calls}=await fixture(page,width);
+ if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Insights',exact:true}).click();
+ await page.getByRole('button',{name:'Workload',exact:true}).click();
+ await expect(page.getByText('Under 70%',{exact:true})).toHaveCount(0);
+ await expect(page.getByText('70-90%',{exact:true})).toHaveCount(0);
+ await expect(page.getByText('Over 90%',{exact:true})).toHaveCount(0);
+ await expect(page.getByText('Under Capacity',{exact:true})).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:info.outputPath(`workload-${width}-${theme}.png`),fullPage:true});
+ expect(calls.filter(c=>c.method!=='GET')).toHaveLength(0);
+});
+for(const outcome of ['denied','default','granted','error']) test(`reminder feedback ${outcome}`,async({page},info)=>{
+ await fixture(page,390);
+ await page.evaluate(outcome=>{Object.defineProperty(window,'Notification',{configurable:true,value:class {static permission='default';static requestPermission=()=>{document.body.dataset.permissionGesture=String(navigator.userActivation.isActive);if(outcome==='error')return Promise.reject(new Error('mock'));this.permission=outcome;return Promise.resolve(outcome);};close(){}}});},outcome);
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
+ await page.getByRole('button',{name:'Enable Reminders',exact:true}).click();
+ await expect(page.locator('body')).toHaveAttribute('data-permission-gesture','true');
+ await expect(page.locator('#notification-feedback')).toContainText({denied:'blocked',default:'not allowed',granted:'Permission allowed',error:'Could not enable'}[outcome]!);
+ await page.screenshot({path:info.outputPath(`reminder-${outcome}.png`),fullPage:true});
+});
+
+for(const state of ['denied','unsupported','insecure']) test(`initial reminder state ${state}`,async({page})=>{
+ await fixture(page,320);
+ await page.addInitScript(state=>{
+  Object.defineProperty(window,'Notification',{configurable:true,value:class {static permission=state==='denied'?'denied':'default';static requestPermission=()=>{throw new Error('must not prompt');}}});
+  if(state==='unsupported')delete (window as any).Notification;
+  if(state==='insecure')Object.defineProperty(window,'isSecureContext',{configurable:true,value:false});
+ },state);
+ await page.reload();
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
+ const text={denied:'Notifications are blocked',unsupported:'Reminders are unavailable',insecure:'Reminders require HTTPS'}[state]!;
+ await expect(page.locator('#notification-feedback')).toContainText(text);
+ await page.getByRole('button',{name:'Check again',exact:true}).click();
+ await expect(page.locator('#notification-feedback')).toContainText(text);
 });

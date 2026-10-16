@@ -1,39 +1,43 @@
 import { Chore, TeamMember } from '../types';
 
-/**
- * Request notification permission from the user
- */
-export async function requestNotificationPermission(): Promise<boolean> {
-  if (!('Notification' in window)) {
-    console.log('This browser does not support notifications');
-    return false;
-  }
+import { Capacitor } from '@capacitor/core';
 
-  if (Notification.permission === 'granted') {
-    return true;
-  }
+export type NotificationState = 'default' | 'granted' | 'denied' | 'dismissed' | 'unsupported' | 'insecure' | 'native' | 'error';
 
-  if (Notification.permission !== 'denied') {
-    const permission = await Notification.requestPermission();
-    return permission === 'granted';
-  }
-
-  return false;
+export function getNotificationState(): NotificationState {
+  // This wrapper has no native local-notification plugin.
+  if (Capacitor.isNativePlatform()) return 'native';
+  if (!window.isSecureContext) return 'insecure';
+  if (!('Notification' in window) || typeof Notification.requestPermission !== 'function') return 'unsupported';
+  return Notification.permission;
 }
 
-/**
- * Check if notifications are enabled
- */
+export async function requestNotificationAccess(): Promise<NotificationState> {
+  const state = getNotificationState();
+  if (state !== 'default') return state;
+  try {
+    const permission = await Notification.requestPermission();
+    return permission === 'default' ? 'dismissed' : permission;
+  } catch {
+    return 'error';
+  }
+}
+
+export async function requestNotificationPermission(): Promise<boolean> {
+  return (await requestNotificationAccess()) === 'granted';
+}
+
 export function areNotificationsEnabled(): boolean {
-  return 'Notification' in window && Notification.permission === 'granted';
+  return getNotificationState() === 'granted';
 }
 
 /**
  * Send a browser notification
  */
-export function sendNotification(title: string, options?: NotificationOptions): void {
-  if (!areNotificationsEnabled()) return;
+export function sendNotification(title: string, options?: NotificationOptions): boolean {
+  if (!areNotificationsEnabled()) return false;
 
+  try {
   const notification = new Notification(title, {
     icon: `${import.meta.env.BASE_URL}icons/nesmi-192-20261008.png`,
     badge: `${import.meta.env.BASE_URL}icons/nesmi-192-20261008.png`,
@@ -42,15 +46,20 @@ export function sendNotification(title: string, options?: NotificationOptions): 
 
   // Auto-close after 5 seconds
   setTimeout(() => notification.close(), 5000);
+  return true;
+  } catch {
+    // Some mobile browsers expose permission but cannot construct notifications.
+    return false;
+  }
 }
 
 /**
  * Send a chore reminder notification
  */
-export function sendChoreReminder(chore: Chore, assignee?: TeamMember): void {
+export function sendChoreReminder(chore: Chore, assignee?: TeamMember): boolean {
   const assigneeText = assignee ? ` (${assignee.name})` : '';
 
-  sendNotification(`Chore Reminder: ${chore.title}`, {
+  return sendNotification(`Chore Reminder: ${chore.title}`, {
     body: `Due: ${formatDate(chore.date)}${assigneeText}`,
     tag: `chore-${chore.id}`,
   });
@@ -62,7 +71,8 @@ export function sendChoreReminder(chore: Chore, assignee?: TeamMember): void {
 export function checkAndNotifyUpcomingChores(
   chores: Chore[],
   teamMembers: TeamMember[]
-): void {
+): boolean {
+  let delivered = true;
   const today = new Date().toISOString().split('T')[0];
   const memberMap = new Map(teamMembers.map((m) => [m.id, m]));
 
@@ -77,13 +87,14 @@ export function checkAndNotifyUpcomingChores(
   for (const chore of todayChores) {
     if (!notified.has(chore.id)) {
       const assignee = chore.assigneeId ? memberMap.get(chore.assigneeId) : undefined;
-      sendChoreReminder(chore, assignee);
-      notified.add(chore.id);
+      if (sendChoreReminder(chore, assignee)) notified.add(chore.id);
+      else delivered = false;
     }
   }
 
   // Save notified chores
   sessionStorage.setItem(notifiedKey, JSON.stringify([...notified]));
+  return delivered;
 }
 
 /**

@@ -1,0 +1,15 @@
+import {beforeEach,afterEach,expect,it,vi} from 'vitest';
+import {getNotificationState,requestNotificationAccess,sendNotification} from './notifications';
+const native=vi.hoisted(()=>vi.fn());
+vi.mock('@capacitor/core',()=>({Capacitor:{isNativePlatform:native}}));
+let request:ReturnType<typeof vi.fn>;
+beforeEach(()=>{native.mockReturnValue(false);vi.stubGlobal('isSecureContext',true);request=vi.fn().mockResolvedValue('granted');vi.stubGlobal('Notification',Object.assign(vi.fn(),{permission:'default',requestPermission:request}));});
+afterEach(()=>vi.unstubAllGlobals());
+it('requests permission synchronously within the calling gesture',async()=>{const result=requestNotificationAccess();expect(request).toHaveBeenCalledTimes(1);expect(await result).toBe('granted');});
+for(const permission of ['denied','granted'] as const)it(`does not prompt again when ${permission}`,async()=>{Object.defineProperty(Notification,'permission',{value:permission});expect(await requestNotificationAccess()).toBe(permission);expect(request).not.toHaveBeenCalled();});
+it('reports dismissal distinctly from blocking',async()=>{request.mockResolvedValue('default');expect(await requestNotificationAccess()).toBe('dismissed');});
+it('reports rejected permission requests',async()=>{request.mockRejectedValue(new Error('blocked'));expect(await requestNotificationAccess()).toBe('error');});
+it('does not request in insecure contexts',async()=>{vi.stubGlobal('isSecureContext',false);expect(await requestNotificationAccess()).toBe('insecure');expect(request).not.toHaveBeenCalled();});
+it('detects browsers without Notification',()=>{delete (window as any).Notification;expect(getNotificationState()).toBe('unsupported');});
+it('does not promise browser notifications in the native wrapper',async()=>{native.mockReturnValue(true);expect(await requestNotificationAccess()).toBe('native');expect(request).not.toHaveBeenCalled();});
+it('handles browsers that expose permission but reject notification construction',()=>{vi.stubGlobal('Notification',Object.assign(vi.fn(function(){throw new Error('unsupported constructor');}),{permission:'granted',requestPermission:request}));expect(sendNotification('test')).toBe(false);});
