@@ -134,3 +134,10 @@ describe('refined choice picker interactions and bounds', () => {
     expect(screen.getByRole('option')).toHaveAttribute('tabindex', '-1');
   });
 });
+
+it('allows only one picker for synthetic clicks and keyboard opening',()=>{
+ const onChange=vi.fn();render(<><ChoicePicker value="" options={options} onChange={onChange} label="People"/><ChoicePicker value="" options={options} onChange={onChange} label="Status"/><button>Outside</button></>);
+ const [people,status]=screen.getAllByRole('combobox');fireEvent.click(people);fireEvent.click(status);expect(screen.getAllByRole('listbox')).toHaveLength(1);expect(people).toHaveAttribute('aria-expanded','false');
+ fireEvent.keyDown(people,{key:'ArrowDown'});expect(screen.getAllByRole('listbox')).toHaveLength(1);expect(status).toHaveAttribute('aria-expanded','false');
+ fireEvent.click(screen.getByRole('button',{name:'Outside'}));expect(screen.queryByRole('listbox')).toBeNull();expect(onChange).not.toHaveBeenCalled();
+});

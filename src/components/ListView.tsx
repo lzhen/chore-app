@@ -92,7 +92,7 @@ export function ListView({onAddClick, onEventClick, searchQuery='', hiddenMember
 
   return <section className="chore-list-page">
     {todayView && <>
-      <div className="today-intro"><div><p>{selectedDate.toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric'})}</p><h2>{selected === today ? 'Today' : formatDay(selected)}</h2></div><button className="today-add chore-button primary" aria-label="Add new chore" onClick={onAddClick}><span aria-hidden="true">+</span><span className="today-add-label">Add chore</span></button></div>
+      <div className="today-intro"><div><p>{selectedDate.toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric'})}</p><h2>{selected === today ? 'Today' : formatDay(selected)}</h2></div></div>
       <div className="chore-day-tools"><div className="chore-day-summary" aria-label="Selected day progress">
         <div className="chore-summary-line"><p><strong>{doneCount}</strong> of {dayInstances.length} done{who !== 'everyone' || hiddenMembers.size > 0 ? ' · selected members' : ''}</p>{pendingMinutes > 0 && <p className="chore-summary-estimate"><strong>~{pendingMinutes} min</strong><span> remaining</span></p>}</div>
         <progress className="chore-progress" value={doneCount} max={dayInstances.length || 1} aria-label={`${doneCount} of ${dayInstances.length} chores completed on ${formatDay(selected)}`}/>

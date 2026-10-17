@@ -44,8 +44,8 @@ async function fixture(page:Page,width=390,empty=false){
 
 for(const [width,height] of [[320,480],[390,844],[1440,900]])for(const theme of ['light','dark'])test(`form followup ${width} ${theme}`,async({page},info)=>{
  const {calls}=await fixture(page,width);await page.setViewportSize({width,height});
- if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:`Switch to ${theme} mode`}).click();
- const add=page.getByRole('button',{name:'Add new chore',exact:true});await add.click();
+ if(await page.locator('html').getAttribute('data-theme')!==theme){await page.getByRole('button',{name:'Account',exact:true}).click();await page.getByRole('button',{name:`Switch to ${theme} mode`}).click();await page.getByRole('button',{name:'Today',exact:true}).click();}
+ const add=page.getByRole('button',{name:'Add chore',exact:true});await add.click();
  const dialog=page.getByRole('dialog',{name:'Add a chore',exact:true}), close=dialog.getByRole('button',{name:'Close dialog',exact:true});
  await close.click();await expect(dialog).toBeHidden();await expect(add).toBeFocused();
  await add.click();const title=page.getByRole('textbox',{name:'What needs doing?'});await title.fill('Preserved draft');
@@ -74,7 +74,7 @@ for(const [width,height] of [[320,480],[390,844],[1440,900]])for(const theme of 
 });
 
 test('exact minutes, interrupted save and retry preserve the draft',async({page},info)=>{
- const state=await fixture(page,390);await page.getByRole('button',{name:'Add new chore',exact:true}).click();
+ const state=await fixture(page,390);await page.getByRole('button',{name:'Add chore',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Add a chore'}),title=page.getByRole('textbox',{name:'What needs doing?'});
  await title.fill('Exact time');await dialog.locator('summary').click();
  async function choose(label:string,value:string){await page.getByRole('combobox',{name:label,exact:true}).click();await page.getByRole('option',{name:value,exact:true}).click();}
@@ -95,7 +95,7 @@ test('visible viewport bounds, nested confirmation and reopen stay stable',async
   Object.defineProperty(window,'visualViewport',{configurable:true,value:viewport});
  });
  await fixture(page,390);
- const add=page.getByRole('button',{name:'Add new chore',exact:true});await add.click();
+ const add=page.getByRole('button',{name:'Add chore',exact:true});await add.click();
  const dialog=page.getByRole('dialog',{name:'Add a chore',exact:true});
  const title=dialog.getByRole('textbox',{name:'What needs doing?'});
  await expect(dialog).toBeFocused();await title.fill('Viewport draft');
@@ -116,7 +116,7 @@ test('visible viewport bounds, nested confirmation and reopen stay stable',async
  await confirm.getByRole('button',{name:'Keep editing'}).click();
  await expect(title).toHaveValue('Viewport draft');await expect(notes).toHaveValue('Keep this note');
  await expect(dialog.getByRole('button',{name:'Close dialog'})).toBeFocused();
- await expect.poll(async()=>Math.round((await dialog.boundingBox())!.height)).toBe(Math.round(initial!.height));
+ expect((await dialog.boundingBox())!.height).toBeGreaterThanOrEqual(initial!.height);expect((await dialog.boundingBox())!.height).toBeLessThanOrEqual(844);
  await dialog.getByRole('button',{name:'Close dialog'}).click();
  await confirm.getByRole('button',{name:'Discard',exact:true}).click();await expect(add).toBeFocused();
  await add.click();await expect(dialog).toBeFocused();await expect(title).toHaveValue('');

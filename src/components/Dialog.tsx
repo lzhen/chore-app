@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, type CSSProperties, type ReactNode 
 import { createPortal } from 'react-dom';
 let dialogCount=0;
 let restorePage=()=>{};
-interface Props { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; busy?: boolean; suspended?: boolean; returnFocus?: HTMLElement | null; size?: 'content' | 'form'; }
+interface Props { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; busy?: boolean; suspended?: boolean; returnFocus?: HTMLElement | null; size?: 'content' | 'form' | 'confirm'; }
 export function Dialog({title, onClose, children, footer, busy=false, suspended=false, returnFocus, size='content'}: Props) {
  const box=useRef<HTMLDivElement>(null); const close=useRef(onClose); close.current=onClose;
  useLayoutEffect(()=>{if(box.current)box.current.inert=suspended;},[suspended]);
@@ -58,8 +58,8 @@ export function Dialog({title, onClose, children, footer, busy=false, suspended=
   document.addEventListener('keydown',onKey,true);
   return ()=>{document.removeEventListener('keydown',onKey,true);if(--dialogCount===0)restorePage();else queueMicrotask(()=>{if(previous?.isConnected)previous.focus({preventScroll:true});});};
  },[]);
- return createPortal(<div ref={host} className="chore-dialog-backdrop" style={{'--dialog-viewport-height':'100dvh'} as CSSProperties}><div className={`chore-dialog${size==='form'?' chore-dialog-form':''}`} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={box}>
+ return createPortal(<div ref={host} className={`chore-dialog-backdrop${size==='confirm'?' chore-dialog-backdrop-confirm':''}`} style={{'--dialog-viewport-height':'100dvh'} as CSSProperties}><div className={`chore-dialog${size==='form'?' chore-dialog-form':size==='confirm'?' chore-dialog-confirm':''}`} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={box}>
   <header className="chore-dialog-header"><h2>{title}</h2><button type="button" onClick={onClose} disabled={busy} className="touch-button" aria-label="Close dialog">✕</button></header>
-  <div className="chore-dialog-body">{children}</div>{footer&&<footer className="chore-dialog-footer">{footer}</footer>}
+  {children != null && <div className="chore-dialog-body">{children}</div>}{footer&&<footer className="chore-dialog-footer">{footer}</footer>}
  </div></div>,document.body);
 }
