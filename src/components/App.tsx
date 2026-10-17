@@ -6,13 +6,12 @@ import { Calendar, CalendarRef } from './Calendar';
 import { ListView } from './ListView';
 import { ChoreModal, type ChoreDefaultValues } from './ChoreModal';
 import { AuthForm } from './AuthForm';
+import { AgentPanel } from './AgentPanel';
 import { AccountSettings } from './AccountSettings';
 import { HouseholdToolsProvider } from './AccountTools';
-import { AgentPanel } from './AgentPanel';
 import { Dashboard } from './Dashboard';
 import { MemberProfileModal } from './MemberProfileModal';
 import { AvailabilityModal } from './AvailabilityModal';
-import { QuickAddButton } from './QuickAddButton';
 import { ShortcutsHelpModal } from './ShortcutsHelpModal';
 import { EmailVerification } from './EmailVerification';
 import { PasswordReset } from './PasswordReset';
@@ -32,6 +31,7 @@ export function App() {
   const { user, loading: authLoading, isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset } = useAuth();
   const calendarRef = useRef<CalendarRef>(null);
 
+  const [assistantTriggerTarget, setAssistantTriggerTarget] = useState<HTMLDivElement | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editChore, setEditChore] = useState<Chore | null>(null);
   const [instanceDate, setInstanceDate] = useState<string | undefined>(undefined);
@@ -221,7 +221,7 @@ export function App() {
   if(state.error) return <div className="chore-load-error"><h1>Let’s try that again.</h1><p role="alert">{state.error}</p><button className="chore-button primary" onClick={reload}>Retry</button></div>;
   return <HouseholdToolsProvider><div className="theme-background" aria-hidden="true"/><a className="skip-link" href="#main-content">Skip to main content</a>
    <div className="chore-app" data-view={viewMode} onKeyDown={handleKeyDown} tabIndex={-1}>
-    <Header menuOpen={sidebarOpen} onMenuClick={toggleSidebar} onDashboardClick={handleDashboardClick} viewMode={viewMode} onViewModeChange={mode=>{setViewMode(mode);setSidebarOpen(false);}} searchQuery={searchQuery} onSearchChange={setSearchQuery} searchInputRef={searchInputRef}/>
+    <Header onAddClick={()=>handleAddClick()} menuOpen={sidebarOpen} onMenuClick={toggleSidebar} onDashboardClick={handleDashboardClick} viewMode={viewMode} onViewModeChange={mode=>{setViewMode(mode);setSidebarOpen(false);}} searchQuery={searchQuery} onSearchChange={setSearchQuery} searchInputRef={searchInputRef}/>
     <main id="main-content" className="chore-main">
     {state.chores.length===0&&['today','calendar','list'].includes(viewMode)&&<section className="chore-welcome">
       <div className="chore-welcome-content">
@@ -243,14 +243,11 @@ export function App() {
     {state.chores.length>0&&viewMode==='calendar'&&<Calendar ref={calendarRef} onAddClick={handleAddClick} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers}/>}
     {state.chores.length>0&&(viewMode==='today'||viewMode==='list')&&<ListView key={viewMode} todayView={viewMode==='today'} onAddClick={()=>handleAddClick()} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers} onClearFilters={()=>{setSearchQuery('');setHiddenMembers(new Set());}}/>}
     {viewMode==='dashboard'&&(state.chores.length>0?<Dashboard embedded onClose={()=>setViewMode('today')}/>:<section className="chore-list-page"><div className="chore-empty"><h2>Small wins will show up here.</h2><p>Add your first chore to start seeing your household’s progress.</p><button className="chore-button primary" onClick={()=>handleAddClick()}>Add your first chore</button></div></section>)}
-    {viewMode==='account'&&<AccountSettings embedded isOpen onClose={()=>setViewMode('today')}/>}
+    {viewMode==='account'&&<AccountSettings assistantTriggerRef={setAssistantTriggerTarget} onInsights={()=>setViewMode('dashboard')} embedded isOpen onClose={()=>setViewMode('today')}/>}
     </main>
-    {!modalOpen&&!profileMember&&!availabilityMember&&!sidebarOpen&&<div className="chore-floating-actions nesmi-add-actions" aria-label="Calendar actions">
-      {state.chores.length>0&&['calendar','list'].includes(viewMode)&&<QuickAddButton onClick={()=>handleAddClick()}/>}
-      
-    </div>}
-    <div className="chore-floating-actions" aria-label="Assistant actions"><AgentPanel suspended={modalOpen || !!profileMember || !!availabilityMember || sidebarOpen || shortcutsOpen} showTrigger={viewMode !== 'account'}/></div>
+
    </div>
+   <AgentPanel triggerTarget={assistantTriggerTarget} showTrigger={viewMode==='account'} suspended={modalOpen||sidebarOpen||!!profileMember||!!availabilityMember||shortcutsOpen||viewMode!=='account'}/>
    <ChoreModal isOpen={modalOpen} onClose={handleCloseModal} editChore={editChore} instanceDate={instanceDate} defaultValues={defaultValues}/>
    {profileMember&&<MemberProfileModal member={profileMember} onClose={()=>setProfileMember(null)}/>}
    {availabilityMember&&<AvailabilityModal member={availabilityMember} onClose={()=>setAvailabilityMember(null)}/>}

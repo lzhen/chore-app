@@ -3,12 +3,20 @@ import {test,expect,Page} from '@playwright/test';
 test.use({ serviceWorkers: 'block' });
 
 async function selectAppearance(page: Page, theme: 'light' | 'dark') {
+  const nav = page.getByRole('navigation', {name: 'Primary navigation'});
+  const current = await nav.getByRole('button', {name: /^(Today|Calendar|Chores|Account)$/}).all();
+  let returnTo = '';
+  if (await nav.count()) {
+    for (const item of current) if (await item.getAttribute('aria-current') === 'page') returnTo = (await item.innerText()).trim();
+    await nav.getByRole('button', {name: 'Account', exact: true}).click();
+  }
   const toggle = page.getByRole('button', {name: `Switch to ${theme} mode`, exact: true});
   if (await page.locator('html').getAttribute('data-theme') !== theme) await toggle.press('Enter');
   await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
   await expect(page.getByRole('button', {name: `Switch to ${theme === 'light' ? 'dark' : 'light'} mode`, exact: true})).toBeVisible();
   await expect(page.getByRole('combobox', {name: /^Theme:/})).toHaveCount(0);
   await expect(page.getByRole('listbox')).toHaveCount(0);
+  if (returnTo && returnTo !== 'Account') await nav.getByRole('button', {name: returnTo, exact: true}).click();
 }
 
 const TODAY='2026-09-25';
@@ -46,7 +54,7 @@ async function fixture(page:Page,width=390,empty=false){
 for(const width of [375,390,430])test(`normal save reachable; time and date survive reload at ${width}px`,async({page},info)=>{
  const {db,calls}=await fixture(page,width);
  await page.screenshot({path:info.outputPath(`today-${width}.png`),fullPage:true});
- await page.getByRole('button',{name:'Add new chore',exact:true}).click();
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Add chore',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Add a chore'});
  await dialog.getByLabel('What needs doing?').fill('A new shared chore');
  await dialog.getByLabel('When?').fill('2026-09-27');
@@ -64,7 +72,7 @@ for(const width of [375,390,430])test(`normal save reachable; time and date surv
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 test('failed save retains draft, reports error and allows retry',async({page})=>{
- const f=await fixture(page);f.failWrites();await page.getByRole('button',{name:'Add new chore'}).click();await page.getByLabel('What needs doing?').fill('Keep this draft');await page.getByRole('dialog').getByRole('button',{name:'Add chore',exact:true}).click();
+ const f=await fixture(page);f.failWrites();await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Add chore',exact:true}).click();await page.getByLabel('What needs doing?').fill('Keep this draft');await page.getByRole('dialog').getByRole('button',{name:'Add chore',exact:true}).click();
  await expect(page.getByRole('alert')).toContainText('Your entries are still here');await expect(page.getByLabel('What needs doing?')).toHaveValue('Keep this draft');expect(f.db.chores.some(c=>c.title==='Keep this draft')).toBe(false);
  f.recover();await page.getByRole('dialog').getByRole('button',{name:'Add chore',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
 });
@@ -74,11 +82,11 @@ test('search filters the Chores view and exposes an empty state',async({page})=>
 test('unassigned completion requires explicit member; selection determines credit',async({page})=>{
  const f=await fixture(page);await page.getByRole('button',{name:'Complete: Water the plants',exact:true}).click();await expect(page.getByLabel('Who completed it?')).toContainText('Choose a family member');await expect(page.getByRole('button',{name:'Mark done',exact:true})).toBeDisabled();expect(f.db.chore_completions).toHaveLength(0);await page.getByLabel('Who completed it?').click();await page.getByRole('dialog').getByRole('option',{name:'Jamie',exact:true}).click();await page.getByRole('button',{name:'Mark done',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);expect(f.db.chore_completions[0].completed_by).toBe(B);
 });
-test('Insights and Account are top-level pages, with the correct selected tab',async({page})=>{
- await fixture(page);const nav=page.getByRole('navigation',{name:'Primary navigation'});for(const name of ['Insights','Account','Calendar','Today']){await nav.getByRole('button',{name,exact:true}).click();await expect(nav.getByRole('button',{name,exact:true})).toHaveAttribute('aria-current','page');await expect(page.getByRole('dialog')).toHaveCount(0);}
+test('Primary pages retain the correct selected tab',async({page})=>{
+ await fixture(page);const nav=page.getByRole('navigation',{name:'Primary navigation'});for(const name of ['Account','Calendar','Today']){await nav.getByRole('button',{name,exact:true}).click();await expect(nav.getByRole('button',{name,exact:true})).toHaveAttribute('aria-current','page');await expect(page.getByRole('dialog')).toHaveCount(0);}
 });
 test('dialog isolates background controls, keeps focus and confirms draft discard',async({page})=>{
- await fixture(page);await page.getByRole('button',{name:'Add new chore'}).click();expect(await page.locator('#root').evaluate(el=>(el as HTMLElement).inert)).toBe(true);await page.getByLabel('What needs doing?').fill('Do not silently discard');await page.keyboard.press('Escape');await expect(page.getByRole('dialog',{name:'Discard changes?'})).toBeVisible();await page.getByRole('button',{name:'Keep editing'}).click();await expect(page.getByLabel('What needs doing?')).toHaveValue('Do not silently discard');
+ await fixture(page);await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Add chore',exact:true}).click();expect(await page.locator('#root').evaluate(el=>(el as HTMLElement).inert)).toBe(true);await page.getByLabel('What needs doing?').fill('Do not silently discard');await page.keyboard.press('Escape');await expect(page.getByRole('dialog',{name:'Discard changes?'})).toBeVisible();await page.getByRole('button',{name:'Keep editing'}).click();await expect(page.getByLabel('What needs doing?')).toHaveValue('Do not silently discard');
 });
 test('data load failure has retry, not a misleading empty family',async({page})=>{
  const f=await fixture(page);f.failReads();await page.reload();await expect(page.getByRole('alert')).toContainText('could not be loaded');f.recover();await page.getByRole('button',{name:'Retry',exact:true}).click();await expect(page.getByRole('button',{name:'Edit Water the plants'})).toBeVisible();
@@ -144,7 +152,8 @@ test('direct dark appearance respects later choices and styles the browser chrom
 test('starter suggestion waits for an edited explicit save', async ({page}, info) => {
   const f = await fixture(page, 390, true);
   const nav = page.getByRole('navigation', {name: 'Primary navigation'});
-  await nav.getByRole('button', {name: 'Insights', exact: true}).click();
+  await nav.getByRole('button', {name: 'Account', exact: true}).click();
+  await page.getByRole('button', {name: 'Insights', exact: true}).click();
   await expect(page.getByRole('heading', {name: 'Small wins will show up here.'})).toBeVisible();
   await expect(page.getByRole('button', {name: 'Add your first chore', exact: true})).toBeVisible();
   await nav.getByRole('button', {name: 'Today', exact: true}).click();
@@ -175,3 +184,18 @@ test('starter suggestion waits for an edited explicit save', async ({page}, info
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
  });
+
+for (const width of [320,390,430]) for (const theme of ['light','dark'] as const) test(`icon-only center Add ${width} ${theme}`, async({page},info)=>{
+ await fixture(page,width);await selectAppearance(page,theme);
+ const nav=page.getByRole('navigation',{name:'Primary navigation'});
+ const add=nav.getByRole('button',{name:'Add chore',exact:true});
+ await expect(add).toBeVisible();await expect(add.locator('span')).toBeHidden();
+ for(const name of ['Today','Calendar','Chores','Account'])await expect(nav.getByRole('button',{name,exact:true}).locator('span')).toBeVisible();
+ const target=await add.boundingBox(),shape=await add.locator('svg').boundingBox();
+ expect(target!.width).toBeGreaterThanOrEqual(44);expect(target!.height).toBeGreaterThanOrEqual(44);expect(shape!.width).toBe(36);expect(shape!.height).toBe(36);
+ const icons=await nav.locator('button > svg').evaluateAll(elements=>elements.map(el=>{const r=el.getBoundingClientRect();return r.y+r.height/2;}));
+ expect(Math.max(...icons)-Math.min(...icons)).toBeLessThan(1);
+ await page.screenshot({path:info.outputPath(`icon-only-${width}-${theme}.png`)});
+ await add.click();const form=page.getByRole('dialog',{name:'Add a chore',exact:true});await expect(form).toBeVisible();await expect(form.getByRole('button',{name:'Add chore',exact:true})).toBeVisible();
+ await form.getByRole('button',{name:'Close dialog'}).click();await expect(form).toBeHidden();
+});

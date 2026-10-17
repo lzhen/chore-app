@@ -92,8 +92,8 @@
 .chore-tabs button { border-radius: 8px; font-size: 10px; font-weight: 450; gap: 6px; }
 .chore-tabs svg { width: 21px; height: 21px; stroke-width: 1.55; }
 .chore-tabs .active { background: transparent; color: var(--text-primary); font-weight: 600; }
-.chore-tabs .active svg { color: var(--text-primary); background: var(--chore-blue); border-radius: 6px; box-sizing: content-box; padding: 6px 10px; margin: -6px -10px; }
-.chore-tabs .active svg { stroke: #141414; }
+.chore-tabs .active svg { color: var(--text-primary); background: var(--surface-tertiary); border-radius: 6px; }
+.chore-tabs .active svg { stroke: currentColor; }
 
 :root { --nesmi-page-gutter:24px; }
 .chore-list-page { padding: 28px var(--nesmi-page-gutter) 100px; }
@@ -443,3 +443,37 @@
 @media (min-width: 768px) {
   .chore-header.nesmi-header-centered { padding-inline: max(28px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px)); }
 }
+
+/* Keep the sheet within the keyboard-visible area; scroll only its body. */
+.chore-dialog-backdrop { top: var(--dialog-viewport-top, 0px); bottom: auto; height: var(--dialog-viewport-height, 100dvh); box-sizing: border-box; }
+.chore-dialog { max-height: min(720px, calc(var(--dialog-viewport-height, 100dvh) - 24px)); }
+.chore-dialog-form { height: auto; }
+.chore-dialog-form .chore-dialog-body { flex: 0 1 auto; }
+.chore-dialog-body { scroll-padding-block: 12px; }
+@media (max-width: 767px) {
+ .chore-dialog-backdrop { padding-top: max(12px, env(safe-area-inset-top, 0px)); }
+ .chore-dialog { max-height: calc(var(--dialog-viewport-height, 100dvh) - max(12px, env(safe-area-inset-top, 0px))); }
+ .chore-dialog input, .chore-dialog textarea { font-size: 16px; }
+}
+
+/* Confirmations are compact, centered overlays, distinct from editing sheets. */
+.chore-dialog-backdrop.chore-dialog-backdrop-confirm { align-items: center; padding: 16px; }
+.chore-dialog.chore-dialog-confirm { width: 100%; max-width: 400px; border-radius: 18px; max-height: calc(var(--dialog-viewport-height, 100dvh) - 32px); }
+.chore-dialog-confirm .chore-dialog-header { border-bottom: 0; padding: 16px 16px 8px 20px; }
+.chore-dialog-confirm .chore-dialog-footer { border-top: 0; padding: 8px 20px 20px; }
+
+.chore-tabs .nesmi-nav-add { background: transparent; color: var(--text-primary); min-width: 44px; }
+.chore-tabs button > svg { box-sizing: border-box; width: 28px; height: 28px; padding: 3.5px; margin: 0; flex-shrink: 0; }
+.chore-tabs .nesmi-nav-add > svg { background: var(--chore-highlight); color: var(--chore-highlight-ink); border-radius: 8px; }
+.chore-tabs button > span { line-height: 14px; }
+.chore-dialog-confirm .chore-dialog-footer > .chore-button { flex: 1 1 0; min-width: 0; min-height: 48px; padding-inline: 10px; }
+.chore-dialog-confirm .chore-button.secondary { border-color: var(--border-default); color: var(--text-primary); text-decoration: none; }
+.dark .chore-dialog { background: var(--surface-primary); }
+.nesmi-account-assistant .nesmi-agent-trigger { position: static; transform: none; margin-top: 8px; }
+@media (max-width: 767px) {
+  .chore-tabs button { flex: 1 1 0; min-width: 44px; }
+  .chore-tabs button > svg { width: 36px; height: 36px; padding: 7.5px; }
+  .chore-tabs .nesmi-nav-add > svg { padding: 0; border-radius: 10px; }
+}
+.chore-dialog-confirm .chore-button.secondary:is(:hover, :focus, :active) { color: var(--text-primary); border-color: var(--border-default); text-decoration: none; }
+.chore-dialog-confirm .chore-button.secondary:focus-visible { outline-color: var(--text-secondary); }

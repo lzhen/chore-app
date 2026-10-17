@@ -63,7 +63,7 @@ export function ListView({onAddClick, onEventClick, searchQuery='', hiddenMember
   const display = scopedInstances.filter(instance =>
     (!query || [instance.title, instance.description, instance.assigneeName, instance.categoryId ? categoriesById.get(instance.categoryId)?.name : ''].some(value => value?.toLowerCase().includes(query))) &&
     (filter === 'all' || (filter === 'completed' ? instance.isCompleted : !instance.isCompleted))
-  ).sort((a, b) => a.date.localeCompare(b.date) || (a.dueTime || '').localeCompare(b.dueTime || ''));
+  ).sort((a, b) => Number(a.isCompleted) - Number(b.isCompleted) || a.date.localeCompare(b.date) || (a.dueTime || '').localeCompare(b.dueTime || ''));
   const hasFilters = !!query || who !== 'everyone' || hiddenMembers.size > 0 || filter !== 'all';
   const clearFilters = () => {setWho('everyone'); setFilter('all'); onClearFilters?.();};
   const selectedDate = parseDate(selected);
@@ -80,7 +80,7 @@ export function ListView({onAddClick, onEventClick, searchQuery='', hiddenMember
     const category = instance.categoryId ? categoriesById.get(instance.categoryId) : undefined;
     const isOverdue = !instance.isCompleted && instance.date < today;
     return <article key={instance.id} className={'chore-task' + (instance.isCompleted ? ' is-done' : '') + (isOverdue ? ' is-overdue' : '')}>
-      <button className="chore-check" aria-label={`${instance.isCompleted ? 'Undo completion' : 'Complete'}: ${instance.title}`} aria-pressed={instance.isCompleted} onClick={() => setCompleting(instance)}><span aria-hidden="true">{instance.isCompleted ? '✓' : ''}</span></button>
+      {!instance.isCompleted && <button className="chore-check" aria-label={`Complete: ${instance.title}`} aria-pressed={false} onClick={() => setCompleting(instance)}><span aria-hidden="true"/></button>}
       <button className="chore-task-body" onClick={() => {if (chore) onEventClick(chore, instance.date);}} aria-label={`Edit ${instance.title}`}>
         <strong className="chore-task-title">{instance.title}</strong>
         <span className="chore-task-meta"><span className="member-dot" style={{backgroundColor: instance.color}}/>{instance.assigneeName || 'Unassigned'}<span aria-hidden="true"> · </span><span className="chore-task-date">{formatDay(instance.date)}{instance.dueTime && ` · ${instance.dueTime}${instance.endTime ? '–' + instance.endTime : ''}`}</span>{instance.isRecurring && <span> · Repeats</span>}</span>
@@ -92,7 +92,7 @@ export function ListView({onAddClick, onEventClick, searchQuery='', hiddenMember
 
   return <section className="chore-list-page">
     {todayView && <>
-      <div className="today-intro"><div><p>{selectedDate.toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric'})}</p><h2>{selected === today ? 'Today' : formatDay(selected)}</h2></div><button className="today-add chore-button primary" aria-label="Add new chore" onClick={onAddClick}><span aria-hidden="true">+</span><span className="today-add-label">Add chore</span></button></div>
+      <div className="today-intro"><div><p>{selectedDate.toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric'})}</p><h2>{selected === today ? 'Today' : formatDay(selected)}</h2></div></div>
       <div className="chore-day-tools"><div className="chore-day-summary" aria-label="Selected day progress">
         <div className="chore-summary-line"><p><strong>{doneCount}</strong> of {dayInstances.length} done{who !== 'everyone' || hiddenMembers.size > 0 ? ' · selected members' : ''}</p>{pendingMinutes > 0 && <p className="chore-summary-estimate"><strong>~{pendingMinutes} min</strong><span> remaining</span></p>}</div>
         <progress className="chore-progress" value={doneCount} max={dayInstances.length || 1} aria-label={`${doneCount} of ${dayInstances.length} chores completed on ${formatDay(selected)}`}/>

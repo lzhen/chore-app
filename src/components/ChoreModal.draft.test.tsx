@@ -5,13 +5,13 @@ import { ChoreModal } from './ChoreModal';
 import { dateKey } from '../utils/dates';
 
 const app = vi.hoisted(() => ({
-  state: {teamMembers: [{id: 'alex', name: 'Alex'}], categories: [{id: 'cleaning', name: 'Cleaning'}]},
-  addChore: vi.fn(), updateChore: vi.fn(), deleteChore: vi.fn(),
+  state: {teamMembers: [{id: 'alex', name: 'Alex'}], categories: [{id: 'cleaning', name: 'Cleaning'}], completions: [] as {id:string;choreId:string;instanceDate:string}[]},
+  addChore: vi.fn(), updateChore: vi.fn(), deleteChore: vi.fn(), uncompleteChore: vi.fn(),
 }));
 vi.mock('../context/AppContext', () => ({useApp: () => app}));
 
 describe('ChoreModal starter drafts', () => {
-  beforeEach(() => {app.addChore.mockResolvedValue(undefined);});
+  beforeEach(() => {app.state.completions=[];app.addChore.mockResolvedValue(undefined);});
   afterEach(cleanup);
 
   it('opens an editable suggestion without creating a chore, then saves the chosen owner and details', async () => {
@@ -58,4 +58,50 @@ describe('ChoreModal starter drafts', () => {
     expect(screen.getByRole('spinbutton', {name: 'Estimated minutes · optional'})).toHaveValue(5);
     expect(onClose).not.toHaveBeenCalled();
   });
+  it('keeps untouched defaults and same-date selection clean', async () => {
+    const user=userEvent.setup(); const onClose=vi.fn();
+    render(<ChoreModal isOpen onClose={onClose} defaultDate="2026-10-16"/>);
+    await user.click(screen.getByRole('button',{name:'Choose date'}));
+    await user.click(screen.getByRole('button',{name:'Close calendar'}));
+    await user.click(screen.getByRole('button',{name:'Choose date'}));
+    await user.click(screen.getByRole('button',{name:'Friday, October 16, 2026'}));
+    await user.click(screen.getByRole('button',{name:'Cancel'}));
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('dialog',{name:'Discard changes?'})).not.toBeInTheDocument();
+  });
+  it('preserves a changed draft through Keep editing and becomes clean after reverting', async () => {
+    const user=userEvent.setup(); const onClose=vi.fn();
+    render(<ChoreModal isOpen onClose={onClose} defaultDate="2026-10-16"/>);
+    const title=screen.getByRole('textbox',{name:'What needs doing?'});
+    await user.type(title,'Clean kitchen floor');
+    await user.click(screen.getByRole('button',{name:'Cancel'}));
+    expect(screen.getByRole('dialog',{name:'Discard changes?'})).toBeInTheDocument();
+    await user.click(screen.getByRole('button',{name:'Keep editing'}));
+    expect(title).toHaveValue('Clean kitchen floor');
+    await user.clear(title);
+    await user.click(screen.getByRole('button',{name:'Cancel'}));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('protects real date changes and discards only on request', async () => {
+    const user=userEvent.setup();const onClose=vi.fn();
+    render(<ChoreModal isOpen onClose={onClose} defaultDate="2026-10-16"/>);
+    await user.click(screen.getByRole('button',{name:'Choose date'}));
+    await user.click(screen.getByRole('button',{name:'Saturday, October 17, 2026'}));
+    await user.click(screen.getByRole('button',{name:'Cancel'}));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog',{name:'Discard changes?'})).toBeInTheDocument();
+    expect(screen.queryByText('Your changes have not been saved.')).toBeNull();
+    await user.click(screen.getByRole('button',{name:/^Discard$/}));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+  it('retains undo in task details without saving unrelated draft edits', async () => {
+    app.state.completions=[{id:'completion-demo',choreId:'done',instanceDate:'2026-10-16'}];
+    const user=userEvent.setup();
+    render(<ChoreModal isOpen onClose={vi.fn()} editChore={{id:'done',title:'Clean kitchen floor',date:'2026-10-16',recurrence:'none',priority:'medium',assigneeId:null}}/>);
+    await user.click(screen.getByRole('button',{name:'Mark not done'}));
+    expect(app.uncompleteChore).toHaveBeenCalledWith('completion-demo');
+    expect(app.updateChore).not.toHaveBeenCalled();
+  });
+
 });

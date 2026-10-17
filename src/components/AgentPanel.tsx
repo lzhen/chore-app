@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import '../styles/planning-tools.css';
 import { ChatAssistant } from './ChatAssistant';
 
-export function AgentPanel({ suspended = false, showTrigger = true }: { suspended?: boolean; showTrigger?: boolean }) {
+export function AgentPanel({ suspended = false, showTrigger = true, triggerTarget }: { suspended?: boolean; showTrigger?: boolean; triggerTarget?: HTMLElement | null }) {
   const [isOpen, setIsOpen] = useState(false);
   const panel = useRef<HTMLElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -41,10 +41,7 @@ export function AgentPanel({ suspended = false, showTrigger = true }: { suspende
     };
   }, [visible]);
 
-  return (
-    <>
-      {/* Floating Agent Button */}
-      {showTrigger && !suspended && <button
+  const launcher = showTrigger && !suspended ? <button
         ref={trigger}
         onClick={() => setIsOpen(!isOpen)}
         className="nesmi-agent-trigger rounded-full flex items-center justify-center"
@@ -59,8 +56,11 @@ export function AgentPanel({ suspended = false, showTrigger = true }: { suspende
             d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
           />
         </svg>
-      </button>}
+      </button> : null;
 
+  return (
+    <>
+      {triggerTarget ? createPortal(launcher, triggerTarget) : (triggerTarget === undefined ? launcher : null)}
       {createPortal(<section ref={panel} id="nesmi-assistant" className="nesmi-assistant" role="dialog" aria-label="Assistant" tabIndex={-1} hidden={!visible}>
         <header className="nesmi-assistant-header"><h2>Assistant</h2><button type="button" className="touch-button" aria-label="Close assistant" onClick={() => setIsOpen(false)}>✕</button></header>
         <div className="nesmi-assistant-chat"><ChatAssistant active={visible}/></div>

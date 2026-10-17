@@ -23,12 +23,20 @@ export function ChoicePicker({ value, options, onChange, label, children, classN
     if (focus) trigger.current?.focus({ preventScroll: true });
   };
   const show = (index = Math.max(0, options.findIndex(option => option.id === value))) => {
+    document.dispatchEvent(new CustomEvent('nesmi-choice-open', {detail: listId}));
     setActive(index);
     typed.current = { text: '', time: 0 };
     // Keep dialog menus inside its focus/inert boundary, outside its scrollable body.
     setHost(trigger.current?.closest<HTMLElement>('[role="dialog"]') || document.body);
     setOpen(true);
   };
+  useLayoutEffect(() => {
+    const otherOpened = (event: Event) => {
+      if ((event as CustomEvent<string>).detail !== listId) close(false);
+    };
+    document.addEventListener('nesmi-choice-open', otherOpened);
+    return () => document.removeEventListener('nesmi-choice-open', otherOpened);
+  }, [listId]);
   useLayoutEffect(() => {
     if (!open) return;
     const update = () => {
@@ -61,15 +69,17 @@ export function ChoicePicker({ value, options, onChange, label, children, classN
     if (list.current) observer.observe(list.current);
     window.addEventListener('resize', update); window.addEventListener('scroll', update, { capture: true, passive: true });
     window.visualViewport?.addEventListener('resize', update); window.visualViewport?.addEventListener('scroll', update);
-    const outside = (event: PointerEvent) => {
+    const outside = (event: Event) => {
       if (!trigger.current?.contains(event.target as Node) && !list.current?.contains(event.target as Node)) close(false);
     };
-    document.addEventListener('pointerdown', outside);
+    document.addEventListener('pointerdown', outside, true);
+    document.addEventListener('click', outside, true);
     return () => {
       observer.disconnect();
       window.removeEventListener('resize', update); window.removeEventListener('scroll', update, true);
       window.visualViewport?.removeEventListener('resize', update); window.visualViewport?.removeEventListener('scroll', update);
-      document.removeEventListener('pointerdown', outside);
+      document.removeEventListener('pointerdown', outside, true);
+      document.removeEventListener('click', outside, true);
     };
   }, [open, align, options.length]);
   useLayoutEffect(() => {

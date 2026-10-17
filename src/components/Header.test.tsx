@@ -23,6 +23,13 @@ describe('centered Nesmi header', () => {
   expect(container.querySelector('.nesmi-header-actions')).toContainElement(screen.getByRole('button',{name:'Search chores'}));
   await userEvent.click(screen.getByRole('button',{name:'Search chores'})); expect(screen.getByRole('searchbox',{name:'Search chores'})).toBeInTheDocument();
   rerender(<Header {...props} viewMode="account"/>); expect(within(header).queryByRole('button',{name:'Search chores'})).toBeNull(); expect(container.querySelector('.chore-brand')).toBe(brand);
-  expect(within(header).getByRole('button',{name:'Theme'})).toBeInTheDocument();
+  expect(within(header).queryByRole('button',{name:'Theme'})).toBeNull();
  });
+});
+
+it('keeps Add as the central action without changing the selected route', async()=>{
+ const onAddClick=vi.fn(),onViewModeChange=vi.fn();render(<Header {...props} viewMode="calendar" onAddClick={onAddClick} onViewModeChange={onViewModeChange}/>);
+ const nav=screen.getByRole('navigation');expect(within(nav).getAllByRole('button').map(b=>b.textContent)).toEqual(['Today','Calendar','Add chore','Chores','Account']);
+ const add=within(nav).getByRole('button',{name:'Add chore'});expect(add.querySelector('span')).not.toBeVisible();expect(add.querySelector('span')).toHaveAttribute('aria-hidden','true');
+ await userEvent.click(add);expect(onAddClick).toHaveBeenCalledOnce();expect(onViewModeChange).not.toHaveBeenCalled();expect(within(nav).getByRole('button',{name:'Calendar'})).toHaveAttribute('aria-current','page');
 });

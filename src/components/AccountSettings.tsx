@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { ThemeSelector } from './ThemeSelector';
+
 import { AccountTools } from './AccountTools';
 
 interface AccountSettingsProps {
   isOpen: boolean;
   onClose: () => void;
   embedded?: boolean;
+  onInsights?: () => void;
+  assistantTriggerRef?: (element: HTMLDivElement | null) => void;
 }
 
-export function AccountSettings({ isOpen, onClose, embedded=false }: AccountSettingsProps) {
+export function AccountSettings({ isOpen, onClose, embedded=false, onInsights, assistantTriggerRef }: AccountSettingsProps) {
   const { user, signOut, deleteAccount } = useAuth();
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -42,6 +46,9 @@ export function AccountSettings({ isOpen, onClose, embedded=false }: AccountSett
           <button hidden={embedded} onClick={onClose} className="p-2 text-content-secondary hover:text-content-primary" aria-label="Close account settings">✕</button>
         </div>
 
+        <div className="nesmi-account-appearance mt-6 border-t border-border pt-5"><h3>Appearance</h3><ThemeSelector/></div>
+        {onInsights&&<div className="mt-6"><button className="chore-button secondary" onClick={onInsights}>Insights</button></div>}
+        <div className="nesmi-account-assistant mt-6"><h3>Assistant</h3><div ref={assistantTriggerRef}/></div>
         <AccountTools/>
 
         <div className="mt-6 border-t border-border pt-5">

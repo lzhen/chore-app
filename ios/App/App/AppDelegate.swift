@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import WebKit
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -46,4 +47,26 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
     }
 
+}
+
+// Match native safe-area surfaces to the existing web theme-color token.
+// Preserve automatic content insets and the device appearance preference.
+class NesmiBridgeViewController: CAPBridgeViewController {
+    private var themeObservation: NSKeyValueObservation?
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        if #available(iOS 15.0, *), let webView = webView {
+            themeObservation = webView.observe(\.themeColor, options: [.initial, .new]) { [weak self] webView, _ in
+                guard let self = self, let color = webView.themeColor else { return }
+                self.view.backgroundColor = color
+                webView.backgroundColor = color
+                webView.scrollView.backgroundColor = color
+                var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+                if color.getRed(&red, green: &green, blue: &blue, alpha: &alpha) {
+                    self.setStatusBarStyle(0.2126 * red + 0.7152 * green + 0.0722 * blue < 0.5 ? .lightContent : .darkContent)
+                }
+            }
+        }
+    }
 }
