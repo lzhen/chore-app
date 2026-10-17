@@ -32,8 +32,8 @@ it('preserves explicit integration actions and sync state across Account remount
 });
 
 for (const [state, text] of [
- ['denied','Notifications are blocked.'], ['unsupported','Not supported in this browser'],
- ['insecure','Reminders require HTTPS'], ['native','Not available in this app version'],
+ ['denied','Notifications are blocked.'],
+ ['insecure','Reminders require HTTPS'],
  ['dismissed','Permission was not allowed'], ['error','Could not enable reminders'],
 ]) it(`shows recovery feedback for ${state}`,async()=>{
  const user=userEvent.setup();mocks.permission.mockResolvedValue(state);
@@ -57,9 +57,11 @@ it('reports delivery failure instead of claiming reminders work',async()=>{
  expect(screen.queryByText('Allowed',{exact:true})).not.toBeInTheDocument();
 });
 
-it('does not offer an impossible native reminder retry',()=>{
- mocks.state.mockReturnValue('native');render(<HouseholdToolsProvider><AccountTools/></HouseholdToolsProvider>);
- expect(screen.getByRole('status')).toHaveTextContent('Not available in this app version.');
+for (const state of ['native','unsupported']) it(`hides the whole unsupported notification section: ${state}`,()=>{
+ mocks.state.mockReturnValue(state);render(<HouseholdToolsProvider><AccountTools/></HouseholdToolsProvider>);
+ expect(screen.queryByRole('region',{name:'Notifications'})).not.toBeInTheDocument();
+ expect(screen.queryByRole('heading',{name:'Notifications'})).not.toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:'Enable Reminders'})).not.toBeInTheDocument();
  expect(screen.queryByRole('button',{name:'Check again'})).not.toBeInTheDocument();
  expect(mocks.permission).not.toHaveBeenCalled();
 });

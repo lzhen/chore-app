@@ -48,6 +48,6 @@ for(const theme of ['light','dark'])test(`scrolled last task, menu and Account r
  const box=await last.boundingBox(),launcher=await page.getByRole('button',{name:'Assistant',exact:true}).boundingBox(),nav=await page.getByRole('navigation',{name:'Primary navigation'}).boundingBox();
  expect(box!.y).toBeGreaterThanOrEqual(0);expect(box!.y+box!.height).toBeLessThanOrEqual(launcher!.y);expect(launcher!.y+launcher!.height).toBeLessThanOrEqual(nav!.y);
  await page.screenshot({path:info.outputPath(`today-scrolled-${theme}.png`)});
- await page.getByRole('button',{name:'Open family menu'}).click();await expect(page.getByRole('dialog',{name:'Family',exact:true}).getByRole('button',{name:'Activity & insights'})).toHaveCount(0);await page.screenshot({path:info.outputPath(`menu-${theme}.png`)});
+ await page.getByRole('button',{name:'Open family menu'}).click();await expect(page.getByRole('dialog',{name:'Family',exact:true}).getByRole('button',{name:'View activity'})).toHaveCount(0);await page.screenshot({path:info.outputPath(`menu-${theme}.png`)});
  await page.keyboard.press('Escape');await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();await expect(page.getByText('Appearance',{exact:true})).toBeVisible();await page.screenshot({path:info.outputPath(`account-${theme}.png`)});
 });

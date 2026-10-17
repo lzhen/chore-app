@@ -1,0 +1,3 @@
+import base from './playwright.ui-review.config';
+import {defineConfig} from '@playwright/test';
+export default defineConfig({...base,projects:base.projects?.filter(p=>p.name==='chromium'),reporter:[['list']],workers:2,testMatch:['account-capability.spec.ts','account-insights.spec.ts','account-left.spec.ts'],outputDir:'test-results-account-refinement',use:{...base.use,baseURL:'http://127.0.0.1:5240/chore-app/'},webServer:{command:'node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5240 --strictPort',url:'http://127.0.0.1:5240/chore-app/',reuseExistingServer:false,gracefulShutdown:{signal:'SIGTERM',timeout:5000}}});

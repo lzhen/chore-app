@@ -108,16 +108,16 @@ export function AccountTools(){
  if(!tools)return null;
  const {state,notificationState,requestingNotifications,notificationsEnabled,googleConfigured,googleSignedIn,isSyncing,syncResult,handleEnableNotifications,handleGoogleSignIn,handleGoogleSignOut,handleSyncToGoogle}=tools;
  return <div className="nesmi-account-tools">
-  <section className="nesmi-settings-section" aria-labelledby="notifications-title">
+  {notificationState !== 'native' && notificationState !== 'unsupported' && <section className="nesmi-settings-section" aria-labelledby="notifications-title">
    <div className="nesmi-settings-row">
     <div><h3 id="notifications-title">Notifications</h3><p id="notification-feedback" role="status">{notificationMessages[notificationState]}</p></div>
-    {['native','unsupported','insecure'].includes(notificationState) ? null : notificationsEnabled ? <span className="nesmi-settings-status">Allowed</span> :
+    {notificationState === 'insecure' ? null : notificationsEnabled ? <span className="nesmi-settings-status">Allowed</span> :
      <button type="button" className="chore-button secondary" onClick={handleEnableNotifications} disabled={requestingNotifications} aria-describedby="notification-feedback">
       {requestingNotifications ? 'Waiting for permission…' : notificationState === 'default' ? 'Enable Reminders' : notificationState === 'dismissed' || notificationState === 'error' ? 'Try again' : 'Check again'}
      </button>}
    </div>
-  </section>
-  <section className="nesmi-settings-section" aria-labelledby="google-title"><div className="nesmi-settings-row"><div><h3 id="google-title">Google Calendar</h3><p>{!googleConfigured?'Calendar connection is not configured.':googleSignedIn?'Connected. Choose when to sync your household chores.':'Connect your calendar to sync household chores.'}</p></div>{googleConfigured&&!googleSignedIn&&<button className="chore-button secondary" onClick={handleGoogleSignIn}>Connect Google Calendar</button>}</div>{googleConfigured&&googleSignedIn&&<div className="nesmi-settings-actions"><button className="chore-button secondary" onClick={handleSyncToGoogle} disabled={isSyncing||state.chores.length===0}>{isSyncing?'Syncing…':'Sync to Google Calendar'}</button><button className="chore-button secondary" onClick={handleGoogleSignOut}>Disconnect</button>{syncResult&&<p role="status">Synced {syncResult.success} chores{syncResult.failed>0?`; ${syncResult.failed} failed`:''}</p>}</div>}</section>
+  </section>}
+  <section className="nesmi-settings-section" aria-labelledby="google-title"><div className="nesmi-settings-row"><div><h3 id="google-title">Google Calendar</h3><p>{!googleConfigured?'Calendar connection is not set up.':googleSignedIn?'Connected. Sync when ready.':'Sync household chores.'}</p></div>{googleConfigured&&!googleSignedIn&&<button className="chore-button secondary" onClick={handleGoogleSignIn}>Connect Google Calendar</button>}</div>{googleConfigured&&googleSignedIn&&<div className="nesmi-settings-actions"><button className="chore-button secondary" onClick={handleSyncToGoogle} disabled={isSyncing||state.chores.length===0}>{isSyncing?'Syncing…':'Sync to Google Calendar'}</button><button className="chore-button secondary" onClick={handleGoogleSignOut}>Disconnect</button>{syncResult&&<p role="status">Synced {syncResult.success} chores{syncResult.failed>0?`; ${syncResult.failed} failed`:''}</p>}</div>}</section>
 
  </div>;
 }

@@ -67,7 +67,7 @@ for(const width of [320,1440]) for(const theme of ['light','dark']) test(`neutra
  const {calls}=await fixture(page,width);
  await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
  if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
- await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();await page.getByRole('button',{name:'Activity & insights',exact:true}).click();
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();await page.getByRole('button',{name:'View activity',exact:true}).click();
  await page.getByRole('button',{name:'Workload',exact:true}).click();
  await expect(page.getByText('Under 70%',{exact:true})).toHaveCount(0);
  await expect(page.getByText('70-90%',{exact:true})).toHaveCount(0);
@@ -96,7 +96,8 @@ for(const state of ['denied','unsupported','insecure']) test(`initial reminder s
  },state);
  await page.reload();
  await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
- const text={denied:'Notifications are blocked',unsupported:'Not supported in this browser',insecure:'Reminders require HTTPS'}[state]!;
+ if(state==='unsupported'){await expect(page.getByRole('region',{name:'Notifications',exact:true})).toHaveCount(0);return;}
+ const text={denied:'Notifications are blocked',insecure:'Reminders require HTTPS'}[state]!;
  await expect(page.locator('#notification-feedback')).toContainText(text);
  if(state==='denied')await page.getByRole('button',{name:'Check again',exact:true}).click();
  else await expect(page.getByRole('button',{name:'Check again',exact:true})).toHaveCount(0);

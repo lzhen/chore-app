@@ -19,7 +19,8 @@ describe('Nesmi public identity', () => {
 
   it('keeps user-visible copy and privacy labels consistent', () => {
     for (const path of ['src/components/App.tsx', 'src/components/Header.tsx', 'src/components/Logo.tsx', 'src/components/AccountSettings.tsx', 'src/components/AuthForm.tsx', 'src/utils/googleCalendar.ts', 'public/privacy.html', 'chrome-extension/manifest.json', 'chrome-extension/popup.html']) {
-      expect(read(path), path).toMatch(/Nesmi|NESMI/);
+      // Account uses concise neutral copy; the shared header owns the brand label.
+      if (path !== 'src/components/AccountSettings.tsx') expect(read(path), path).toMatch(/Nesmi|NESMI/);
       expect(read(path), path).not.toMatch(/Chorely|CHORELY|Pawssible/);
     }
   });

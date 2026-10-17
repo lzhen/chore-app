@@ -13,6 +13,6 @@ export async function selectAppearance(page: Page, theme: string) {
 
 export async function openInsights(page: Page) {
  await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
- await page.getByRole('button',{name:'Activity & insights',exact:true}).click();
+ await page.getByRole('button',{name:'View activity',exact:true}).click();
  await expect(page.getByRole('button',{name:'Overview',exact:true})).toBeVisible();
 }

@@ -48,7 +48,7 @@ for(const [width,height] of [[320,480],[390,844],[1440,900]])for(const theme of 
  await nav.getByRole('button',{name:'Account',exact:true}).click();
  if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:`Switch to ${theme} mode`}).click();
  await expect(page.getByRole('button',{name:'Assistant',exact:true})).toHaveCount(0);await page.screenshot({path:info.outputPath('account.png')});
- await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();await page.getByRole('button',{name:'Activity & insights',exact:true}).click();await expect(page.getByRole('button',{name:'Overview',exact:true})).toBeVisible();
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();await page.getByRole('button',{name:'View activity',exact:true}).click();await expect(page.getByRole('button',{name:'Overview',exact:true})).toBeVisible();
  await nav.getByRole('button',{name:'Chores',exact:true}).click();
  const combos=page.getByRole('combobox');await combos.nth(0).click();await combos.nth(1).click();await expect(page.getByRole('listbox')).toHaveCount(1);await page.keyboard.press('Escape');
  if(width<768){

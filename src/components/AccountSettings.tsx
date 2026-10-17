@@ -45,13 +45,18 @@ export function AccountSettings({ isOpen, onClose, onInsights, embedded=false }:
           <button hidden={embedded} onClick={onClose} className="p-2 text-content-secondary hover:text-content-primary" aria-label="Close account settings">✕</button>
         </div>
 
-        <div className="nesmi-account-appearance nesmi-settings-section"><h3>Appearance</h3><ThemeSelector/></div>
+        <div className="nesmi-account-appearance nesmi-settings-section"><h3>Appearance</h3><p>Choose light or dark.</p><ThemeSelector/></div>
         <AccountTools/>
-        {onInsights && <div className="nesmi-settings-section"><button type="button" className="chore-button secondary" onClick={onInsights}>Activity & insights</button></div>}
+        {onInsights && <section className="nesmi-settings-section" aria-labelledby="account-insights-title">
+          <div className="nesmi-settings-row">
+            <div><h3 id="account-insights-title">Activity &amp; insights</h3><p>Review household activity.</p></div>
+            <button type="button" className="chore-button secondary" onClick={onInsights}>View activity</button>
+          </div>
+        </section>}
 
         <div className="mt-6 border-t border-border pt-5">
           <h3 className="font-medium text-content-primary">Privacy</h3>
-          <p className="mt-1 text-sm text-content-secondary">Learn what information Nesmi stores and how it is used.</p>
+          <p className="mt-1 text-sm text-content-secondary">See how your data is used.</p>
           <a className="mt-2 inline-block text-sm text-brand hover:underline" href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noreferrer">View Privacy Policy</a>
         </div>
 
