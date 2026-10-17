@@ -42,44 +42,33 @@ async function fixture(page:Page,width=390,empty=false){
 
 
 
+
 for(const width of [320,390,768,1440]) for(const theme of ['light','dark']) test(`assistant continuity ${width} ${theme}`,async({page},info)=>{
- const {calls}=await fixture(page,width);
- await selectAppearance(page,theme);
- await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
+ const {calls}=await fixture(page,width); await selectAppearance(page,theme);
+ const nav=page.getByRole('navigation',{name:'Primary navigation'});
  const launcher=page.getByRole('button',{name:'Assistant',exact:true});
  await launcher.click();const panel=page.getByRole('dialog',{name:'Assistant',exact:true});await expect(panel).toBeVisible();
  const before=await panel.boundingBox();expect(before!.x).toBeGreaterThanOrEqual(0);expect(before!.x+before!.width).toBeLessThanOrEqual(width);expect(before!.y+before!.height).toBeLessThanOrEqual(844);
  await expect(panel).toHaveCSS('background-image','none');
  const input=panel.getByRole('textbox',{name:'Message'});await input.fill('Unsent household draft');
- await expect(panel.getByRole('tab')).toHaveCount(0);await expect(panel.getByRole('button',{name:'Enable Reminders'})).toHaveCount(0);
- expect(await panel.boundingBox()).toEqual(before);await expect(page.locator('.chore-dialog-backdrop')).toHaveCount(0);
- await expect(input).toHaveValue('Unsent household draft');
+ await expect(panel.getByRole('log')).toContainText('Task commands in English');
  await page.screenshot({path:info.outputPath(`assistant-${width}-${theme}.png`)});
  await input.press('Escape');await expect(panel).toBeHidden();await expect(launcher).toBeFocused();
  for(let i=0;i<2;i++){await launcher.click();await expect(input).toHaveValue('Unsent household draft');await panel.getByRole('button',{name:'Close assistant'}).click();await expect(launcher).toBeFocused();}
  await launcher.click();
  if(width<1100){await expect(page.locator('#root')).toHaveJSProperty('inert',true);await panel.getByRole('button',{name:'Close assistant'}).focus();await page.keyboard.press('Shift+Tab');await expect(panel.getByRole('button',{name:'Send message'})).toBeFocused();await page.keyboard.press('Escape');}
- else {await expect(page.locator('#root')).toHaveJSProperty('inert',false);await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Calendar',exact:true}).click();await expect(panel).toBeHidden();await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();await launcher.click();await expect(input).toHaveValue('Unsent household draft');await panel.getByRole('button',{name:'Close assistant'}).click();}
- await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
- if(width>=1100) await launcher.click();
- await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Add chore',exact:true}).click();await expect(panel).toBeHidden();await expect(page.getByRole('dialog',{name:'Add a chore'})).toBeVisible();
+ else {await expect(page.locator('#root')).toHaveJSProperty('inert',false);}
+ await nav.getByRole('button',{name:'Add chore',exact:true}).click();await expect(panel).toBeHidden();await expect(page.getByRole('dialog',{name:'Add a chore'})).toBeVisible();
  await page.getByRole('button',{name:'Cancel',exact:true}).click();await launcher.click();await expect(input).toHaveValue('Unsent household draft');
  await input.fill('help');await panel.getByRole('button',{name:'Send message'}).click();await expect(panel.getByRole('log')).toContainText('help');await expect(input).toBeEnabled();
- await expect(panel.getByRole('log')).toContainText('help');
- await input.fill('Keep my draft through Account');
- if(width<1100)await panel.getByRole('button',{name:'Close assistant'}).click();
- await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
+ await input.fill('Keep my draft through Account');await panel.getByRole('button',{name:'Close assistant'}).click();
+ await nav.getByRole('button',{name:'Account',exact:true}).click();
+ await expect(launcher).toHaveCount(0);await expect(page.getByRole('button',{name:'Insights',exact:true})).toHaveCount(0);
  await expect(page.getByRole('heading',{name:'Notifications',exact:true})).toBeVisible();
  await expect(page.getByRole('heading',{name:'Google Calendar',exact:true})).toBeVisible();
- await expect(page.locator('.nesmi-workload')).toHaveCount(0);
- await expect(page.getByRole('heading',{name:'Appearance',exact:true})).toHaveCount(1);
  await page.screenshot({path:info.outputPath(`account-${width}-${theme}.png`),fullPage:true});
  await expect(page.locator('body')).toHaveJSProperty('scrollWidth',width);
- await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Today',exact:true}).click();
- await expect(panel).toBeHidden();await expect(launcher).toHaveCount(0);
- await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
- await launcher.click();
- await expect(input).toHaveValue('Keep my draft through Account');
- await expect(panel.getByRole('log')).toContainText('help');
+ for(const route of ['Today','Calendar','Chores']){await nav.getByRole('button',{name:route,exact:true}).click();await expect(launcher).toBeVisible();}
+ await launcher.click();await expect(input).toHaveValue('Keep my draft through Account');await expect(panel.getByRole('log')).toContainText('help');
  expect(calls.filter(c=>c.method!=='GET')).toHaveLength(0);
 });

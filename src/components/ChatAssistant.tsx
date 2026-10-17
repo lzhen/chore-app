@@ -5,8 +5,15 @@ import {
   parseUserInput,
   generateResponse,
   generateId,
-  findChore,
+  findChores,
+  findMembers,
+  isValidDate,
+  type ChatAction,
 } from '../utils/chatAgent';
+
+import { dateKey, parseDate } from '../utils/dates';
+import { generateChoreInstances } from '../utils/recurrence';
+import type { Chore } from '../types';
 
 interface ChatAssistantProps {
   active: boolean;
@@ -18,8 +25,7 @@ export function ChatAssistant({ active }: ChatAssistantProps) {
     {
       id: 'welcome',
       role: 'assistant',
-      content:
-        "Hi! I'm your chore assistant. I can help you add, complete, and manage chores. Try saying \"help\" to see what I can do!",
+      content: 'Task commands in English. Add, assign or complete a chore. Type “help” for examples.',
       timestamp: new Date(),
       quickActions: [
         { label: 'Add a chore', action: 'add a chore called ' },
@@ -42,223 +48,89 @@ export function ChatAssistant({ active }: ChatAssistantProps) {
   }, [messages, active]);
 
 
-  const handleQuickAction = (action: string) => {
-    if (action.endsWith(' ')) {
-      // This is a prompt that needs user input
-      setInput(action);
-      inputRef.current?.focus();
-    } else {
-      // Execute directly
-      setInput(action);
-      setTimeout(() => {
-        const form = inputRef.current?.closest('form');
-        if (form) {
-          form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-        }
-      }, 100);
+  type Pending = { action: ChatAction; choreIds?: string[]; choreId?: string; memberIds?: string[] };
+  const [pending, setPending] = useState<Pending | null>(null);
+  const busyRef = useRef(false);
+  const reply = (content: string, quickActions?: ChatMessage['quickActions']) => {
+    setMessages(previous => [...previous, { id: generateId(), role: 'assistant', content, timestamp: new Date(), quickActions }]);
+  };
+
+  const runMutation = async (operation: () => Promise<unknown>, success: string) => {
+    if (busyRef.current) return;
+    busyRef.current = true; setIsProcessing(true); setPending(null);
+    try { await operation(); reply(success); }
+    catch { reply('Could not save. Try again.'); }
+    finally { busyRef.current = false; setIsProcessing(false); inputRef.current?.focus(); }
+  };
+
+  const complete = async (chore: Chore, memberId: string) => {
+    const instanceDate = chore.recurrence === 'none' ? chore.date : dateKey();
+    const occurrence = generateChoreInstances([chore], state.teamMembers, state.completions, parseDate(instanceDate), parseDate(instanceDate))[0];
+    if (!occurrence) { setPending(null); reply('No occurrence today. Choose a date in Calendar.'); return; }
+    if (instanceDate > dateKey()) { setPending(null); reply('This chore is scheduled for a future date. Open it in Calendar.'); return; }
+    if (occurrence.isCompleted) { setPending(null); reply('Already completed.'); return; }
+    if (!state.teamMembers.some(member => member.id === memberId)) { setPending(null); reply('Member no longer available. Try again.'); return; }
+    await runMutation(() => completeChore(chore.id, instanceDate, memberId), `Completed “${chore.title}” · ${instanceDate}.`);
+  };
+
+  const chooseChore = async (action: ChatAction, id: string) => {
+    if (busyRef.current) return;
+    const chore = state.chores.find(item => item.id === id);
+    if (!chore) { setPending(null); reply('Chore no longer available. Try again.'); return; }
+    if (action.type === 'complete_chore') {
+      // Never invent an attribution for an unassigned or stale member reference.
+      if (!chore.assigneeId || !state.teamMembers.some(m => m.id === chore.assigneeId)) {
+        if (!state.teamMembers.length) { setPending(null); reply('Add a household member before recording completion.'); return; }
+        setPending({action, choreId: id}); reply(`Who completed “${chore.title}”?`); return;
+      }
+      await complete(chore, chore.assigneeId);
+    } else if (action.type === 'assign_chore') {
+      const members = findMembers(action.data?.assigneeName || '', state.teamMembers);
+      if (!members.length) { setPending(null); reply('No matching member. Choose a member in chore details.'); return; }
+      // Require explicit choice even for a unique partial match.
+      if (members.length !== 1 || members[0].name.toLowerCase() !== action.data?.assigneeName?.toLowerCase()) {
+        setPending({action, choreId:id, memberIds:members.map(m => m.id)}); reply('Choose a member.'); return;
+      }
+      await runMutation(() => updateChore({...chore, assigneeId: members[0].id}), `Assigned “${chore.title}” to ${members[0].name}.`);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isProcessing) return;
+  const add = async (action: ChatAction, memberId?: string) => {
+    const data = action.data;
+    if (!data?.date || !isValidDate(data.date) || (memberId && !state.teamMembers.some(m => m.id === memberId))) {setPending(null); reply('No changes made. Try again.'); return;}
+    await runMutation(() => addChore({title:data.title!, date:data.date!, assigneeId:memberId || null, recurrence:'none', priority:'medium'}), `Added “${data.title}”.`);
+  };
 
-    const userMessage: ChatMessage = {
-      id: generateId(),
-      role: 'user',
-      content: input.trim(),
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput('');
-    setIsProcessing(true);
-
-    // Parse the user input
-    const action = parseUserInput(userMessage.content, state.teamMembers);
-    const context = {
-      chores: state.chores,
-      teamMembers: state.teamMembers,
-      completions: state.completions,
-    };
-    const response = generateResponse(action, context);
-
-    // Execute actions
+  const submit = async (text: string) => {
+    if (!text.trim() || busyRef.current) return;
+    setPending(null); setInput('');
+    setMessages(previous => [...previous, {id: generateId(), role: 'user', content: text.trim(), timestamp: new Date()}]);
+    const action = parseUserInput(text.trim(), state.teamMembers);
+    if (action.type === 'complete_chore' || action.type === 'assign_chore') {
+      const matches = findChores(action.data?.title || '', state.chores);
+      if (!matches.length) { reply('No matching chore.'); return; }
+      if (matches.length > 1) { setPending({action, choreIds: matches.map(c => c.id)}); reply('Choose a chore.'); return; }
+      await chooseChore(action, matches[0].id); return;
+    }
     if (action.type === 'add_chore' && action.data) {
-      const member = state.teamMembers.find(
-        (m) => m.name.toLowerCase() === action.data?.assigneeName?.toLowerCase()
-      );
-
-      try {
-        await addChore({
-          title: action.data.title!,
-          date: action.data.date!,
-          dueTime: action.data.time || undefined,
-          assigneeId: member?.id || null,
-          recurrence: action.data.recurrence || 'none',
-          priority: action.data.priority || 'medium',
-        });
-
-        const assistantMessage: ChatMessage = {
-          id: generateId(),
-          role: 'assistant',
-          content: `Done! "${action.data.title}" has been added to the calendar.`,
-          timestamp: new Date(),
-          quickActions: [
-            { label: 'Add another', action: 'add a chore called ' },
-            { label: 'Show chores', action: 'show my chores' },
-          ],
-        };
-
-        setTimeout(() => {
-          setMessages((prev) => [...prev, assistantMessage]);
-          setIsProcessing(false);
-        }, 500);
-      } catch {
-        const errorMessage: ChatMessage = {
-          id: generateId(),
-          role: 'assistant',
-          content: 'Sorry, there was an error adding the chore. Please try again.',
-          timestamp: new Date(),
-        };
-
-        setTimeout(() => {
-          setMessages((prev) => [...prev, errorMessage]);
-          setIsProcessing(false);
-        }, 500);
+      const data = action.data;
+      if (!data.date || !isValidDate(data.date)) { reply('Choose a date in Calendar. No changes made.'); return; }
+      const members = data.assigneeName ? findMembers(data.assigneeName, state.teamMembers) : [];
+      if (data.assigneeName && !members.length) {reply('No matching member. No changes made.'); return;}
+      if (data.assigneeName && (members.length !== 1 || members[0].name.toLowerCase() !== data.assigneeName.toLowerCase())) {
+        setPending({action,memberIds:members.map(m => m.id)}); reply('Choose a member.'); return;
       }
-    } else if (action.type === 'complete_chore' && action.data) {
-      const chore = findChore(action.data.title!, state.chores);
-
-      if (chore) {
-        // Find the first team member to use as completer (or use unassigned)
-        const completerId = chore.assigneeId || state.teamMembers[0]?.id;
-
-        if (completerId) {
-          try {
-            const today = new Date().toISOString().split('T')[0];
-            await completeChore(chore.id, today, completerId);
-
-            const assistantMessage: ChatMessage = {
-              id: generateId(),
-              role: 'assistant',
-              content: `Great job! "${chore.title}" has been marked as complete. 🎉`,
-              timestamp: new Date(),
-              quickActions: [
-                { label: 'Show chores', action: 'show my chores' },
-                { label: 'My stats', action: 'show my stats' },
-              ],
-            };
-
-            setTimeout(() => {
-              setMessages((prev) => [...prev, assistantMessage]);
-              setIsProcessing(false);
-            }, 500);
-          } catch {
-            const errorMessage: ChatMessage = {
-              id: generateId(),
-              role: 'assistant',
-              content: 'Sorry, there was an error completing the chore. Please try again.',
-              timestamp: new Date(),
-            };
-
-            setTimeout(() => {
-              setMessages((prev) => [...prev, errorMessage]);
-              setIsProcessing(false);
-            }, 500);
-          }
-        } else {
-          const errorMessage: ChatMessage = {
-            id: generateId(),
-            role: 'assistant',
-            content: 'No team members available to complete this chore. Please add team members first.',
-            timestamp: new Date(),
-          };
-
-          setTimeout(() => {
-            setMessages((prev) => [...prev, errorMessage]);
-            setIsProcessing(false);
-          }, 500);
-        }
-      } else {
-        const assistantMessage: ChatMessage = {
-          id: generateId(),
-          role: 'assistant',
-          content: response.text,
-          timestamp: new Date(),
-          quickActions: response.quickActions,
-        };
-
-        setTimeout(() => {
-          setMessages((prev) => [...prev, assistantMessage]);
-          setIsProcessing(false);
-        }, 300);
-      }
-    } else if (action.type === 'assign_chore' && action.data) {
-      const chore = findChore(action.data.title!, state.chores);
-      const member = state.teamMembers.find(
-        (m) => m.name.toLowerCase() === action.data?.assigneeName?.toLowerCase()
-      );
-
-      if (chore && member) {
-        try {
-          await updateChore({ ...chore, assigneeId: member.id });
-
-          const assistantMessage: ChatMessage = {
-            id: generateId(),
-            role: 'assistant',
-            content: `Done! "${chore.title}" has been assigned to ${member.name}.`,
-            timestamp: new Date(),
-          };
-
-          setTimeout(() => {
-            setMessages((prev) => [...prev, assistantMessage]);
-            setIsProcessing(false);
-          }, 500);
-        } catch {
-          const errorMessage: ChatMessage = {
-            id: generateId(),
-            role: 'assistant',
-            content: 'Sorry, there was an error assigning the chore. Please try again.',
-            timestamp: new Date(),
-          };
-
-          setTimeout(() => {
-            setMessages((prev) => [...prev, errorMessage]);
-            setIsProcessing(false);
-          }, 500);
-        }
-      } else {
-        const errorMessage: ChatMessage = {
-          id: generateId(),
-          role: 'assistant',
-          content: chore
-            ? `Couldn't find team member "${action.data.assigneeName}". Available: ${state.teamMembers.map((m) => m.name).join(', ')}`
-            : `Couldn't find a chore matching "${action.data.title}".`,
-          timestamp: new Date(),
-          quickActions: [{ label: 'Show chores', action: 'show my chores' }],
-        };
-
-        setTimeout(() => {
-          setMessages((prev) => [...prev, errorMessage]);
-          setIsProcessing(false);
-        }, 500);
-      }
-    } else {
-      const assistantMessage: ChatMessage = {
-        id: generateId(),
-        role: 'assistant',
-        content: response.text,
-        timestamp: new Date(),
-        quickActions: response.quickActions,
-      };
-
-      setTimeout(() => {
-        setMessages((prev) => [...prev, assistantMessage]);
-        setIsProcessing(false);
-      }, 300);
+      await add(action, members[0]?.id);
+      return;
     }
+    const response = generateResponse(action, {chores: state.chores, teamMembers: state.teamMembers, completions: state.completions});
+    reply(response.text, response.quickActions);
   };
+  const handleQuickAction = (action: string) => {
+    if (action.endsWith(' ')) { setPending(null); setInput(action); inputRef.current?.focus(); }
+    else void submit(action);
+  };
+  const handleSubmit = (event: React.FormEvent) => { event.preventDefault(); void submit(input); };
 
   return (
     <div className="nesmi-chat-content">
@@ -313,6 +185,22 @@ export function ChatAssistant({ active }: ChatAssistantProps) {
         <div ref={messagesEndRef} />
       </div>
 
+      {pending && <div className="nesmi-assistant-choices" role="group" aria-label={pending.choreIds ? 'Choose a chore' : pending.action.type === 'complete_chore' ? 'Choose who completed it' : 'Choose a member'}>
+        {pending.choreIds?.map(id => {
+          const chore = state.chores.find(c => c.id === id);
+          if (!chore) return null;
+          const member = state.teamMembers.find(m => m.id === chore.assigneeId);
+          return <button key={id} className="chore-button secondary" onClick={() => void chooseChore(pending.action, id)} disabled={isProcessing}>{chore.title} · {chore.date} · {member?.name || 'Unassigned'}{chore.recurrence !== 'none' ? ` · ${chore.recurrence}` : ''}{pending.choreIds!.some(otherId => otherId !== id && state.chores.some(other => other.id === otherId && other.title === chore.title && other.date === chore.date && other.assigneeId === chore.assigneeId)) ? ` · ID ${id.slice(-6)}` : ''}</button>;
+        })}
+        {!pending.choreIds && (pending.choreId || pending.memberIds) && state.teamMembers.filter(m => !pending.memberIds || pending.memberIds.includes(m.id)).map(member => <button key={member.id} className="chore-button secondary" onClick={() => {
+          if (pending.action.type === 'add_chore') {void add(pending.action, member.id); return;}
+          const chore = state.chores.find(c => c.id === pending.choreId);
+          if (!chore) {setPending(null); reply('Chore no longer available. Try again.'); return;}
+          if (pending.action.type === 'assign_chore') void runMutation(() => updateChore({...chore, assigneeId: member.id}), `Assigned “${chore.title}” to ${member.name}.`);
+          else void complete(chore, member.id);
+        }} disabled={isProcessing}>{member.name}{state.teamMembers.filter(m => m.name.toLowerCase() === member.name.toLowerCase()).length > 1 ? ` · Member ${member.id.slice(-6)}` : ''}</button>)}
+        <button className="chore-button secondary" onClick={() => {setPending(null); reply('Cancelled.'); inputRef.current?.focus();}}>Cancel selection</button>
+      </div>}
       {/* Input */}
       <form onSubmit={handleSubmit} className="nesmi-chat-composer">
         <div className="flex gap-2">
@@ -321,7 +209,7 @@ export function ChatAssistant({ active }: ChatAssistantProps) {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about your chores…" aria-label="Message"
+            placeholder="Enter a task command…" aria-label="Message"
             className="nesmi-chat-input"
             disabled={isProcessing}
           />

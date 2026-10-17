@@ -40,11 +40,11 @@ async function fixture(page:Page,width=390,empty=false){
 }
 
 
-for(const width of [375,768,1440]) for(const theme of ['light','dark']) test(`navigation add and account assistant remain separate ${width} ${theme}`,async({page},info)=>{
+for(const width of [375,768,1440]) for(const theme of ['light','dark']) test(`navigation add and task assistant remain separate ${width} ${theme}`,async({page},info)=>{
  const {calls}=await fixture(page,width);
  await selectAppearance(page,theme);
  await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
- await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Today',exact:true}).click();
  const add=page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Add chore',exact:true});
  const agent=page.getByRole('button',{name:'Assistant',exact:true});
  await expect(add).toBeVisible();await expect(agent).toBeVisible();
@@ -55,7 +55,7 @@ for(const width of [375,768,1440]) for(const theme of ['light','dark']) test(`na
  expect(b!.x).toBeGreaterThanOrEqual(0);expect(b!.x+b!.width).toBeLessThanOrEqual(width);
  expect(a!.y+a!.height).toBeLessThanOrEqual(844);
  await expect(add.locator('span')).toBeHidden();
- await expect(page.locator('.nesmi-account-assistant').getByRole('button',{name:'Assistant',exact:true})).toBeVisible();
+ await expect(page.locator('.nesmi-task-tools').getByRole('button',{name:'Assistant',exact:true})).toBeVisible();
  await page.screenshot({path:info.outputPath(`floating-${theme}-${width}.png`),fullPage:true});
  await agent.click();await expect(agent).toHaveAttribute('aria-expanded','true');
  const panel=page.getByRole('dialog',{name:'Assistant',exact:true});await expect(panel).toBeVisible();

@@ -32,7 +32,7 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
     workingHoursStart: member.workingHours?.start || '09:00',
     workingHoursEnd: member.workingHours?.end || '17:00',
     workingDays: member.workingHours?.days || [1, 2, 3, 4, 5],
-    weeklyCapacityMinutes: member.weeklyCapacityMinutes || 480, // 8 hours default
+    weeklyCapacityMinutes: member.weeklyCapacityMinutes == null ? '' : String(member.weeklyCapacityMinutes),
   });
 
   const [activeTab, setActiveTab] = useState<'profile' | 'badges'>('profile');
@@ -55,7 +55,7 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
         end: formData.workingHoursEnd,
         days: formData.workingDays,
       },
-      weeklyCapacityMinutes: formData.weeklyCapacityMinutes,
+      weeklyCapacityMinutes: formData.weeklyCapacityMinutes === '' ? undefined : Number(formData.weeklyCapacityMinutes),
     };
 
     await updateMember(updatedMember);
@@ -269,23 +269,9 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
 
               {/* Weekly Capacity */}
               <div>
-                <label className="block text-sm font-medium text-content-primary mb-2">
-                  Weekly Capacity: {Math.floor(formData.weeklyCapacityMinutes / 60)}h {formData.weeklyCapacityMinutes % 60}m
-                </label>
-                <input
-                  type="range"
-                  min={0}
-                  max={2400}
-                  step={30}
-                  value={formData.weeklyCapacityMinutes}
-                  onChange={(e) => setFormData({ ...formData, weeklyCapacityMinutes: parseInt(e.target.value) })}
-                  className="w-full accent-brand-primary"
-                />
-                <div className="flex justify-between text-xs text-content-secondary mt-1">
-                  <span>0h</span>
-                  <span>20h</span>
-                  <span>40h</span>
-                </div>
+                <label htmlFor="weekly-capacity" className="block text-sm font-medium text-content-primary mb-2">Weekly capacity (minutes) · this session</label>
+                <input id="weekly-capacity" type="number" min={0} max={2400} step={1} placeholder="Not set" value={formData.weeklyCapacityMinutes}
+                  onChange={e => setFormData({...formData, weeklyCapacityMinutes:e.target.value})} className="chore-input w-full" />
               </div>
 
               {/* Submit */}

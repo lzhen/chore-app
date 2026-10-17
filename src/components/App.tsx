@@ -1,5 +1,5 @@
 import { LoadingScreen } from './LoadingScreen';
-import { useState, useRef, useMemo, useCallback } from 'react';
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { Header } from './Header';
 import { TeamMemberList } from './TeamMemberList';
 import { Calendar, CalendarRef } from './Calendar';
@@ -45,6 +45,27 @@ export function App() {
   const [profileMember, setProfileMember] = useState<TeamMember | null>(null);
   const [availabilityMember, setAvailabilityMember] = useState<TeamMember | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const familyPanelRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const panel = familyPanelRef.current;
+    panel?.focus();
+    const key = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setSidebarOpen(false); }
+      if (event.key !== 'Tab' || !panel) return;
+      const items = [...panel.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),a[href],[tabindex="0"]')].filter(el => el.getClientRects().length);
+      const first = items[0], last = items[items.length - 1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === panel)) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || document.activeElement === panel)) { event.preventDefault(); first?.focus(); }
+    };
+    document.addEventListener('keydown', key, true);
+    return () => { document.removeEventListener('keydown', key, true); if (previous?.isConnected) previous.focus(); };
+  }, [sidebarOpen]);
+  useEffect(() => {
+    if (viewMode === 'dashboard') document.getElementById('insights-title')?.focus();
+  }, [viewMode]);
 
   // Compute event dates for mini calendar
   const eventDates = useMemo(() => {
@@ -103,11 +124,13 @@ export function App() {
   };
 
   const handleDashboardClick = () => {
+    setSidebarOpen(false);
     setViewMode('dashboard');
   };
 
   // Keyboard shortcuts
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (sidebarOpen) return;
     // Ignore if in input/textarea (except for Escape)
     const isInput = (e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA';
 
@@ -239,15 +262,17 @@ export function App() {
         </div>
       </div>
     </section>}
-    {sidebarOpen&&<div className="family-overlay"><button className="family-backdrop" aria-label="Close family menu" onClick={()=>setSidebarOpen(false)}/><aside id="nesmi-family-panel" className="family-panel" aria-label="Family"><TeamMemberList onClose={()=>setSidebarOpen(false)} onDateSelect={handleMiniCalendarDateSelect} eventDates={eventDates} hiddenMembers={hiddenMembers} onToggleMemberVisibility={handleToggleMemberVisibility} onProfileOpen={m=>{setSidebarOpen(false);setProfileMember(m);}} onAvailabilityOpen={m=>{setSidebarOpen(false);setAvailabilityMember(m);}}/></aside></div>}
+    {sidebarOpen&&<div className="family-overlay"><button className="family-backdrop" aria-label="Close family menu" onClick={()=>setSidebarOpen(false)}/><aside ref={familyPanelRef} role="dialog" aria-modal="true" tabIndex={-1} id="nesmi-family-panel" className="family-panel" aria-label="Family"><TeamMemberList onClose={()=>setSidebarOpen(false)} onDateSelect={handleMiniCalendarDateSelect} eventDates={eventDates} hiddenMembers={hiddenMembers} onToggleMemberVisibility={handleToggleMemberVisibility} onProfileOpen={m=>{setSidebarOpen(false);setProfileMember(m);}} onAvailabilityOpen={m=>{setSidebarOpen(false);setAvailabilityMember(m);}}/></aside></div>}
     {state.chores.length>0&&viewMode==='calendar'&&<Calendar ref={calendarRef} onAddClick={handleAddClick} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers}/>}
     {state.chores.length>0&&(viewMode==='today'||viewMode==='list')&&<ListView key={viewMode} todayView={viewMode==='today'} onAddClick={()=>handleAddClick()} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers} onClearFilters={()=>{setSearchQuery('');setHiddenMembers(new Set());}}/>}
-    {viewMode==='dashboard'&&(state.chores.length>0?<Dashboard embedded onClose={()=>setViewMode('today')}/>:<section className="chore-list-page"><div className="chore-empty"><h2>Small wins will show up here.</h2><p>Add your first chore to start seeing your household’s progress.</p><button className="chore-button primary" onClick={()=>handleAddClick()}>Add your first chore</button></div></section>)}
-    {viewMode==='account'&&<AccountSettings assistantTriggerRef={setAssistantTriggerTarget} onInsights={()=>setViewMode('dashboard')} embedded isOpen onClose={()=>setViewMode('today')}/>}
+    {viewMode==='dashboard'&&<Dashboard embedded onClose={()=>setViewMode('today')}/>}
+    {viewMode==='account'&&<AccountSettings embedded isOpen onInsights={handleDashboardClick} onClose={()=>setViewMode('today')}/>}
+
     </main>
+    {["today","calendar","list"].includes(viewMode)&&<div className="nesmi-task-tools" ref={setAssistantTriggerTarget}/>}
 
    </div>
-   <AgentPanel triggerTarget={assistantTriggerTarget} showTrigger={viewMode==='account'} suspended={modalOpen||sidebarOpen||!!profileMember||!!availabilityMember||shortcutsOpen||viewMode!=='account'}/>
+   <AgentPanel triggerTarget={assistantTriggerTarget} showTrigger={['today','calendar','list'].includes(viewMode)} suspended={modalOpen||sidebarOpen||!!profileMember||!!availabilityMember||shortcutsOpen||!['today','calendar','list'].includes(viewMode)}/>
    <ChoreModal isOpen={modalOpen} onClose={handleCloseModal} editChore={editChore} instanceDate={instanceDate} defaultValues={defaultValues}/>
    {profileMember&&<MemberProfileModal member={profileMember} onClose={()=>setProfileMember(null)}/>}
    {availabilityMember&&<AvailabilityModal member={availabilityMember} onClose={()=>setAvailabilityMember(null)}/>}

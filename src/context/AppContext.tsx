@@ -189,7 +189,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const reload = () => setRevision(value => value + 1);
 
   useEffect(() => {
-    if (authLoading || !user) { dispatch({type:'SET_LOADING',payload:false}); return; }
+    if (authLoading) return;
+    if (!user) { dispatch({type:'SET_LOADING',payload:false}); return; }
     let current = true;
     dispatch({type:'SET_ERROR',payload:null});
     dispatch({type:'SET_LOADING',payload:true});

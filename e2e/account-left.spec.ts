@@ -67,12 +67,12 @@ for(const width of [320,1440]) for(const theme of ['light','dark']) test(`neutra
  const {calls}=await fixture(page,width);
  await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
  if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
- await page.getByRole('button',{name:'Insights',exact:true}).click();
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();await page.getByRole('button',{name:'Activity & insights',exact:true}).click();
  await page.getByRole('button',{name:'Workload',exact:true}).click();
  await expect(page.getByText('Under 70%',{exact:true})).toHaveCount(0);
  await expect(page.getByText('70-90%',{exact:true})).toHaveCount(0);
  await expect(page.getByText('Over 90%',{exact:true})).toHaveCount(0);
- await expect(page.getByText('Under Capacity',{exact:true})).toBeVisible();
+ await expect(page.getByText('Not set',{exact:true}).first()).toBeVisible();await expect(page.getByText('Under Capacity',{exact:true})).toHaveCount(0);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.screenshot({path:info.outputPath(`workload-${width}-${theme}.png`),fullPage:true});
  expect(calls.filter(c=>c.method!=='GET')).toHaveLength(0);

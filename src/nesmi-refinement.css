@@ -489,3 +489,13 @@
   .chore-tabs button > svg, .chore-tabs .nesmi-nav-add > svg { width: 36px; height: 36px; padding: 7.5px; }
   .chore-tabs .nesmi-nav-add > svg { border-radius: 10px; }
 }
+
+/* A reserved task-page row keeps the quiet entry clear of tasks and primary navigation. */
+.nesmi-task-tools {order:2;flex-shrink:0;display:flex;justify-content:flex-start;padding:4px var(--nesmi-page-gutter,20px) 8px;background:var(--surface-primary);}
+.nesmi-task-tools .nesmi-agent-trigger {width:auto;height:auto;min-height:44px;padding:8px 12px;gap:8px;border:1px solid var(--border-subtle);border-radius:8px;background:var(--surface-primary);color:var(--text-secondary);font-size:14px;font-weight:400;box-shadow:none;}
+.nesmi-task-tools .nesmi-agent-trigger svg {width:18px;height:18px;}
+.nesmi-history-entry {margin-bottom:16px;width:100%;justify-content:flex-start;}
+@media(min-width:768px){.nesmi-task-tools{margin-left:var(--nesmi-navigation-width);padding-bottom:max(12px,env(safe-area-inset-bottom));}}
+.nesmi-assistant {top:var(--assistant-top,0px);bottom:auto;height:min(100dvh, var(--assistant-height,100dvh));}
+.nesmi-assistant-choices {padding:12px 20px;max-height:40%;overflow:auto;border-top:1px solid var(--border-subtle);}
+.nesmi-assistant-choices button {display:block;width:100%;text-align:left;justify-content:flex-start;margin-top:8px;}

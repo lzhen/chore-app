@@ -9,10 +9,9 @@ interface AccountSettingsProps {
   onClose: () => void;
   embedded?: boolean;
   onInsights?: () => void;
-  assistantTriggerRef?: (element: HTMLDivElement | null) => void;
 }
 
-export function AccountSettings({ isOpen, onClose, embedded=false, onInsights, assistantTriggerRef }: AccountSettingsProps) {
+export function AccountSettings({ isOpen, onClose, onInsights, embedded=false }: AccountSettingsProps) {
   const { user, signOut, deleteAccount } = useAuth();
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -47,9 +46,8 @@ export function AccountSettings({ isOpen, onClose, embedded=false, onInsights, a
         </div>
 
         <div className="nesmi-account-appearance nesmi-settings-section"><h3>Appearance</h3><ThemeSelector/></div>
-        {onInsights&&<div className="nesmi-settings-section"><button className="chore-button secondary" onClick={onInsights}>Insights</button></div>}
-        <div className="nesmi-account-assistant nesmi-settings-section"><div ref={assistantTriggerRef}/></div>
         <AccountTools/>
+        {onInsights && <div className="nesmi-settings-section"><button type="button" className="chore-button secondary" onClick={onInsights}>Activity & insights</button></div>}
 
         <div className="mt-6 border-t border-border pt-5">
           <h3 className="font-medium text-content-primary">Privacy</h3>

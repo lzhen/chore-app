@@ -52,7 +52,7 @@ for (const width of [320, 375, 390, 430, 1440]) for (const theme of ['light','da
  await checkHeader();
  await page.getByRole('button',{name:'Open family menu'}).click();
  await expect(page.locator('#nesmi-family-panel')).toBeVisible();
- await page.locator('#nesmi-family-panel').getByRole('button',{name:'Close sidebar',exact:true}).click();
+ await page.keyboard.press('Escape');
 
  await nav.getByRole('button',{name:'Account',exact:true}).click(); await checkHeader();
  const trigger=page.getByRole('button',{name:/^Switch to (light|dark) mode$/}).last();

@@ -23,6 +23,12 @@ export function AgentPanel({ suspended = false, showTrigger = true, triggerTarge
       panel.current?.setAttribute('aria-modal', String(media.matches));
       if (media.matches && !panel.current?.contains(document.activeElement)) panel.current?.focus();
     };
+    const viewport = window.visualViewport;
+    const fitViewport = () => {
+      panel.current?.style.setProperty('--assistant-top', `${viewport?.offsetTop || 0}px`);
+      panel.current?.style.setProperty('--assistant-height', `${viewport?.height || window.innerHeight}px`);
+    };
+    fitViewport(); window.addEventListener('resize', fitViewport); viewport?.addEventListener('resize', fitViewport); viewport?.addEventListener('scroll', fitViewport);
     adapt(); media.addEventListener('change', adapt);
     panel.current?.focus();
     const key = (event: KeyboardEvent) => {
@@ -35,6 +41,7 @@ export function AgentPanel({ suspended = false, showTrigger = true, triggerTarge
     };
     document.addEventListener('keydown', key, true);
     return () => {
+      window.removeEventListener('resize', fitViewport); viewport?.removeEventListener('resize', fitViewport); viewport?.removeEventListener('scroll', fitViewport);
       media.removeEventListener('change', adapt); document.removeEventListener('keydown', key, true);
       if (root) root.inert = oldInert; document.body.style.overflow = oldOverflow; document.body.classList.remove('nesmi-assistant-docked');
       if (document.activeElement === document.body || panel.current?.contains(document.activeElement)) (trigger.current || previous)?.focus();
@@ -44,7 +51,7 @@ export function AgentPanel({ suspended = false, showTrigger = true, triggerTarge
   const launcher = showTrigger && !suspended ? <button
         ref={trigger}
         onClick={() => setIsOpen(!isOpen)}
-        className={triggerTarget ? "nesmi-agent-trigger chore-button secondary" : "nesmi-agent-trigger rounded-full flex items-center justify-center"}
+        className="nesmi-agent-trigger chore-button secondary"
         aria-label="Assistant" aria-expanded={visible} aria-controls="nesmi-assistant"
         title="Assistant"
       >
@@ -56,7 +63,7 @@ export function AgentPanel({ suspended = false, showTrigger = true, triggerTarge
             d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
           />
         </svg>
-        {triggerTarget && <span>Assistant</span>}
+        <span>Assistant</span>
       </button> : null;
 
   return (

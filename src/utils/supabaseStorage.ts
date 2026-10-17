@@ -76,7 +76,7 @@ function dbToChore(db: DbChore): Chore {
     recurrence: db.recurrence as Chore['recurrence'],
     priority: (db.priority || 'medium') as Priority,
     categoryId: db.category_id || undefined,
-    estimatedMinutes: db.estimated_minutes || undefined,
+    estimatedMinutes: db.estimated_minutes ?? undefined,
   };
 }
 
@@ -95,7 +95,7 @@ function dbToMember(db: DbTeamMember): TeamMember {
     } : undefined,
     points: db.points || 0,
     badges: db.badges || [],
-    weeklyCapacityMinutes: db.weekly_capacity_minutes || undefined,
+    weeklyCapacityMinutes: db.weekly_capacity_minutes ?? undefined,
   };
 }
 
@@ -159,7 +159,7 @@ export async function createChore(chore: Omit<Chore, 'id'>): Promise<Chore | nul
       recurrence: chore.recurrence,
       priority: chore.priority || 'medium',
       category_id: chore.categoryId || null,
-      estimated_minutes: chore.estimatedMinutes || null,
+      estimated_minutes: chore.estimatedMinutes ?? null,
     })
     .select()
     .single();
@@ -184,7 +184,7 @@ export async function updateChore(chore: Chore): Promise<boolean> {
       recurrence: chore.recurrence,
       priority: chore.priority || 'medium',
       category_id: chore.categoryId || null,
-      estimated_minutes: chore.estimatedMinutes || null,
+      estimated_minutes: chore.estimatedMinutes ?? null,
     })
     .eq('id', chore.id).select('id');
 

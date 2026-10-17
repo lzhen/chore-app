@@ -1,6 +1,6 @@
 import { memberAvatarStyle } from '../utils/colors';
 import { dateKey } from '../utils/dates';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { TeamMember } from '../types';
 import { MiniCalendar } from './MiniCalendar';
@@ -23,12 +23,16 @@ export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMember
 
   const [error,setError] = useState('');
   const [busy,setBusy] = useState(false);
+  const addPending = useRef(false);
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newName.trim()) {
-      setBusy(true);setError('');
-      try {await addMember(newName.trim());setNewName('');}catch(e){setError(e instanceof Error?e.message:'Could not add member.');}finally{setBusy(false);}
-    }
+    const name = newName.trim();
+    if (!name || addPending.current) return;
+    addPending.current = true;
+    setBusy(true);setError('');
+    try {await addMember(name);setNewName('');}
+    catch(e){setError(e instanceof Error?e.message:'Could not add member.');}
+    finally{addPending.current = false;setBusy(false);}
   };
 
   const getMemberAvailabilityInfo = (memberId: string) => {
@@ -41,20 +45,11 @@ export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMember
 
   return (
     <div className="fluent-panel w-72 lg:w-64 p-4 flex flex-col h-full">
-        {/* Header with close button for mobile */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="fluent-title text-lg font-semibold text-content-primary">Family</h2>
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="lg:hidden p-1.5 text-content-secondary hover:text-content-primary hover:bg-subtle-background-hover rounded-fluent-sm transition-all duration-fast"
-              aria-label="Close sidebar"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
+          {onClose && <button type="button" onClick={onClose}
+            className="sr-only focus:not-sr-only focus:static focus:px-3 focus:py-2"
+            aria-label="Close sidebar">Close</button>}
         </div>
 
         {/* Mini Calendar for navigation */}
@@ -67,18 +62,20 @@ export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMember
           </div>
         )}
 
-        <form onSubmit={handleAdd} className="mb-4">
+        <form onSubmit={handleAdd} className="mb-4" aria-label="Add family member" aria-busy={busy}>
           <div className="flex gap-2">
             <input
               type="text"
+              aria-label="Family member name"
+              disabled={busy}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Family member name"
               className="fluent-input flex-1 text-sm"
             />
             <button
-              type="submit" disabled={busy}
-              className="fluent-button px-3 py-2 text-sm"
+              type="submit" disabled={busy || !newName.trim()}
+              className="fluent-button px-3 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Add
             </button>

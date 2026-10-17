@@ -153,9 +153,8 @@ test('starter suggestion waits for an edited explicit save', async ({page}, info
   const f = await fixture(page, 390, true);
   const nav = page.getByRole('navigation', {name: 'Primary navigation'});
   await nav.getByRole('button', {name: 'Account', exact: true}).click();
-  await page.getByRole('button', {name: 'Insights', exact: true}).click();
-  await expect(page.getByRole('heading', {name: 'Small wins will show up here.'})).toBeVisible();
-  await expect(page.getByRole('button', {name: 'Add your first chore', exact: true})).toBeVisible();
+  await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();await page.getByRole('button',{name:'Activity & insights',exact:true}).click();
+  await expect(page.getByText('No completions yet. Complete some chores to see activity.')).toBeVisible();
   await nav.getByRole('button', {name: 'Today', exact: true}).click();
   await page.screenshot({path: info.outputPath('first-chore-mobile.png'), fullPage: true});
   await page.getByRole('button', {name: 'Start with Wash dishes'}).click();

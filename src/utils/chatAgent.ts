@@ -1,3 +1,5 @@
+import { dateKey, shiftDate, parseDate as parseCalendarDate } from './dates';
+import { generateChoreInstances } from './recurrence';
 import { Chore, TeamMember, RecurrenceType, Priority, ChoreCompletion } from '../types';
 
 export interface ChatMessage {
@@ -25,6 +27,7 @@ export interface ChatAction {
     | 'show_overdue'
     | 'help'
     | 'greeting'
+    | 'choose_date'
     | 'unknown';
   data?: {
     title?: string;
@@ -46,180 +49,53 @@ export interface ChatContext {
 /**
  * Parse a date string from natural language
  */
+export function isValidDate(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) && dateKey(parseCalendarDate(value)) === value;
+}
 function parseDate(text: string): string | null {
-  const today = new Date();
-  const lowerText = text.toLowerCase();
-
-  if (lowerText.includes('today')) {
-    return today.toISOString().split('T')[0];
-  }
-
-  if (lowerText.includes('tomorrow')) {
-    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
-    return tomorrow.toISOString().split('T')[0];
-  }
-
-  if (lowerText.includes('next week')) {
-    const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-    return nextWeek.toISOString().split('T')[0];
-  }
-
-  // "in X days"
-  const inDaysMatch = lowerText.match(/in\s+(\d+)\s+days?/);
-  if (inDaysMatch) {
-    const days = parseInt(inDaysMatch[1]);
-    const futureDate = new Date(today.getTime() + days * 24 * 60 * 60 * 1000);
-    return futureDate.toISOString().split('T')[0];
-  }
-
-  // Try to find day names
-  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  for (let i = 0; i < days.length; i++) {
-    if (lowerText.includes(days[i])) {
-      const currentDay = today.getDay();
-      let daysUntil = i - currentDay;
-      if (daysUntil <= 0) daysUntil += 7;
-      const targetDate = new Date(today.getTime() + daysUntil * 24 * 60 * 60 * 1000);
-      return targetDate.toISOString().split('T')[0];
-    }
-  }
-
-  // Try to parse explicit date formats
-  const dateMatch = text.match(/(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?/);
-  if (dateMatch) {
-    const month = parseInt(dateMatch[1]);
-    const day = parseInt(dateMatch[2]);
-    const year = dateMatch[3] ? parseInt(dateMatch[3]) : today.getFullYear();
-    const fullYear = year < 100 ? 2000 + year : year;
-    return `${fullYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-  }
-
+  const value = text.trim().toLowerCase();
+  const today = dateKey();
+  if (value === 'today') return today;
+  if (value === 'tomorrow') return shiftDate(today, 1);
+  if (value === 'next week') return shiftDate(today, 7);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return isValidDate(value) ? value : null;
+  // Other formats can be ambiguous. Calendar provides an explicit date picker.
   return null;
-}
-
-/**
- * Parse time from natural language
- */
-function parseTime(text: string): string | null {
-  const lowerText = text.toLowerCase();
-
-  // Match "at X:XX" or "at Xpm/am"
-  const timeMatch = lowerText.match(/at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
-  if (timeMatch) {
-    let hours = parseInt(timeMatch[1]);
-    const minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
-    const period = timeMatch[3]?.toLowerCase();
-
-    if (period === 'pm' && hours < 12) hours += 12;
-    if (period === 'am' && hours === 12) hours = 0;
-
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-  }
-
-  // Match morning/afternoon/evening
-  if (lowerText.includes('morning')) return '09:00';
-  if (lowerText.includes('noon') || lowerText.includes('lunch')) return '12:00';
-  if (lowerText.includes('afternoon')) return '14:00';
-  if (lowerText.includes('evening')) return '18:00';
-  if (lowerText.includes('night')) return '20:00';
-
-  return null;
-}
-
-/**
- * Parse priority from natural language
- */
-function parsePriority(text: string): Priority {
-  const lowerText = text.toLowerCase();
-
-  if (
-    lowerText.includes('high priority') ||
-    lowerText.includes('urgent') ||
-    lowerText.includes('important') ||
-    lowerText.includes('asap')
-  ) {
-    return 'high';
-  }
-
-  if (lowerText.includes('low priority') || lowerText.includes('whenever') || lowerText.includes('not urgent')) {
-    return 'low';
-  }
-
-  return 'medium';
-}
-
-/**
- * Parse recurrence from natural language
- */
-function parseRecurrence(text: string): RecurrenceType {
-  const lowerText = text.toLowerCase();
-
-  if (lowerText.includes('every day') || lowerText.includes('daily')) {
-    return 'daily';
-  }
-
-  if (lowerText.includes('every week') || lowerText.includes('weekly')) {
-    return 'weekly';
-  }
-
-  if (lowerText.includes('every month') || lowerText.includes('monthly')) {
-    return 'monthly';
-  }
-
-  return 'none';
 }
 
 /**
  * Find a team member by name (fuzzy match)
  */
-function findMember(name: string, teamMembers: TeamMember[]): TeamMember | null {
-  const lowerName = name.toLowerCase().trim();
-
-  // Exact match first
-  const exact = teamMembers.find((m) => m.name.toLowerCase() === lowerName);
-  if (exact) return exact;
-
-  // Partial match (name starts with)
-  const startsWith = teamMembers.find((m) => m.name.toLowerCase().startsWith(lowerName));
-  if (startsWith) return startsWith;
-
-  // Partial match (name contains)
-  const partial = teamMembers.find((m) => m.name.toLowerCase().includes(lowerName));
-  if (partial) return partial;
-
-  // Check if member name includes the search term
-  const reverse = teamMembers.find((m) => lowerName.includes(m.name.toLowerCase()));
-  if (reverse) return reverse;
-
-  return null;
+export function findMembers(name: string, members: TeamMember[]): TeamMember[] {
+  const query = name.trim().toLowerCase();
+  if (!query) return [];
+  const exact = members.filter(m => m.name.trim().toLowerCase() === query);
+  return exact.length ? exact : members.filter(m => m.name.toLowerCase().includes(query));
 }
 
 /**
  * Find a chore by title (fuzzy match)
  */
+export function findChores(title: string, chores: Chore[]): Chore[] {
+  const query = title.toLowerCase().trim();
+  if (!query) return [];
+  const exact = chores.filter(c => c.title.toLowerCase().trim() === query);
+  if (exact.length) return exact;
+  const contains = chores.filter(c => c.title.toLowerCase().includes(query));
+  return contains;
+}
 function findChore(title: string, chores: Chore[]): Chore | null {
-  const lowerTitle = title.toLowerCase().trim();
-
-  // Exact match
-  const exact = chores.find((c) => c.title.toLowerCase() === lowerTitle);
-  if (exact) return exact;
-
-  // Contains match
-  const contains = chores.find((c) => c.title.toLowerCase().includes(lowerTitle));
-  if (contains) return contains;
-
-  // Reverse contains
-  const reverse = chores.find((c) => lowerTitle.includes(c.title.toLowerCase()));
-  if (reverse) return reverse;
-
-  return null;
+  const matches = findChores(title, chores);
+  return matches.length === 1 ? matches[0] : null;
 }
 
 /**
  * Parse user input to determine intent
  */
-export function parseUserInput(input: string, teamMembers: TeamMember[]): ChatAction {
+export function parseUserInput(input: string, _teamMembers: TeamMember[]): ChatAction {
   const lowerInput = input.toLowerCase().trim();
+
+  if (/\b(don['’]?t|do not|never|cancel|stop|not now|nevermind|never mind)\b/i.test(input)) return {type:'unknown'};
 
   // Greetings
   if (
@@ -272,135 +148,34 @@ export function parseUserInput(input: string, teamMembers: TeamMember[]): ChatAc
     return { type: 'list_members' };
   }
 
-  // Complete chore patterns
-  const completePatterns = [
-    /(?:complete|finish|done|mark as done|mark complete|check off)\s+["']?(.+?)["']?$/i,
-    /i(?:'ve| have)? (?:completed|finished|done)\s+["']?(.+?)["']?$/i,
-    /["']?(.+?)["']?\s+is (?:done|complete|finished)$/i,
-  ];
-
-  for (const pattern of completePatterns) {
-    const match = input.match(pattern);
-    if (match) {
-      const title = match[1].trim();
-      return {
-        type: 'complete_chore',
-        data: { title },
-      };
-    }
+  const complete = input.trim().match(/^(?:complete|finish|done|mark as done|mark complete|check off)\s+(.+)$/i);
+  if (complete) {
+    const title = complete[1].trim();
+    if (/\b(today|yesterday|tomorrow|last|next|on|monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december)\b|\d+[/-]\d+|\b\d+ days?\b/i.test(title)) return {type: 'choose_date'};
+    return {type: 'complete_chore', data: {title}};
   }
-
-  // Delete chore patterns
-  const deletePatterns = [
-    /(?:delete|remove|cancel)\s+["']?(.+?)["']?$/i,
-    /(?:get rid of|take off)\s+["']?(.+?)["']?$/i,
-  ];
-
-  for (const pattern of deletePatterns) {
-    const match = input.match(pattern);
-    if (match) {
-      const title = match[1].trim();
-      return {
-        type: 'delete_chore',
-        data: { title },
-      };
+  const assignment = input.trim().match(/^(?:assign|give)\s+(.+?)\s+to\s+(.+)$/i);
+  if (assignment) return {type: 'assign_chore', data: {title: assignment[1].trim(), assigneeName: assignment[2].trim()}};
+  const creation = input.trim().match(/^(?:add|create|new) (?:a )?(?:chore|task)(?: called| named)?[ :]+(.+)$/i);
+  if (creation) {
+    let title = creation[1].trim();
+    let assigneeName: string | undefined;
+    const assignee = title.match(/^(.*?)\s+assigned to\s+(.+)$/i);
+    if (assignee) {title = assignee[1].trim(); assigneeName = assignee[2].trim();}
+    let date = dateKey();
+    const dated = title.match(/^(.*?)\s+(?:on|for|due)\s+(.+)$/i);
+    if (dated) {
+      title = dated[1].trim();
+      const parsed = parseDate(dated[2]);
+      if (!parsed) return {type:'choose_date'};
+      date = parsed;
+    } else if (/\b(today|tomorrow|yesterday|next|weekly|daily|monthly|every|at)\b|\d+[/-]\d+/i.test(title)) {
+      return {type:'choose_date'};
     }
+    if (!title) return {type:'unknown'};
+    return {type:'add_chore',data:{title,date,assigneeName,recurrence:'none',priority:'medium'}};
   }
-
-  // Add chore patterns
-  const addPatterns = [
-    /add (?:a )?(?:chore|task) (?:called |named |for )?["']?([^"']+?)["']?(?:\s+(?:on|for|due)\s+(.+))?$/i,
-    /create (?:a )?(?:chore|task) (?:called |named |for )?["']?([^"']+?)["']?(?:\s+(?:on|for|due)\s+(.+))?$/i,
-    /new (?:chore|task)[:\s]+["']?([^"']+?)["']?(?:\s+(?:on|for|due)\s+(.+))?$/i,
-    /schedule ["']?([^"']+?)["']?(?:\s+(?:on|for|due)\s+(.+))?$/i,
-    /remind me to\s+["']?(.+?)["']?(?:\s+(?:on|for|due)\s+(.+))?$/i,
-  ];
-
-  for (const pattern of addPatterns) {
-    const match = input.match(pattern);
-    if (match) {
-      const title = match[1].trim();
-      const dateContext = match[2] || input;
-      const date = parseDate(dateContext) || new Date().toISOString().split('T')[0];
-      const time = parseTime(input);
-      const recurrence = parseRecurrence(input);
-      const priority = parsePriority(input);
-
-      // Check for assignee
-      let assigneeName: string | undefined;
-      const assignMatch = input.match(/(?:assign(?:ed)? to|for)\s+(\w+)/i);
-      if (assignMatch) {
-        const member = findMember(assignMatch[1], teamMembers);
-        if (member) {
-          assigneeName = member.name;
-        }
-      }
-
-      return {
-        type: 'add_chore',
-        data: { title, date, time: time || undefined, recurrence, priority, assigneeName },
-      };
-    }
-  }
-
-  // Assign chore pattern
-  const assignPatterns = [
-    /assign\s+["']?(.+?)["']?\s+to\s+(\w+)/i,
-    /give\s+["']?(.+?)["']?\s+to\s+(\w+)/i,
-    /(\w+)\s+should\s+(?:do|handle)\s+["']?(.+?)["']?/i,
-  ];
-
-  for (const pattern of assignPatterns) {
-    const match = input.match(pattern);
-    if (match) {
-      let choreTitle, memberName;
-      if (pattern.source.includes('should')) {
-        memberName = match[1].trim();
-        choreTitle = match[2].trim();
-      } else {
-        choreTitle = match[1].trim();
-        memberName = match[2].trim();
-      }
-      const member = findMember(memberName, teamMembers);
-
-      return {
-        type: 'assign_chore',
-        data: {
-          title: choreTitle,
-          assigneeName: member?.name,
-        },
-      };
-    }
-  }
-
-  // If input looks like a chore description, try to add it
-  if (lowerInput.length > 3) {
-    const date = parseDate(input) || new Date().toISOString().split('T')[0];
-    const time = parseTime(input);
-    const recurrence = parseRecurrence(input);
-    const priority = parsePriority(input);
-
-    // Clean up the title
-    let title = input
-      .replace(
-        /\b(today|tomorrow|next week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi,
-        ''
-      )
-      .replace(/\b(daily|weekly|monthly|every day|every week|every month)\b/gi, '')
-      .replace(/\b(high priority|low priority|urgent|important|asap)\b/gi, '')
-      .replace(/\bat\s+\d{1,2}(?::\d{2})?\s*(am|pm)?/gi, '')
-      .replace(/\b(morning|afternoon|evening|night|noon|lunch)\b/gi, '')
-      .replace(/\b(on|for|due|in \d+ days?)\b/gi, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    if (title.length > 2) {
-      return {
-        type: 'add_chore',
-        data: { title, date, time: time || undefined, recurrence, priority },
-      };
-    }
-  }
+  if (/^(?:delete|remove)\s+.+$/i.test(input.trim())) return {type:'delete_chore',data:{title:input.trim().replace(/^\S+\s+/,'')}};
 
   return { type: 'unknown' };
 }
@@ -432,26 +207,15 @@ export function generateResponse(
 
     case 'help':
       return {
-        text: `Here's what I can help you with:
+        text: `Commands in English:
+• Add a chore called Dishes on 2026-10-23
+• Add a chore called Dishes assigned to Alex
+• Complete Dishes
+• Assign Dishes to Alex
+• Show my chores
+• Show my stats
 
-**Add chores:**
-- "Add a chore called Clean kitchen tomorrow"
-- "Remind me to take out trash at 8pm"
-- "Schedule vacuum weekly on Monday"
-- "Add urgent task: Fix bug"
-
-**Manage chores:**
-- "Complete clean kitchen"
-- "Delete meeting prep"
-- "Assign dishes to John"
-
-**View info:**
-- "Show my chores"
-- "Show my stats"
-- "What's overdue?"
-- "Who's on the team?"
-
-Just type naturally and I'll understand!`,
+Dates: today, tomorrow, next week or YYYY-MM-DD. Use Calendar for other dates, repeats or times. Completion applies to today's recurring occurrence or the scheduled one-off date.`,
         quickActions: [
           { label: 'Add a chore', action: 'add a chore called ' },
           { label: 'Show chores', action: 'show my chores' },
@@ -460,14 +224,12 @@ Just type naturally and I'll understand!`,
       };
 
     case 'show_stats': {
-      const today = new Date().toISOString().split('T')[0];
-      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const today = dateKey();
+      const weekAgo = shiftDate(today, -6);
 
       const totalChores = chores.length;
-      const completedThisWeek = completions.filter((c) => c.instanceDate >= weekAgo).length;
-      const pending = chores.filter(
-        (c) => c.date >= today && !completions.some((comp) => comp.choreId === c.id && comp.instanceDate === c.date)
-      ).length;
+      const completedThisWeek = completions.filter((c) => c.instanceDate >= weekAgo && c.instanceDate <= today).length;
+      const pending = generateChoreInstances(chores, teamMembers, completions, parseCalendarDate(today), parseCalendarDate(today)).filter(i => !i.isCompleted).length;
       const overdue = chores.filter(
         (c) =>
           c.date < today &&
@@ -478,17 +240,17 @@ Just type naturally and I'll understand!`,
       // Get top performer
       const memberCompletions = teamMembers.map((m) => ({
         name: m.name,
-        count: completions.filter((c) => c.completedBy === m.id && c.instanceDate >= weekAgo).length,
+        count: completions.filter((c) => c.completedBy === m.id && c.instanceDate >= weekAgo && c.instanceDate <= today).length,
         points: m.points || 0,
       }));
       const topPerformer = memberCompletions.sort((a, b) => b.count - a.count)[0];
 
-      let statsText = `**This Week's Summary:**\n\n`;
+      let statsText = `Last 7 days:\n\n`;
       statsText += `- Total chores: ${totalChores}\n`;
-      statsText += `- Completed this week: ${completedThisWeek}\n`;
-      statsText += `- Pending: ${pending}\n`;
+      statsText += `- Completed: ${completedThisWeek}\n`;
+      statsText += `- Pending today: ${pending}\n`;
       if (overdue > 0) {
-        statsText += `- **Overdue: ${overdue}** ⚠️\n`;
+        statsText += `- **Overdue one-off chores: ${overdue}** ⚠️\n`;
       }
       if (topPerformer && topPerformer.count > 0) {
         statsText += `\n🏆 Top performer: ${topPerformer.name} (${topPerformer.count} completed, ${topPerformer.points} pts)`;
@@ -501,7 +263,7 @@ Just type naturally and I'll understand!`,
     }
 
     case 'show_overdue': {
-      const today = new Date().toISOString().split('T')[0];
+      const today = dateKey();
       const overdueChores = chores.filter(
         (c) =>
           c.date < today &&
@@ -510,7 +272,7 @@ Just type naturally and I'll understand!`,
       );
 
       if (overdueChores.length === 0) {
-        return { text: "Great news! You have no overdue chores. 🎉" };
+        return { text: "No overdue one-off chores." };
       }
 
       const list = overdueChores
@@ -522,7 +284,7 @@ Just type naturally and I'll understand!`,
         .join('\n');
 
       return {
-        text: `⚠️ **Overdue chores (${overdueChores.length}):**\n\n${list}${overdueChores.length > 5 ? `\n\n...and ${overdueChores.length - 5} more` : ''}`,
+        text: `⚠️ **Overdue one-off chores (${overdueChores.length}):**\n\n${list}${overdueChores.length > 5 ? `\n\n...and ${overdueChores.length - 5} more` : ''}`,
         quickActions: [
           { label: 'Complete first', action: `complete ${overdueChores[0].title}` },
         ],
@@ -530,15 +292,15 @@ Just type naturally and I'll understand!`,
     }
 
     case 'list_chores': {
-      const today = new Date().toISOString().split('T')[0];
-      const upcoming = chores
-        .filter((c) => c.date >= today)
+      const today = dateKey();
+      const upcoming = generateChoreInstances(chores, teamMembers, completions, parseCalendarDate(today), parseCalendarDate(shiftDate(today, 6)))
+        .filter(i => !i.isCompleted)
         .sort((a, b) => a.date.localeCompare(b.date))
         .slice(0, 7);
 
       if (upcoming.length === 0) {
         return {
-          text: 'No upcoming chores found. Would you like to add one?',
+          text: 'No pending occurrences in the next 7 days.',
           quickActions: [{ label: 'Add a chore', action: 'add a chore called ' }],
         };
       }
@@ -554,7 +316,7 @@ Just type naturally and I'll understand!`,
         .join('\n');
 
       return {
-        text: `**Upcoming chores:**\n\n${choreList}`,
+        text: `Next 7 days · up to 7 pending occurrences:\n\n${choreList}`,
         quickActions: [
           { label: 'Add more', action: 'add a chore called ' },
           { label: 'Complete one', action: 'complete ' },
@@ -638,10 +400,12 @@ Just type naturally and I'll understand!`,
       return { text: `Assigning "${data.title}" to ${data.assigneeName}...` };
     }
 
+    case 'choose_date':
+      return {text: 'Choose a date in Calendar. No changes made.'};
     case 'unknown':
     default:
       return {
-        text: `I'm not sure what you mean. Try "help" to see what I can do, or just describe the chore you want to add!`,
+        text: `No changes made. Type “help” for supported commands.`,
         quickActions: [
           { label: 'Help', action: 'help' },
           { label: 'Add a chore', action: 'add a chore called ' },
@@ -656,13 +420,13 @@ Just type naturally and I'll understand!`,
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00');
   const today = new Date();
-  const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+  const tomorrow = parseCalendarDate(shiftDate(dateKey(today), 1));
 
-  if (dateStr === today.toISOString().split('T')[0]) {
+  if (dateStr === dateKey(today)) {
     return 'today';
   }
 
-  if (dateStr === tomorrow.toISOString().split('T')[0]) {
+  if (dateStr === dateKey(tomorrow)) {
     return 'tomorrow';
   }
 

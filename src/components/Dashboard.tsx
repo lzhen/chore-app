@@ -1,9 +1,10 @@
 import { memberAvatarStyle } from '../utils/colors';
-import { dateKey, parseDate } from '../utils/dates';
+import { dateKey, parseDate, shiftDate } from '../utils/dates';
 import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { MemberStats } from '../types';
 import { BADGES, getBadgeById } from '../data/badges';
+import { generateChoreInstances } from '../utils/recurrence';
 import { WorkloadChart } from './WorkloadChart';
 
 // Format relative time (e.g., "2 hours ago", "3 days ago")
@@ -29,7 +30,7 @@ interface DashboardProps {
 
 export function Dashboard({ onClose, embedded=false }: DashboardProps) {
   const { state } = useApp();
-  const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'workload' | 'achievements'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'workload' | 'achievements'>('activity');
 
   // Sort completions by completedAt (most recent first)
   const sortedCompletions = useMemo(() => {
@@ -41,21 +42,16 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
   // Calculate stats
   const stats = useMemo(() => {
     const today = dateKey();
-    const weekAgo = dateKey(new Date(Date.now() - 7 * 86400000));
-    const monthAgo = dateKey(new Date(Date.now() - 30 * 86400000));
+    const weekAgo = shiftDate(dateKey(), -6);
+    const monthAgo = shiftDate(dateKey(), -29);
 
     // Get completions
     const completedToday = state.completions.filter(c => c.instanceDate === today).length;
-    const completedThisWeek = state.completions.filter(c => c.instanceDate >= weekAgo).length;
-    const completedThisMonth = state.completions.filter(c => c.instanceDate >= monthAgo).length;
+    const completedThisWeek = state.completions.filter(c => c.instanceDate >= weekAgo && c.instanceDate <= dateKey()).length;
+    const completedThisMonth = state.completions.filter(c => c.instanceDate >= monthAgo && c.instanceDate <= dateKey()).length;
 
     // Get pending today
-    const pendingToday = state.chores.filter(c => {
-      if (c.date === today && !state.completions.some(comp => comp.choreId === c.id && comp.instanceDate === today)) {
-        return true;
-      }
-      return false;
-    }).length;
+    const pendingToday = generateChoreInstances(state.chores, state.teamMembers, state.completions, parseDate(today), parseDate(today)).filter(i => !i.isCompleted).length;
 
     // Get overdue (past due, not completed)
     const overdue = state.chores.filter(c => {
@@ -77,8 +73,8 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
 
   // Calculate member stats
   const memberStats: MemberStats[] = useMemo(() => {
-    const weekAgo = dateKey(new Date(Date.now() - 7 * 86400000));
-    const monthAgo = dateKey(new Date(Date.now() - 30 * 86400000));
+    const weekAgo = shiftDate(dateKey(), -6);
+    const monthAgo = shiftDate(dateKey(), -29);
 
     return state.teamMembers.map(member => {
       const memberCompletions = state.completions.filter(c => c.completedBy === member.id);
@@ -96,8 +92,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
         if (prevDate === null) {
           tempStreak = 1;
         } else {
-          const diff = (prevDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24);
-          if (diff === 1) {
+          if (dateKey(date) === shiftDate(dateKey(prevDate), -1)) {
             tempStreak++;
           } else {
             longestStreak = Math.max(longestStreak, tempStreak);
@@ -113,10 +108,10 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
       let checkDate = today;
       currentStreak = 0;
       for (let i = 0; i < 365; i++) {
-        const dateStr = checkDate.toISOString().split('T')[0];
+        const dateStr = dateKey(checkDate);
         if (completionDates.includes(dateStr)) {
           currentStreak++;
-          checkDate = new Date(checkDate.getTime() - 24 * 60 * 60 * 1000);
+          checkDate = parseDate(shiftDate(dateKey(checkDate), -1));
         } else {
           break;
         }
@@ -128,8 +123,8 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
         memberColor: member.color,
         memberAvatar: member.avatarUrl,
         totalCompleted: memberCompletions.length,
-        completedThisWeek: memberCompletions.filter(c => c.instanceDate >= weekAgo).length,
-        completedThisMonth: memberCompletions.filter(c => c.instanceDate >= monthAgo).length,
+        completedThisWeek: memberCompletions.filter(c => c.instanceDate >= weekAgo && c.instanceDate <= dateKey()).length,
+        completedThisMonth: memberCompletions.filter(c => c.instanceDate >= monthAgo && c.instanceDate <= dateKey()).length,
         currentStreak,
         longestStreak,
         completionRate: assignedChores.length > 0
@@ -148,7 +143,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
       <div className={embedded ? "nesmi-page-content nesmi-insights" : "fluent-card nesmi-insights w-full max-w-4xl max-h-[90vh] overflow-hidden"}>
         {/* Header */}
         <div className="nesmi-insights-heading flex items-center justify-between">
-          <h2 className="nesmi-page-title">Insights</h2>
+          <h2 id="insights-title" tabIndex={-1} className="nesmi-page-title">Insights</h2>
           <button
             hidden={embedded} onClick={onClose}
             className="text-content-secondary hover:text-content-primary hover:bg-subtle-background-hover rounded-fluent-sm transition-all duration-fast p-1.5"
@@ -162,16 +157,6 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
         {/* Tabs */}
         <div className="nesmi-section-tabs flex border-b border-border" aria-label="Insights sections">
           <button
-            aria-pressed={activeTab === 'overview'} onClick={() => setActiveTab('overview')}
-            className={`px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'overview'
-                ? 'text-brand-primary border-b-2 border-brand-primary'
-                : 'text-content-secondary hover:text-content-primary'
-            }`}
-          >
-            Overview
-          </button>
-          <button
             aria-pressed={activeTab === 'activity'} onClick={() => setActiveTab('activity')}
             className={`px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === 'activity'
@@ -180,6 +165,16 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
             }`}
           >
             Activity
+          </button>
+          <button
+            aria-pressed={activeTab === 'overview'} onClick={() => setActiveTab('overview')}
+            className={`px-4 py-3 text-sm font-medium transition-colors ${
+              activeTab === 'overview'
+                ? 'text-brand-primary border-b-2 border-brand-primary'
+                : 'text-content-secondary hover:text-content-primary'
+            }`}
+          >
+            Overview
           </button>
           <button
             aria-pressed={activeTab === 'workload'} onClick={() => setActiveTab('workload')}
@@ -219,11 +214,11 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                 </div>
                 <div className="fluent-surface p-4 rounded-fluent-md border border-border">
                   <div className="text-2xl font-bold text-content-primary">{stats.overdue}</div>
-                  <div className="text-sm text-content-secondary">Overdue</div>
+                  <div className="text-sm text-content-secondary">Overdue · one-off</div>
                 </div>
                 <div className="fluent-surface p-4 rounded-fluent-md border border-border">
                   <div className="text-2xl font-bold text-content-primary">{stats.completedThisWeek}</div>
-                  <div className="text-sm text-content-secondary">This Week</div>
+                  <div className="text-sm text-content-secondary">Last 7 days</div>
                 </div>
               </div>
 
@@ -290,7 +285,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                         </div>
                         <div className="text-center hidden md:block">
                           <div className="font-bold text-content-primary">{member.completedThisWeek}</div>
-                          <div className="text-xs text-content-secondary">Week</div>
+                          <div className="text-xs text-content-secondary">Last 7 days</div>
                         </div>
                         <div className="text-center">
                           <div className="font-medium text-content-primary">{member.currentStreak}</div>
@@ -320,7 +315,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                         key={completion.id}
                         className="nesmi-recent-row p-2 rounded-fluent-sm hover:bg-subtle-background-hover"
                       >
-                        <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="w-4 h-4 text-content-secondary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                         <div className="flex-1 min-w-0">
@@ -357,7 +352,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
             /* Activity Tab - Full Activity Feed */
             <div>
               <h3 className="fluent-title text-lg font-semibold text-content-primary mb-4">
-                Activity Feed ({sortedCompletions.length} completions)
+                Completion history ({sortedCompletions.length})
               </h3>
               <div className="space-y-3">
                 {sortedCompletions.map((completion) => {
@@ -396,7 +391,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                         <div className="flex items-center gap-3 mt-1 text-xs text-content-secondary">
                           <span>{formatRelativeTime(completion.completedAt)}</span>
                           <span>•</span>
-                          <span>{new Date(completion.instanceDate).toLocaleDateString()}</span>
+                          <span>{parseDate(completion.instanceDate).toLocaleDateString()}</span>
                           {pointsEarned > 0 && (
                             <>
                               <span>•</span>
@@ -408,8 +403,8 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
 
                       {/* Completion check */}
                       <div className="flex-shrink-0">
-                        <div className="w-8 h-8 rounded-fluent-circle bg-green-500/20 flex items-center justify-center">
-                          <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                        <div className="w-8 h-8 rounded-fluent-circle bg-surface-tertiary flex items-center justify-center">
+                          <svg className="w-4 h-4 text-content-secondary" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
                         </div>
@@ -492,7 +487,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
           ) : activeTab === 'workload' ? (
             /* Workload Tab */
             <div>
-              <h3 className="fluent-title text-lg font-semibold text-content-primary mb-4">Team Workload (This Week)</h3>
+              <h3 className="fluent-title text-lg font-semibold text-content-primary mb-4">Next 7 days</h3>
               <WorkloadChart
                 members={state.teamMembers}
                 chores={state.chores}
