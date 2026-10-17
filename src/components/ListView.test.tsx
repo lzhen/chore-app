@@ -114,4 +114,15 @@ describe('ListView day scope and progress', () => {
     await user.click(within(dialog).getByRole('button', {name: 'Mark done'}));
     expect(app.completeChore).toHaveBeenCalledWith('unestimated', dateKey(), 'member-1');
   });
+  it('puts all unfinished tasks before completed tasks and opens completed details without a checkbox', async () => {
+    const open=vi.fn(); const user=userEvent.setup();
+    const {container}=render(<ListView onAddClick={vi.fn()} onEventClick={open}/>);
+    const rows=[...container.querySelectorAll('.chore-task')];
+    expect(rows[rows.length-1]).toHaveTextContent('Wash dishes');
+    expect(rows[rows.length-1]?.querySelector('.chore-check')).toBeNull();
+    expect(rows[rows.length-1]).toHaveClass('is-done');
+    await user.click(screen.getByRole('button',{name:'Edit Wash dishes'}));
+    expect(open).toHaveBeenCalledWith(expect.objectContaining({id:'done'}),dateKey());
+  });
+
 });

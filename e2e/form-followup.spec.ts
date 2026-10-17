@@ -60,7 +60,7 @@ for(const [width,height] of [[320,480],[390,844],[1440,900]])for(const theme of 
  await expect(confirm).toBeVisible();await expect(keep).toBeFocused();expect(await dialog.evaluate(el=>(el as HTMLElement).inert)).toBe(true);
  const bounds=await confirm.boundingBox();expect(bounds!.y).toBeGreaterThanOrEqual(0);expect(bounds!.y+bounds!.height).toBeLessThanOrEqual(height);
  await page.screenshot({path:info.outputPath('confirmation.png')});
- await page.keyboard.press('Shift+Tab');await expect(confirm.getByRole('button',{name:'Close dialog'})).toBeFocused();await page.keyboard.press('Shift+Tab');await expect(confirm.getByRole('button',{name:'Discard changes',exact:true})).toBeFocused();
+ await page.keyboard.press('Shift+Tab');await expect(confirm.getByRole('button',{name:'Close dialog'})).toBeFocused();await page.keyboard.press('Shift+Tab');await expect(confirm.getByRole('button',{name:'Discard',exact:true})).toBeFocused();
  await page.keyboard.press('Escape');await expect(confirm).toBeHidden();await expect(title).toHaveValue('Preserved draft');await expect(close).toBeFocused();
  await close.click();await confirm.getByRole('button',{name:'Close dialog'}).click();await expect(title).toHaveValue('Preserved draft');
  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();await keep.click();await expect(hour).toHaveText('09');await expect(minute).toHaveText('59');
@@ -69,7 +69,7 @@ for(const [width,height] of [[320,480],[390,844],[1440,900]])for(const theme of 
  await page.mouse.click(1,1);await expect(dialog).toBeVisible();await expect(title).toHaveValue('Preserved draft');
  await close.dblclick();await expect(confirm).toBeVisible();await keep.click();await expect(title).toHaveValue('Preserved draft');
  await dialog.locator('summary').scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('form.png')});
- await close.click();await confirm.getByRole('button',{name:'Discard changes',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);expect(await page.locator('#root').evaluate(el=>(el as HTMLElement).inert)).toBe(false);await expect(add).toBeFocused();expect(calls.filter(c=>c.method!=='GET')).toHaveLength(0);
+ await close.click();await confirm.getByRole('button',{name:'Discard',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);expect(await page.locator('#root').evaluate(el=>(el as HTMLElement).inert)).toBe(false);await expect(add).toBeFocused();expect(calls.filter(c=>c.method!=='GET')).toHaveLength(0);
  await add.click();await expect(title).toHaveValue('');await page.keyboard.press('Escape');await expect(dialog).toBeHidden();
 });
 
@@ -86,4 +86,40 @@ test('exact minutes, interrupted save and retry preserve the draft',async({page}
  await dialog.getByRole('button',{name:'Close dialog'}).click();await page.getByRole('button',{name:'Keep editing'}).click();await expect(page.getByRole('combobox',{name:'Start time minute',exact:true})).toHaveText('58');
  state.recover();await dialog.getByRole('button',{name:'Add chore',exact:true}).click();await expect(dialog).toBeHidden();
  expect(state.calls.filter(c=>c.method==='POST').at(-1)?.body).toMatchObject({due_time:'23:58',end_time:'23:59'});
+});
+
+// Synthetic viewport regression only; does not emulate the Apple keyboard.
+test('visible viewport bounds, nested confirmation and reopen stay stable',async({page})=>{
+ await page.addInitScript(()=>{
+  const viewport=Object.assign(new EventTarget(),{height:844,width:390,offsetTop:0,offsetLeft:0,scale:1});
+  Object.defineProperty(window,'visualViewport',{configurable:true,value:viewport});
+ });
+ await fixture(page,390);
+ const add=page.getByRole('button',{name:'Add new chore',exact:true});await add.click();
+ const dialog=page.getByRole('dialog',{name:'Add a chore',exact:true});
+ const title=dialog.getByRole('textbox',{name:'What needs doing?'});
+ await expect(dialog).toBeFocused();await title.fill('Viewport draft');
+ const initial=await dialog.boundingBox();
+ const resize=async(height:number,top:number)=>page.evaluate(({height,top})=>{
+  Object.assign(window.visualViewport!,{height,offsetTop:top});window.visualViewport!.dispatchEvent(new Event('resize'));
+ },{height,top});
+ await resize(420,25);
+ await expect.poll(async()=>{const b=await dialog.boundingBox();return !!b&&b.y>=25&&b.y+b.height<=446;}).toBe(true);
+ await dialog.locator('summary').click();
+ const notes=dialog.getByRole('textbox',{name:'Notes · optional'});await notes.fill('Keep this note');
+ await expect.poll(async()=>notes.evaluate(el=>{const f=el.getBoundingClientRect(),b=el.closest('.chore-dialog-body')!.getBoundingClientRect();return f.top>=b.top&&f.bottom<=b.bottom;})).toBe(true);
+ expect(await page.evaluate(()=>window.scrollY)).toBe(0);
+ await dialog.getByRole('button',{name:'Close dialog'}).click();
+ const confirm=page.getByRole('dialog',{name:'Discard changes?',exact:true});
+ await expect(confirm.getByRole('button',{name:'Keep editing'})).toBeFocused();
+ await resize(844,0);
+ await confirm.getByRole('button',{name:'Keep editing'}).click();
+ await expect(title).toHaveValue('Viewport draft');await expect(notes).toHaveValue('Keep this note');
+ await expect(dialog.getByRole('button',{name:'Close dialog'})).toBeFocused();
+ await expect.poll(async()=>Math.round((await dialog.boundingBox())!.height)).toBe(Math.round(initial!.height));
+ await dialog.getByRole('button',{name:'Close dialog'}).click();
+ await confirm.getByRole('button',{name:'Discard',exact:true}).click();await expect(add).toBeFocused();
+ await add.click();await expect(dialog).toBeFocused();await expect(title).toHaveValue('');
+ expect(await dialog.locator('.chore-dialog-body').evaluate(el=>el.scrollTop)).toBe(0);
+ await expect.poll(async()=>Math.round((await dialog.boundingBox())!.y)).toBe(Math.round(initial!.y));
 });

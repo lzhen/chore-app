@@ -54,7 +54,7 @@ for(const width of [320,390,1440]) for(const theme of ['light','dark']) test(`al
  await page.getByRole('button',{name:'Cancel',exact:true}).click();await expect(page.getByRole('dialog',{name:'Discard changes?'})).toBeVisible();
  await page.getByRole('button',{name:'Keep editing',exact:true}).click();await expect(person).toContainText('Alex');
  await person.click();await page.keyboard.press('Escape');await expect(menu).toHaveCount(0);await expect(page.getByRole('dialog',{name:'Add a chore'})).toBeVisible();
- await page.getByRole('button',{name:'Cancel',exact:true}).click();await page.getByRole('button',{name:'Discard changes',exact:true}).click();
+ await page.getByRole('button',{name:'Cancel',exact:true}).click();await page.getByRole('button',{name:'Discard',exact:true}).click();
  await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Calendar',exact:true}).click();
  await page.getByRole('button',{name:'Assistant',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Assistant',exact:true});await expect(dialog).toBeVisible();

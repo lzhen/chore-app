@@ -443,3 +443,14 @@
 @media (min-width: 768px) {
   .chore-header.nesmi-header-centered { padding-inline: max(28px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px)); }
 }
+
+/* Keep the sheet within the keyboard-visible area; scroll only its body. */
+.chore-dialog-backdrop { top: var(--dialog-viewport-top, 0px); bottom: auto; height: var(--dialog-viewport-height, 100dvh); box-sizing: border-box; }
+.chore-dialog { max-height: min(720px, calc(var(--dialog-viewport-height, 100dvh) - 24px)); }
+.chore-dialog-form { height: min(720px, 80svh, calc(var(--dialog-viewport-height, 100dvh) - 24px)); }
+.chore-dialog-body { scroll-padding-block: 12px; }
+@media (max-width: 767px) {
+ .chore-dialog-backdrop { padding-top: max(12px, env(safe-area-inset-top, 0px)); }
+ .chore-dialog { max-height: calc(var(--dialog-viewport-height, 100dvh) - max(12px, env(safe-area-inset-top, 0px))); }
+ .chore-dialog input, .chore-dialog textarea { font-size: 16px; }
+}
