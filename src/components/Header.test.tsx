@@ -22,7 +22,7 @@ describe('centered Nesmi header', () => {
   const brand=container.querySelector('.chore-brand'); expect(brand).toHaveTextContent('Nesmi');
   expect(container.querySelector('.nesmi-header-actions')).toContainElement(screen.getByRole('button',{name:'Search chores'}));
   await userEvent.click(screen.getByRole('button',{name:'Search chores'})); expect(screen.getByRole('searchbox',{name:'Search chores'})).toBeInTheDocument();
-  rerender(<Header {...props} viewMode="account"/>); expect(within(header).queryByRole('button',{name:'Search chores'})).toBeNull(); expect(container.querySelector('.chore-brand')).toBe(brand);
+  rerender(<Header {...props} viewMode="account"/>); expect(within(header).getByRole('button',{name:'Search chores'})).toBeInTheDocument(); await userEvent.click(within(header).getByRole('button',{name:'Search chores'})); expect(props.onViewModeChange).toHaveBeenCalledWith('list'); expect(container.querySelector('.chore-brand')).toBe(brand);
   expect(within(header).queryByRole('button',{name:'Theme'})).toBeNull();
  });
 });

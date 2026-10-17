@@ -46,9 +46,9 @@ export function AccountSettings({ isOpen, onClose, embedded=false, onInsights, a
           <button hidden={embedded} onClick={onClose} className="p-2 text-content-secondary hover:text-content-primary" aria-label="Close account settings">✕</button>
         </div>
 
-        <div className="nesmi-account-appearance mt-6 border-t border-border pt-5"><h3>Appearance</h3><ThemeSelector/></div>
-        {onInsights&&<div className="mt-6"><button className="chore-button secondary" onClick={onInsights}>Insights</button></div>}
-        <div className="nesmi-account-assistant mt-6"><h3>Assistant</h3><div ref={assistantTriggerRef}/></div>
+        <div className="nesmi-account-appearance nesmi-settings-section"><h3>Appearance</h3><ThemeSelector/></div>
+        {onInsights&&<div className="nesmi-settings-section"><button className="chore-button secondary" onClick={onInsights}>Insights</button></div>}
+        <div className="nesmi-account-assistant nesmi-settings-section"><div ref={assistantTriggerRef}/></div>
         <AccountTools/>
 
         <div className="mt-6 border-t border-border pt-5">

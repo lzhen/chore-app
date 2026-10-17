@@ -98,9 +98,9 @@ const notificationMessages: Record<NotificationState, string> = {
  granted: 'Permission allowed. Keep Nesmi open for reminders; system settings may silence them.',
  denied: 'Notifications are blocked. Allow them in this browser’s site settings, then check again.',
  dismissed: 'Permission was not allowed. Try again and choose Allow in the browser prompt.',
- unsupported: 'Reminders are unavailable in this browser. Use a supported desktop browser.',
+ unsupported: 'Not supported in this browser.',
  insecure: 'Reminders require HTTPS. Open https://empathie.ai/nesmi/ and try again.',
- native: 'Reminders are not available in this app version. Use Nesmi in a supported desktop browser.',
+ native: 'Not available in this app version.',
  error: 'Could not enable reminders. Check browser and system notification settings, then try again.',
 };
 export function AccountTools(){
@@ -111,7 +111,7 @@ export function AccountTools(){
   <section className="nesmi-settings-section" aria-labelledby="notifications-title">
    <div className="nesmi-settings-row">
     <div><h3 id="notifications-title">Notifications</h3><p id="notification-feedback" role="status">{notificationMessages[notificationState]}</p></div>
-    {notificationsEnabled ? <span className="nesmi-settings-status">Allowed</span> :
+    {['native','unsupported','insecure'].includes(notificationState) ? null : notificationsEnabled ? <span className="nesmi-settings-status">Allowed</span> :
      <button type="button" className="chore-button secondary" onClick={handleEnableNotifications} disabled={requestingNotifications} aria-describedby="notification-feedback">
       {requestingNotifications ? 'Waiting for permission…' : notificationState === 'default' ? 'Enable Reminders' : notificationState === 'dismissed' || notificationState === 'error' ? 'Try again' : 'Check again'}
      </button>}

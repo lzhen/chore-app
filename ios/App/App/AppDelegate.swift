@@ -50,7 +50,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 }
 
 // Match native safe-area surfaces to the existing web theme-color token.
-// Preserve automatic content insets and the device appearance preference.
+// CSS owns safe-area spacing; preserve the device appearance preference.
 class NesmiBridgeViewController: CAPBridgeViewController {
     private var themeObservation: NSKeyValueObservation?
 

@@ -96,8 +96,23 @@ for(const state of ['denied','unsupported','insecure']) test(`initial reminder s
  },state);
  await page.reload();
  await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
- const text={denied:'Notifications are blocked',unsupported:'Reminders are unavailable',insecure:'Reminders require HTTPS'}[state]!;
+ const text={denied:'Notifications are blocked',unsupported:'Not supported in this browser',insecure:'Reminders require HTTPS'}[state]!;
  await expect(page.locator('#notification-feedback')).toContainText(text);
- await page.getByRole('button',{name:'Check again',exact:true}).click();
+ if(state==='denied')await page.getByRole('button',{name:'Check again',exact:true}).click();
+ else await expect(page.getByRole('button',{name:'Check again',exact:true})).toHaveCount(0);
  await expect(page.locator('#notification-feedback')).toContainText(text);
+});
+
+for(const theme of ['light','dark'])test(`Account search opens focused working results ${theme}`,async({page},info)=>{
+ await fixture(page,390);
+ const nav=page.getByRole('navigation',{name:'Primary navigation'});
+ await nav.getByRole('button',{name:'Account',exact:true}).click();
+ if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
+ await page.screenshot({path:info.outputPath(`account-review-${theme}.png`),fullPage:true});
+ await page.getByRole('button',{name:'Search chores',exact:true}).click();
+ await expect(nav.getByRole('button',{name:'Chores',exact:true})).toHaveAttribute('aria-current','page');
+ const search=page.getByRole('searchbox',{name:'Search chores'});await expect(search).toBeFocused();
+ await search.fill('recycling');
+ await expect(page.locator('.chore-task')).toHaveCount(1);
+ await expect(page.locator('.chore-task')).toContainText('Take out the recycling');
 });

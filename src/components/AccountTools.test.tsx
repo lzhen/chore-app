@@ -32,8 +32,8 @@ it('preserves explicit integration actions and sync state across Account remount
 });
 
 for (const [state, text] of [
- ['denied','Notifications are blocked.'], ['unsupported','Reminders are unavailable'],
- ['insecure','Reminders require HTTPS'], ['native','Reminders are not available in this app version'],
+ ['denied','Notifications are blocked.'], ['unsupported','Not supported in this browser'],
+ ['insecure','Reminders require HTTPS'], ['native','Not available in this app version'],
  ['dismissed','Permission was not allowed'], ['error','Could not enable reminders'],
 ]) it(`shows recovery feedback for ${state}`,async()=>{
  const user=userEvent.setup();mocks.permission.mockResolvedValue(state);
@@ -55,4 +55,11 @@ it('reports delivery failure instead of claiming reminders work',async()=>{
  render(<HouseholdToolsProvider><AccountTools/></HouseholdToolsProvider>);
  expect(await screen.findByRole('status')).toHaveTextContent('Could not enable reminders');
  expect(screen.queryByText('Allowed',{exact:true})).not.toBeInTheDocument();
+});
+
+it('does not offer an impossible native reminder retry',()=>{
+ mocks.state.mockReturnValue('native');render(<HouseholdToolsProvider><AccountTools/></HouseholdToolsProvider>);
+ expect(screen.getByRole('status')).toHaveTextContent('Not available in this app version.');
+ expect(screen.queryByRole('button',{name:'Check again'})).not.toBeInTheDocument();
+ expect(mocks.permission).not.toHaveBeenCalled();
 });

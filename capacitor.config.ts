@@ -5,7 +5,8 @@ const config: CapacitorConfig = {
   appName: 'Nesmi',
   webDir: 'dist',
   ios: {
-    contentInset: 'automatic',
+    // CSS safe-area insets own layout; avoid a second native scroll inset.
+    contentInset: 'never',
     preferredContentMode: 'mobile',
   },
 }
