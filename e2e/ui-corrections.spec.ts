@@ -1,3 +1,4 @@
+import {selectAppearance, openInsights} from './navigation';
 import {test,expect,Page} from '@playwright/test';
 // Keep mocked requests intercepted after reload; service workers can bypass page.route.
 test.use({ serviceWorkers: 'block' });
@@ -37,8 +38,8 @@ async function fixture(page:Page,width=390,empty=false){
 
 
 for(const width of [320,390,1440])for(const theme of ['light','dark'])test(`inline validation ${width} ${theme}`,async({page},info)=>{
- const {calls}=await fixture(page,width);if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
- await page.getByRole('button',{name:'Add new chore',exact:true}).click();const save=page.getByRole('button',{name:'Add chore',exact:true}),title=page.locator('#chore-title'),date=page.locator('#chore-date');
+ const {calls}=await fixture(page,width);await selectAppearance(page,theme);
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Add chore',exact:true}).click();const save=page.getByRole('dialog',{name:'Add a chore'}).getByRole('button',{name:'Add chore',exact:true}),title=page.locator('#chore-title'),date=page.locator('#chore-date');
  await date.fill('');await save.click();await expect(title).toBeFocused();await expect(title).toHaveAttribute('aria-invalid','true');await expect(title).toHaveAttribute('aria-describedby','chore-title-error');await expect(page.locator('#chore-title-error')).toHaveText('Enter a task name.');await expect(page.locator('#chore-date-error')).toBeVisible();expect(await page.locator('#chore-edit-form').evaluate((el:HTMLFormElement)=>el.noValidate)).toBe(true);
  const a=await title.boundingBox(),b=await page.locator('#chore-title-error').boundingBox();expect(b!.y).toBeGreaterThanOrEqual(a!.y+a!.height);await page.screenshot({path:info.outputPath(`validation-${width}-${theme}.png`)});
  await title.fill('  ');await save.click();await expect(title).toBeFocused();await title.fill('Preserved task');await date.fill('2026-02-30');await save.click();await expect(date).toBeFocused();await expect(title).toHaveValue('Preserved task');await date.fill('2026-09-25');
@@ -48,7 +49,7 @@ for(const width of [320,390,1440])for(const theme of ['light','dark'])test(`inli
 });
 
 for(const width of [320,390,1440])for(const theme of ['light','dark'])test(`task action hierarchy ${width} ${theme}`,async({page},info)=>{
- const {calls}=await fixture(page,width);if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
+ const {calls}=await fixture(page,width);await selectAppearance(page,theme);
  await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Calendar',exact:true}).click();
  const event=page.locator('.fc-event').filter({hasText:'Take out the recycling'}).first();await event.click();const popover=page.locator('.event-popover');await expect(popover).toBeVisible();
  await expect(popover.getByText('Alex',{exact:true})).toBeVisible();await expect(popover.getByText('Medium',{exact:true})).toBeVisible();await expect(popover.locator('span[style*="background-color"]')).toHaveCSS('background-color','rgb(7, 93, 184)');expect(await popover.locator(':scope > div').count()).toBe(1);
@@ -62,9 +63,9 @@ for(const width of [320,390,1440])for(const theme of ['light','dark'])test(`task
 });
 
 for(const width of [320,1440])for(const theme of ['light','dark'])test(`layout alignment ${width} ${theme}`,async({page},info)=>{
- const {db,calls}=await fixture(page,width);if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
+ const {db,calls}=await fixture(page,width);await selectAppearance(page,theme);
  await page.getByRole('button',{name:'Search chores',exact:true}).click();
  const search=await page.locator('#chore-search-input').boundingBox(),content=await page.locator('.today-intro').boundingBox();expect(search!.x).toBeCloseTo(content!.x,0);expect(search!.width).toBeCloseTo(content!.width,0);
  await page.getByRole('button',{name:'Open family menu'}).click();const check=page.locator('.nesmi-member-visibility').first();await expect(check).toHaveAttribute('aria-pressed','true');const target=await check.boundingBox(),visual=await check.locator('span').boundingBox();expect(target!.width).toBeGreaterThanOrEqual(44);expect(visual!.width).toBe(22);await check.focus();await page.keyboard.press('Space');await expect(check).toHaveAttribute('aria-pressed','false');await page.keyboard.press('Space');await expect(check).toHaveAttribute('aria-pressed','true');await page.getByRole('button',{name:'Close sidebar'}).click();
- db.chores[0].title='Long completed task '.repeat(12);db.chore_completions=Array.from({length:8},(_,i)=>({id:`completion-${i}`,chore_id:db.chores[0].id,completed_by:A,completed_at:`2026-09-25T${String(10+i).padStart(2,'0')}:00:00Z`,instance_date:TODAY}));await page.reload();await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Insights',exact:true}).click();const list=page.locator('.nesmi-recent-completions');await expect(list.locator('.nesmi-recent-row')).toHaveCount(8);expect(await list.evaluate(el=>el.scrollHeight<=el.clientHeight+1)).toBe(true);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await list.locator('.nesmi-recent-row').last().scrollIntoViewIfNeeded();await page.screenshot({animations:'disabled',path:info.outputPath(`recent-${width}-${theme}.png`)});expect(calls.filter(c=>c.method!=='GET')).toHaveLength(0);
+ db.chores[0].title='Long completed task '.repeat(12);db.chore_completions=Array.from({length:8},(_,i)=>({id:`completion-${i}`,chore_id:db.chores[0].id,completed_by:A,completed_at:`2026-09-25T${String(10+i).padStart(2,'0')}:00:00Z`,instance_date:TODAY}));await page.reload();await openInsights(page);const list=page.locator('.nesmi-recent-completions');await expect(list.locator('.nesmi-recent-row')).toHaveCount(8);expect(await list.evaluate(el=>el.scrollHeight<=el.clientHeight+1)).toBe(true);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await list.locator('.nesmi-recent-row').last().scrollIntoViewIfNeeded();await page.screenshot({animations:'disabled',path:info.outputPath(`recent-${width}-${theme}.png`)});expect(calls.filter(c=>c.method!=='GET')).toHaveLength(0);
 });

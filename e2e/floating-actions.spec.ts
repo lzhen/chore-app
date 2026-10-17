@@ -1,3 +1,4 @@
+import {selectAppearance} from './navigation';
 import {test,expect,Page} from '@playwright/test';
 // Keep mocked requests intercepted after reload; service workers can bypass page.route.
 test.use({ serviceWorkers: 'block' });
@@ -39,22 +40,22 @@ async function fixture(page:Page,width=390,empty=false){
 }
 
 
-for(const width of [375,768,1440]) for(const theme of ['light','dark']) test(`floating actions remain separate ${width} ${theme}`,async({page},info)=>{
+for(const width of [375,768,1440]) for(const theme of ['light','dark']) test(`navigation add and account assistant remain separate ${width} ${theme}`,async({page},info)=>{
  const {calls}=await fixture(page,width);
- if(await page.locator('html').getAttribute('data-theme')!==theme) await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
+ await selectAppearance(page,theme);
  await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
- await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Calendar',exact:true}).click();
- const add=page.getByRole('button',{name:'Add new chore',exact:true});
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
+ const add=page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Add chore',exact:true});
  const agent=page.getByRole('button',{name:'Assistant',exact:true});
  await expect(add).toBeVisible();await expect(agent).toBeVisible();
- if(width===375){
-  await expect(page.locator('.nesmi-agent-badge')).toHaveCount(0);
-  await add.evaluate(el=>{if(el.lastChild)el.lastChild.textContent='Add a household chore';});
- }
  const a=await add.boundingBox(),b=await agent.boundingBox();
- expect(a!.x+a!.width+12).toBeLessThanOrEqual(b!.x);
- expect(b!.x+b!.width).toBeLessThanOrEqual(width-8);
- expect(a!.y+a!.height).toBeLessThanOrEqual(width<768?844-70:844);
+ expect(a!.width).toBeGreaterThanOrEqual(44);expect(a!.height).toBeGreaterThanOrEqual(44);
+ expect(b!.width).toBeGreaterThanOrEqual(44);expect(b!.height).toBeGreaterThanOrEqual(44);
+ expect(a!.x+a!.width<=b!.x || b!.x+b!.width<=a!.x || a!.y+a!.height<=b!.y || b!.y+b!.height<=a!.y).toBe(true);
+ expect(b!.x).toBeGreaterThanOrEqual(0);expect(b!.x+b!.width).toBeLessThanOrEqual(width);
+ expect(a!.y+a!.height).toBeLessThanOrEqual(844);
+ await expect(add.locator('span')).toBeHidden();
+ await expect(page.locator('.nesmi-account-assistant').getByRole('button',{name:'Assistant',exact:true})).toBeVisible();
  await page.screenshot({path:info.outputPath(`floating-${theme}-${width}.png`),fullPage:true});
  await agent.click();await expect(agent).toHaveAttribute('aria-expanded','true');
  const panel=page.getByRole('dialog',{name:'Assistant',exact:true});await expect(panel).toBeVisible();
@@ -62,7 +63,7 @@ for(const width of [375,768,1440]) for(const theme of ['light','dark']) test(`fl
  const p=await panel.boundingBox();expect(p!.y).toBeGreaterThanOrEqual(0);expect(p!.y+p!.height).toBeLessThanOrEqual(844);
  await page.screenshot({path:info.outputPath(`agent-open-${theme}-${width}.png`),fullPage:true});
  await page.getByRole('button',{name:'Close assistant',exact:true}).click();await expect(panel).toBeHidden();
- await add.click();await expect(page.getByRole('dialog',{name:'Add a chore'})).toBeVisible();await expect(agent).toHaveCount(0);await expect(add).toHaveCount(0);
+ await add.click();await expect(page.getByRole('dialog',{name:'Add a chore'})).toBeVisible();await expect(agent).toHaveCount(0);await expect(page.locator('#root')).toHaveJSProperty('inert',true);await expect(add).toHaveCount(1);
  await page.getByRole('button',{name:'Cancel',exact:true}).click();await expect(agent).toBeVisible();await expect(add).toBeVisible();
  expect(calls.filter(c=>c.method!=='GET')).toHaveLength(0);
 });

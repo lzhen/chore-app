@@ -1,3 +1,4 @@
+import {selectAppearance} from './navigation';
 import {test,expect,Page} from '@playwright/test';
 // Keep mocked requests intercepted after reload; service workers can bypass page.route.
 test.use({ serviceWorkers: 'block' });
@@ -42,8 +43,8 @@ async function fixture(page:Page,width=390,empty=false){
 
 for(const width of [320,390,1440]) for(const theme of ['light','dark']) test(`alignment ${width} ${theme}`,async({page},info)=>{
  await fixture(page,width);
- if(await page.locator('html').getAttribute('data-theme')!==theme) await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
- await page.getByRole('button',{name:'Add new chore',exact:true}).click();
+ await selectAppearance(page,theme);
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Add chore',exact:true}).click();
  const person=page.getByRole('combobox',{name:'Who’s responsible?',exact:true});
  await person.focus();await page.keyboard.press('ArrowDown');await expect(person).toHaveAttribute('aria-expanded','true');
  const menu=page.getByRole('listbox',{name:'Who’s responsible?'});await expect(menu).toBeVisible();
@@ -55,7 +56,7 @@ for(const width of [320,390,1440]) for(const theme of ['light','dark']) test(`al
  await page.getByRole('button',{name:'Keep editing',exact:true}).click();await expect(person).toContainText('Alex');
  await person.click();await page.keyboard.press('Escape');await expect(menu).toHaveCount(0);await expect(page.getByRole('dialog',{name:'Add a chore'})).toBeVisible();
  await page.getByRole('button',{name:'Cancel',exact:true}).click();await page.getByRole('button',{name:'Discard',exact:true}).click();
- await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Calendar',exact:true}).click();
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
  await page.getByRole('button',{name:'Assistant',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Assistant',exact:true});await expect(dialog).toBeVisible();
  const chat=dialog.getByRole('button',{name:'Send message',exact:true});await expect(chat).toHaveCSS('background-image','none');

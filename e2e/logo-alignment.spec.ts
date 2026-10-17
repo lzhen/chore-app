@@ -1,3 +1,4 @@
+import {selectAppearance} from './navigation';
 import {test,expect,Page} from '@playwright/test';
 // Keep mocked requests intercepted after reload; service workers can bypass page.route.
 test.use({ serviceWorkers: 'block' });
@@ -41,7 +42,7 @@ async function fixture(page:Page,width=390,empty=false){
 
 for(const width of [320,1440]) for(const theme of ['light','dark']) test(`logo optical alignment ${width} ${theme}`,async({page},info)=>{
  await fixture(page,width);
- if(await page.locator('html').getAttribute('data-theme')!==theme) await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
+ await selectAppearance(page,theme);
  await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
  const brand=page.locator('.chore-brand .nesmi-logo');
  await brand.screenshot({path:info.outputPath(`brand-${width}-${theme}.png`)});

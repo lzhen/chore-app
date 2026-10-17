@@ -1,3 +1,4 @@
+import {selectAppearance} from './navigation';
 import {test,expect,Page} from '@playwright/test';
 // Keep mocked requests intercepted after reload; service workers can bypass page.route.
 test.use({ serviceWorkers: 'block' });
@@ -44,8 +45,8 @@ async function fixture(page:Page,width=390,empty=false){
 
 for(const [width,height] of [[320,480],[390,844],[844,390],[1440,900]]) for(const theme of ['light','dark']) test(`custom calendar ${width} ${theme}`,async({page},info)=>{
  const {calls}=await fixture(page,width);await page.setViewportSize({width,height});
- if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:`Switch to ${theme} mode`}).click();
- await page.getByRole('button',{name:'Add new chore',exact:true}).click();
+ await selectAppearance(page,theme);
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Add chore',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Add a chore'}),title=page.getByRole('textbox',{name:'What needs doing?'}),date=page.getByRole('textbox',{name:'When?',exact:true}),trigger=page.getByRole('button',{name:'Choose date'});
  await expect(title).toHaveAttribute('autocomplete','off');await expect(title).toHaveJSProperty('tagName','TEXTAREA');await title.fill('Calendar draft');
  await expect(dialog.locator('select,input[type=date]')).toHaveCount(0);
@@ -56,8 +57,8 @@ for(const [width,height] of [[320,480],[390,844],[844,390],[1440,900]]) for(cons
  await trigger.click();await dialog.getByRole('button',{name:'Today',exact:true}).click();await expect(date).toHaveValue('2026-09-25');await expect(trigger).toBeFocused();
  await trigger.click();const selected=page.getByRole('button',{name:'Friday, September 25, 2026',exact:true});await expect(selected).toHaveAttribute('aria-pressed','true');await expect(selected).toHaveAttribute('aria-current','date');
  const box=await page.locator('#chore-calendar').boundingBox();expect(box!.y).toBeGreaterThanOrEqual(12);expect(box!.y+box!.height).toBeLessThanOrEqual(height-12);await expect(page.locator('#chore-date-format')).toHaveCount(0);const footer=page.locator('#chore-calendar footer');await footer.scrollIntoViewIfNeeded();expect(await footer.evaluate(e=>{const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})).toBe(true);expect(box!.x).toBeGreaterThanOrEqual(0);expect(box!.x+box!.width).toBeLessThanOrEqual(width);await page.screenshot({path:info.outputPath(`calendar-${width}-${theme}.png`)});
- await page.getByRole('button',{name:'Close calendar'}).click();await expect(trigger).toBeFocused();await expect(title).toHaveValue('Calendar draft');await date.fill('2026-02-30');await page.getByRole('button',{name:'Add chore',exact:true}).click();await expect(page.locator('#chore-date-error')).toHaveText('Enter a valid date (YYYY-MM-DD).');await expect(date).toHaveAttribute('aria-invalid','true');await expect(date).toHaveAttribute('aria-describedby','chore-date-error');await expect(date).toBeFocused();
+ await page.getByRole('button',{name:'Close calendar'}).click();await expect(trigger).toBeFocused();await expect(title).toHaveValue('Calendar draft');await date.fill('2026-02-30');await dialog.getByRole('button',{name:'Add chore',exact:true}).click();await expect(page.locator('#chore-date-error')).toHaveText('Enter a valid date (YYYY-MM-DD).');await expect(date).toHaveAttribute('aria-invalid','true');await expect(date).toHaveAttribute('aria-describedby','chore-date-error');await expect(date).toBeFocused();
  await page.getByRole('button',{name:'Cancel',exact:true}).click();await page.getByRole('button',{name:'Keep editing'}).click();await expect(title).toHaveValue('Calendar draft');await expect(date).toHaveValue('2026-02-30');
- await date.fill('2028-02-29');await page.getByRole('button',{name:'Add chore',exact:true}).click();await expect(dialog).toBeHidden();expect(calls.find(c=>c.method==='POST'&&c.table==='chores')?.body.date).toBe('2028-02-29');
+ await date.fill('2028-02-29');await dialog.getByRole('button',{name:'Add chore',exact:true}).click();await expect(dialog).toBeHidden();expect(calls.find(c=>c.method==='POST'&&c.table==='chores')?.body.date).toBe('2028-02-29');
 });
 

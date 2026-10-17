@@ -6,6 +6,7 @@ import { Calendar, CalendarRef } from './Calendar';
 import { ListView } from './ListView';
 import { ChoreModal, type ChoreDefaultValues } from './ChoreModal';
 import { AuthForm } from './AuthForm';
+import { AgentPanel } from './AgentPanel';
 import { AccountSettings } from './AccountSettings';
 import { HouseholdToolsProvider } from './AccountTools';
 import { Dashboard } from './Dashboard';
@@ -30,6 +31,7 @@ export function App() {
   const { user, loading: authLoading, isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset } = useAuth();
   const calendarRef = useRef<CalendarRef>(null);
 
+  const [assistantTriggerTarget, setAssistantTriggerTarget] = useState<HTMLDivElement | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editChore, setEditChore] = useState<Chore | null>(null);
   const [instanceDate, setInstanceDate] = useState<string | undefined>(undefined);
@@ -241,10 +243,11 @@ export function App() {
     {state.chores.length>0&&viewMode==='calendar'&&<Calendar ref={calendarRef} onAddClick={handleAddClick} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers}/>}
     {state.chores.length>0&&(viewMode==='today'||viewMode==='list')&&<ListView key={viewMode} todayView={viewMode==='today'} onAddClick={()=>handleAddClick()} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers} onClearFilters={()=>{setSearchQuery('');setHiddenMembers(new Set());}}/>}
     {viewMode==='dashboard'&&(state.chores.length>0?<Dashboard embedded onClose={()=>setViewMode('today')}/>:<section className="chore-list-page"><div className="chore-empty"><h2>Small wins will show up here.</h2><p>Add your first chore to start seeing your household’s progress.</p><button className="chore-button primary" onClick={()=>handleAddClick()}>Add your first chore</button></div></section>)}
-    {viewMode==='account'&&<AccountSettings onInsights={()=>setViewMode('dashboard')} embedded isOpen onClose={()=>setViewMode('today')}/>}
+    {viewMode==='account'&&<AccountSettings assistantTriggerRef={setAssistantTriggerTarget} onInsights={()=>setViewMode('dashboard')} embedded isOpen onClose={()=>setViewMode('today')}/>}
     </main>
 
    </div>
+   <AgentPanel triggerTarget={assistantTriggerTarget} showTrigger={viewMode==='account'} suspended={modalOpen||sidebarOpen||!!profileMember||!!availabilityMember||shortcutsOpen||viewMode!=='account'}/>
    <ChoreModal isOpen={modalOpen} onClose={handleCloseModal} editChore={editChore} instanceDate={instanceDate} defaultValues={defaultValues}/>
    {profileMember&&<MemberProfileModal member={profileMember} onClose={()=>setProfileMember(null)}/>}
    {availabilityMember&&<AvailabilityModal member={availabilityMember} onClose={()=>setAvailabilityMember(null)}/>}

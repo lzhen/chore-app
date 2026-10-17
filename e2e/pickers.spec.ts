@@ -1,3 +1,4 @@
+import {selectAppearance, openInsights} from './navigation';
 import {test,expect,Page} from '@playwright/test';
 // Keep mocked requests intercepted after reload; service workers can bypass page.route.
 test.use({ serviceWorkers: 'block' });
@@ -38,7 +39,7 @@ async function fixture(page:Page,width=390,empty=false){
 
 for (const width of [320, 375, 390, 430, 1440]) for (const theme of ['light','dark']) test(`pickers ${width} ${theme}`, async ({page}, info) => {
  await fixture(page,width);
- if(await page.locator('html').getAttribute('data-theme')!==theme) await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
+ await selectAppearance(page,theme);
  await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
  const nav=page.getByRole('navigation',{name:'Primary navigation'});
  const checkHeader=async()=>{
@@ -77,6 +78,6 @@ for (const width of [320, 375, 390, 430, 1440]) for (const theme of ['light','da
  await picker.click(); await expect(dialog.getByRole('option',{name:'Jamie',exact:true})).toHaveAttribute('aria-selected','true');
  await picker.press('Tab'); await expect(dialog.getByRole('listbox')).toHaveCount(0);
  await dialog.getByRole('button',{name:'Cancel',exact:true}).click(); await expect(dialog).toHaveCount(0);
- await nav.getByRole('button',{name:'Insights',exact:true}).click();
+ await openInsights(page);
  await page.screenshot({path:info.outputPath(`avatars-${theme}-${width}.png`)});
 });

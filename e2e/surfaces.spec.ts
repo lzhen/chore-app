@@ -1,3 +1,4 @@
+import {selectAppearance, openInsights} from './navigation';
 import {test,expect,Page} from '@playwright/test';
 // Keep mocked requests intercepted after reload; service workers can bypass page.route.
 test.use({ serviceWorkers: 'block' });
@@ -37,7 +38,7 @@ async function fixture(page:Page,width=390,empty=false){
 
 for(const theme of ['light','dark']) for(const width of [390,1440]) test(`unified product surfaces ${theme} ${width}`,async({page},info)=>{
  const {calls}=await fixture(page,width);
- if(await page.locator('html').getAttribute('data-theme')!==theme) await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
+ await selectAppearance(page,theme);
  await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
  const brand=page.locator('.chore-brand .nesmi-logo');
  const mark=brand.locator('.nesmi-header-icon');
@@ -59,7 +60,7 @@ for(const theme of ['light','dark']) for(const width of [390,1440]) test(`unifie
  await expect(brand.locator('.nesmi-wordmark')).toHaveCSS('font-weight','600');
  const nav=page.getByRole('navigation',{name:'Primary navigation'});
  for(const view of ['Calendar','Insights','Account']) {
-  await nav.getByRole('button',{name:view,exact:true}).click();
+  if(view==='Insights') await openInsights(page); else await nav.getByRole('button',{name:view,exact:true}).click();
   await page.screenshot({path:info.outputPath(`${view}-${theme}-${width}.png`),fullPage:true});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   if(view==='Calendar') {
@@ -83,7 +84,7 @@ for(const theme of ['light','dark']) for(const width of [390,1440]) test(`unifie
   }
  }
  await nav.getByRole('button',{name:'Calendar',exact:true}).click();
- await page.getByRole('button',{name:'Add new chore',exact:true}).click();
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Add chore',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Add a chore'});
  const box=await dialog.boundingBox();expect(box).not.toBeNull();expect(box!.width).toBeLessThanOrEqual(width);if(width>=768){expect(box!.width).toBe(530);expect(box!.height).toBeLessThanOrEqual(844*.8+1);}
  await dialog.locator('summary').click();
@@ -114,8 +115,8 @@ for(const theme of ['light','dark']) for(const width of [390,1440]) test(`unifie
  expect(await page.evaluate(()=>document.body.style.overflow)).toBe('hidden');
  await page.screenshot({path:info.outputPath(`repeat-confirm-${theme}-${width}.png`),fullPage:true});
  await page.setViewportSize({width,height:560});
- const shortFooter=await editor.locator('.chore-dialog-footer').boundingBox();
- expect(shortFooter!.y+shortFooter!.height).toBeLessThanOrEqual(560);
+ // Resize handling follows visualViewport events and an animation frame.
+ await expect.poll(async()=>{const footer=await editor.locator('.chore-dialog-footer').boundingBox();return footer!.y+footer!.height;}).toBeLessThanOrEqual(560);
  await page.screenshot({path:info.outputPath(`repeat-short-${theme}-${width}.png`),fullPage:true});
  await editor.getByRole('button',{name:'Keep chore',exact:true}).click();
  await editor.getByRole('button',{name:'Cancel',exact:true}).click();
