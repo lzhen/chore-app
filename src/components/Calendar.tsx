@@ -268,6 +268,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
               initialView="dayGridMonth"
               events={events}
               eventClick={handleEventClick}
+              eventDidMount={({el,event})=>{el.setAttribute('aria-label',event.title);el.setAttribute('title',event.title);}}
               select={handleDateSelect}
               eventDrop={handleEventDrop}
               eventResize={handleEventResize}
@@ -313,7 +314,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
                 // Compact rendering for month view
                 if (view === 'dayGridMonth') {
                   return (
-                    <div className={`flex items-center gap-1 px-1 py-0.5 overflow-hidden ${isCompleted ? 'line-through opacity-70' : ''}`}>
+                    <div className={`nesmi-calendar-event-content flex items-center gap-1 overflow-hidden ${isCompleted ? 'line-through opacity-70' : ''}`}>
                       {!isCompleted && priority && (
                         <span className="nesmi-calendar-dot" style={{ backgroundColor: arg.event.extendedProps.memberColor }} aria-hidden="true" />
                       )}
@@ -336,7 +337,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
 
                 // Richer rendering for week/day views
                 return (
-                  <div className={`flex flex-col h-full px-1 py-0.5 overflow-hidden ${isCompleted ? 'line-through opacity-70' : ''}`}>
+                  <div className={`nesmi-calendar-event-content flex flex-col h-full overflow-hidden ${isCompleted ? 'line-through opacity-70' : ''}`}>
                     <div className="flex items-center gap-1">
                       {!isCompleted && priority && (
                         <span className="nesmi-calendar-dot" style={{ backgroundColor: arg.event.extendedProps.memberColor }} aria-hidden="true" />

@@ -536,3 +536,24 @@
   .chore-tabs .nesmi-nav-add { display: none; }
   .nesmi-desktop-add { display: flex; }
 }
+
+/* One spacing scale for calendar controls and cells, without stacked legacy padding. */
+.nesmi-task-tools { min-height: 64px; padding: 4px max(20px, env(safe-area-inset-right)) 12px max(20px, env(safe-area-inset-left)); }
+.chore-calendar-page { padding: 24px max(16px, env(safe-area-inset-right)) 24px max(16px, env(safe-area-inset-left)) !important; scroll-padding-block: 16px; }
+.chore-calendar-page .fc .fc-toolbar { padding: 0; margin-bottom: 16px; gap: 12px; }
+.chore-calendar-page .fc .fc-col-header-cell { padding: 0 !important; }
+.chore-calendar-page .fc .fc-col-header-cell-cushion { padding: 10px 2px; }
+.chore-calendar-page .fc .fc-daygrid-day-number { display: flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; padding: 4px; margin: 3px; }
+.chore-calendar-page .fc .fc-dayGridMonth-view .fc-daygrid-day-frame { min-height: 132px; }
+.chore-calendar-page .fc .fc-daygrid-event { margin-inline: 2px; padding: 3px 2px !important; }
+.chore-calendar-page .fc .fc-event-main { padding: 0; }
+.chore-calendar-page .fc .fc-popover { z-index: 150; }
+.nesmi-calendar-event-content { min-width: 0; padding: 0; }
+.chore-calendar-page .fc .fc-timegrid-event { padding: 4px !important; }
+.chore-calendar-page .fc .fc-list-day-cushion { padding: 10px 12px; }
+.chore-calendar-page .fc .fc-list-event-time,
+.chore-calendar-page .fc .fc-list-event-title { padding: 12px; }
+@media (min-width: 768px) {
+  .nesmi-task-tools { padding-right: max(24px, env(safe-area-inset-right)); padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+  .chore-calendar-page { padding: 40px max(32px, env(safe-area-inset-right)) 80px max(32px, env(safe-area-inset-left)) !important; }
+}
