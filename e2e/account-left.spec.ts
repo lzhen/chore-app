@@ -39,6 +39,7 @@ async function fixture(page:Page,width=390,empty=false){
 
 for(const width of [320,390,768,1440]) for(const theme of ['light','dark']) test(`account left alignment ${width} ${theme}`,async({page},info)=>{
  const {calls}=await fixture(page,width);
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
  if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
  await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
  const opposite=theme==='light'?'dark':'light';
@@ -47,7 +48,7 @@ for(const width of [320,390,768,1440]) for(const theme of ['light','dark']) test
  await expect(page.locator('html')).toHaveAttribute('data-theme',opposite);
  await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
  await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
- await expect(page.getByRole('heading',{name:'Appearance',exact:true})).toHaveCount(0);
+ await expect(page.getByRole('heading',{name:'Appearance',exact:true})).toHaveCount(1);
  await expect(page.getByText('Workload Balance',{exact:true})).toHaveCount(0);
  const appearance=await page.getByRole('heading',{name:'Notifications',exact:true}).boundingBox();
  for(const [heading,button] of [['Notifications','Enable Reminders'],['Google Calendar','Connect Google Calendar']]){
@@ -64,8 +65,9 @@ for(const width of [320,390,768,1440]) for(const theme of ['light','dark']) test
 
 for(const width of [320,1440]) for(const theme of ['light','dark']) test(`neutral workload ${width} ${theme}`,async({page},info)=>{
  const {calls}=await fixture(page,width);
+ await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Account',exact:true}).click();
  if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
- await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Insights',exact:true}).click();
+ await page.getByRole('button',{name:'Insights',exact:true}).click();
  await page.getByRole('button',{name:'Workload',exact:true}).click();
  await expect(page.getByText('Under 70%',{exact:true})).toHaveCount(0);
  await expect(page.getByText('70-90%',{exact:true})).toHaveCount(0);

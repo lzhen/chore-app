@@ -30,5 +30,6 @@ describe('centered Nesmi header', () => {
 it('keeps Add as the central action without changing the selected route', async()=>{
  const onAddClick=vi.fn(),onViewModeChange=vi.fn();render(<Header {...props} viewMode="calendar" onAddClick={onAddClick} onViewModeChange={onViewModeChange}/>);
  const nav=screen.getByRole('navigation');expect(within(nav).getAllByRole('button').map(b=>b.textContent)).toEqual(['Today','Calendar','Add chore','Chores','Account']);
- await userEvent.click(within(nav).getByRole('button',{name:'Add chore'}));expect(onAddClick).toHaveBeenCalledOnce();expect(onViewModeChange).not.toHaveBeenCalled();expect(within(nav).getByRole('button',{name:'Calendar'})).toHaveAttribute('aria-current','page');
+ const add=within(nav).getByRole('button',{name:'Add chore'});expect(add.querySelector('span')).not.toBeVisible();expect(add.querySelector('span')).toHaveAttribute('aria-hidden','true');
+ await userEvent.click(add);expect(onAddClick).toHaveBeenCalledOnce();expect(onViewModeChange).not.toHaveBeenCalled();expect(within(nav).getByRole('button',{name:'Calendar'})).toHaveAttribute('aria-current','page');
 });
