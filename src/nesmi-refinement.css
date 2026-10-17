@@ -529,3 +529,10 @@
 .chore-calendar-page .fc .fc-list-event-time {width:auto;}
 .nesmi-task-tools .nesmi-agent-trigger[hidden] {display:none;}
 .chore-calendar-page .fc .fc-list-event {border:0!important;border-radius:0!important;padding:0!important;}
+
+/* Keep the mobile add slot; restore the independent desktop add action. */
+.nesmi-desktop-add { display: none; }
+@media (min-width: 768px) {
+  .chore-tabs .nesmi-nav-add { display: none; }
+  .nesmi-desktop-add { display: flex; }
+}

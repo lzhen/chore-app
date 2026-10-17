@@ -55,7 +55,7 @@ for(const [width,height] of [[320,480],[390,844],[1440,900]])for(const theme of 
  const geometry=await nav.getByRole('button').evaluateAll(buttons=>buttons.map(b=>{const r=b.getBoundingClientRect(),i=b.querySelector('svg')!.getBoundingClientRect(),l=b.querySelector('span')!.getBoundingClientRect();return {w:r.width,h:r.height,iconY:i.y+i.height/2,labelY:l.bottom};}));
  for(const g of geometry){expect(g.w).toBeGreaterThanOrEqual(44);expect(g.h).toBeGreaterThanOrEqual(44);expect(g.iconY).toBe(geometry[0].iconY);expect(g.labelY).toBe(geometry[0].labelY);}
  }
- await page.screenshot({path:info.outputPath('navigation.png')});const add=nav.getByRole('button',{name:'Add chore',exact:true});await add.click();
+ await page.screenshot({path:info.outputPath('navigation.png')});const add=page.getByRole('button',{name:'Add chore',exact:true});await add.click();
  const form=page.getByRole('dialog',{name:'Add a chore',exact:true});
  const box=await form.boundingBox();expect(box!.height).toBeLessThan(Math.min(650,height));
  await page.screenshot({path:info.outputPath('collapsed.png')});

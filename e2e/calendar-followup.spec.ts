@@ -51,7 +51,7 @@ for(const width of [320,390,430,1440])for(const theme of ['light','dark'])test(`
  await expect(nav.getByRole('button',{name:'Calendar',exact:true})).toHaveAttribute('aria-current','page');
  await page.getByRole('button',{name:'Open family menu'}).click();
  await page.locator('.family-backdrop').click({position:{x:width-5,y:100}});await expect(family).toBeHidden();
- await nav.getByRole('button',{name:'Add chore',exact:true}).click();
+ await page.getByRole('button',{name:'Add chore',exact:true}).click();
  await expect(page.getByRole('button',{name:'Assistant',exact:true})).toHaveCount(0);
  await page.getByRole('button',{name:'Close dialog'}).click();
  await expect(page.getByRole('button',{name:'Assistant',exact:true})).toBeVisible();
