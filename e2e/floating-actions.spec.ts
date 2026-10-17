@@ -57,7 +57,7 @@ for(const width of [375,768,1440]) for(const theme of ['light','dark']) test(`na
  await expect(add.locator('span')).toBeHidden();
  await expect(page.locator('.nesmi-task-tools').getByRole('button',{name:'Assistant',exact:true})).toBeVisible();
  await page.screenshot({path:info.outputPath(`floating-${theme}-${width}.png`),fullPage:true});
- await agent.click();await expect(agent).toHaveAttribute('aria-expanded','true');
+ await agent.click();await expect(agent).toBeHidden();
  const panel=page.getByRole('dialog',{name:'Assistant',exact:true});await expect(panel).toBeVisible();
  await expect(panel.locator('.nesmi-assistant-header')).toHaveCSS('color',theme==='dark'?'rgb(242, 242, 243)':'rgb(20, 20, 20)');
  const p=await panel.boundingBox();expect(p!.y).toBeGreaterThanOrEqual(0);expect(p!.y+p!.height).toBeLessThanOrEqual(844);

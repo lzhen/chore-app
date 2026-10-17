@@ -7,7 +7,21 @@ export function AgentPanel({ suspended = false, showTrigger = true, triggerTarge
   const [isOpen, setIsOpen] = useState(false);
   const panel = useRef<HTMLElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const [obstructed, setObstructed] = useState(false);
   const visible = isOpen && !suspended;
+  useEffect(() => {
+    const update = () => {
+      const editing = document.activeElement?.matches('input,textarea,[contenteditable="true"]');
+      const otherDialog = [...document.querySelectorAll('[role="dialog"],.event-popover,[data-open-picker]')].some(el => el.id !== 'nesmi-assistant' && el.getClientRects().length > 0);
+      const keyboard = window.visualViewport && window.innerHeight - window.visualViewport.height > 150;
+      setObstructed(!!(editing || otherDialog || keyboard));
+    };
+    const observer = new MutationObserver(update);
+    observer.observe(document.body, {childList:true,subtree:true,attributes:true,attributeFilter:['hidden']});
+    document.addEventListener('focusin',update);document.addEventListener('focusout',update);
+    window.visualViewport?.addEventListener('resize',update);update();
+    return () => {observer.disconnect();document.removeEventListener('focusin',update);document.removeEventListener('focusout',update);window.visualViewport?.removeEventListener('resize',update);};
+  }, []);
   useEffect(() => { if (suspended) setIsOpen(false); }, [suspended]);
   useEffect(() => {
     if (!visible) return;
@@ -50,12 +64,13 @@ export function AgentPanel({ suspended = false, showTrigger = true, triggerTarge
 
   const launcher = showTrigger && !suspended ? <button
         ref={trigger}
+        hidden={obstructed || visible}
         onClick={() => setIsOpen(!isOpen)}
-        className="nesmi-agent-trigger chore-button secondary"
+        className="nesmi-agent-trigger"
         aria-label="Assistant" aria-expanded={visible} aria-controls="nesmi-assistant"
         title="Assistant"
       >
-        <svg className="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg aria-hidden="true" className="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -63,7 +78,6 @@ export function AgentPanel({ suspended = false, showTrigger = true, triggerTarge
             d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
           />
         </svg>
-        <span>Assistant</span>
       </button> : null;
 
   return (

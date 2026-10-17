@@ -283,7 +283,8 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
                 day: 'Day',
                 list: 'Agenda',
               }}
-              height="100%"
+              height="auto"
+              fixedWeekCount={false}
               // Interaction settings
               editable={true}
               selectable={true}
@@ -325,6 +326,13 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
                     </div>
                   );
                 }
+
+                // Agenda uses its own layout so long time ranges cannot squeeze the title.
+                if (view === 'listWeek') return <div className={`nesmi-agenda-content ${isCompleted ? 'line-through opacity-70' : ''}`}>
+                  <span className="nesmi-calendar-dot" style={{backgroundColor:arg.event.extendedProps.memberColor}} aria-hidden="true"/>
+                  <div><span>{arg.event.title}</span>{arg.event.extendedProps.assigneeName && <small>{arg.event.extendedProps.assigneeName}</small>}</div>
+                  {priority === 'high' && <span className="nesmi-calendar-priority" aria-label="High priority">!</span>}
+                </div>;
 
                 // Richer rendering for week/day views
                 return (

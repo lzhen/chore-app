@@ -51,6 +51,11 @@ export function App() {
     if (!sidebarOpen) return;
     const previous = document.activeElement as HTMLElement | null;
     const panel = familyPanelRef.current;
+    const main = document.querySelector<HTMLElement>('.chore-main');
+    const overflow = main?.style.overflow || '';
+    if (main) main.style.overflow = 'hidden';
+    const background = [...document.querySelectorAll<HTMLElement>('.chore-app > :not(main),.chore-main > :not(.family-overlay)')].map(el => ({el,inert:el.inert}));
+    background.forEach(({el}) => {el.inert = true;});
     panel?.focus();
     const key = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setSidebarOpen(false); }
@@ -61,7 +66,7 @@ export function App() {
       else if (!event.shiftKey && (document.activeElement === last || document.activeElement === panel)) { event.preventDefault(); first?.focus(); }
     };
     document.addEventListener('keydown', key, true);
-    return () => { document.removeEventListener('keydown', key, true); if (previous?.isConnected) previous.focus(); };
+    return () => { document.removeEventListener('keydown', key, true); background.forEach(({el,inert})=>{el.inert=inert;}); if(main)main.style.overflow=overflow; if (previous?.isConnected) previous.focus(); };
   }, [sidebarOpen]);
   useEffect(() => {
     if (viewMode === 'dashboard') document.getElementById('insights-title')?.focus();
@@ -81,9 +86,13 @@ export function App() {
   }, [state.chores, state.teamMembers, state.completions]);
 
   // Navigate calendar to a specific date
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | null>(null);
   const handleMiniCalendarDateSelect = useCallback((date: Date) => {
-    calendarRef.current?.gotoDate(date);
+    setSelectedCalendarDate(date);setViewMode('calendar');setSidebarOpen(false);
   }, []);
+  useEffect(() => {
+    if (viewMode === 'calendar' && selectedCalendarDate) calendarRef.current?.gotoDate(selectedCalendarDate);
+  }, [viewMode,selectedCalendarDate]);
 
   // Toggle member visibility
   const handleToggleMemberVisibility = useCallback((memberId: string) => {
@@ -269,10 +278,10 @@ export function App() {
     {viewMode==='account'&&<AccountSettings embedded isOpen onInsights={handleDashboardClick} onClose={()=>setViewMode('today')}/>}
 
     </main>
-    {["today","calendar","list"].includes(viewMode)&&<div className="nesmi-task-tools" ref={setAssistantTriggerTarget}/>}
+    <div className="nesmi-task-tools" ref={setAssistantTriggerTarget}/>
 
    </div>
-   <AgentPanel triggerTarget={assistantTriggerTarget} showTrigger={['today','calendar','list'].includes(viewMode)} suspended={modalOpen||sidebarOpen||!!profileMember||!!availabilityMember||shortcutsOpen||!['today','calendar','list'].includes(viewMode)}/>
+   <AgentPanel triggerTarget={assistantTriggerTarget} suspended={modalOpen||sidebarOpen||!!profileMember||!!availabilityMember||shortcutsOpen}/>
    <ChoreModal isOpen={modalOpen} onClose={handleCloseModal} editChore={editChore} instanceDate={instanceDate} defaultValues={defaultValues}/>
    {profileMember&&<MemberProfileModal member={profileMember} onClose={()=>setProfileMember(null)}/>}
    {availabilityMember&&<AvailabilityModal member={availabilityMember} onClose={()=>setAvailabilityMember(null)}/>}

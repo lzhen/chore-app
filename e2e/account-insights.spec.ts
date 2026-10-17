@@ -6,7 +6,7 @@ for(const width of [390,1440])for(const theme of ['light','dark'])test(`Account 
  const nav=page.getByRole('navigation',{name:'Primary navigation'});
  await expect(page.getByRole('button',{name:'Assistant',exact:true})).toBeVisible();
  await nav.getByRole('button',{name:'Account',exact:true}).click();
- const entry=page.getByRole('button',{name:'View activity',exact:true});await expect(entry).toBeVisible();await expect(entry).toHaveClass(/secondary/);await expect(page.getByRole('button',{name:'Assistant',exact:true})).toHaveCount(0);
+ const entry=page.getByRole('button',{name:'View activity',exact:true});await expect(entry).toBeVisible();await expect(entry).toHaveClass(/secondary/);await expect(page.getByRole('button',{name:'Assistant',exact:true})).toBeVisible();
  await expect(page.getByRole('heading',{name:'Activity & insights',exact:true})).toBeVisible();await expect(page.getByText('Review household activity.',{exact:true})).toBeVisible();
  const heading=await page.getByRole('heading',{name:'Appearance',exact:true}).boundingBox();const button=await entry.boundingBox();expect(Math.abs(button!.x-heading!.x)).toBeLessThanOrEqual(1);expect(button!.height).toBeLessThanOrEqual(52);
  await page.screenshot({path:info.outputPath(`account-${width}-${theme}.png`)});
