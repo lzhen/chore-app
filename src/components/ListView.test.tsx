@@ -82,9 +82,12 @@ describe('ListView day scope and progress', () => {
     expect(screen.getByRole('button', {name: 'Edit Laundry'})).toBeInTheDocument();
   });
 
-  it('labels all-date search in List view', () => {
+  it('labels the bounded recurring search range in List view', () => {
     render(<ListView searchQuery="Laundry" onAddClick={vi.fn()} onEventClick={vi.fn()}/>);
-    expect(screen.getByRole('heading', {name: /Search results · all dates/})).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: /Search results/})).toBeInTheDocument();
+    expect(screen.getByText(/Repeating chores:/)).toBeInTheDocument();
+    expect(screen.getByText(/One-off chores: all dates/)).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Later repeating chores'})).toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Edit Laundry next week'})).toBeInTheDocument();
   });
 
@@ -125,4 +128,28 @@ describe('ListView day scope and progress', () => {
     expect(open).toHaveBeenCalledWith(expect.objectContaining({id:'done'}),dateKey());
   });
 
+});
+
+it('searches later recurring windows without claiming all recurring dates', async () => {
+  const today = dateKey();
+  const future = new Date(); future.setMonth(future.getMonth() + 5); future.setDate(15);
+  app.state.chores = [chore('future-series', 'Future repeating chore', dateKey(future), {recurrence:'weekly'})];
+  app.state.completions = [];
+  const user = userEvent.setup();
+  render(<ListView searchQuery="Future repeating" onAddClick={vi.fn()} onEventClick={vi.fn()}/>);
+  expect(screen.queryByRole('button',{name:'Edit Future repeating chore'})).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button',{name:'Later repeating chores'}));
+  expect(screen.getAllByRole('button',{name:'Edit Future repeating chore'}).length).toBeGreaterThan(0);
+  expect(screen.queryByText(/all dates/, {selector:'h3'})).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button',{name:'Current repeating chores'}));
+  expect(screen.queryByRole('button',{name:'Edit Future repeating chore'})).not.toBeInTheDocument();
+  expect(today).toBe(dateKey());
+});
+it('labels selected-day remaining separately from overdue and never invents estimates', () => {
+  app.state.chores=[chore('today','Unestimated task',dateKey(),{estimatedMinutes:0}),chore('old','Overdue task',shiftDate(dateKey(),-1),{estimatedMinutes:50})];
+  app.state.completions=[];
+  render(<ListView todayView onAddClick={vi.fn()} onEventClick={vi.fn()}/>);
+  expect(screen.getByText('1 remaining today')).toBeInTheDocument();
+  expect(screen.getByText(/Overdue is separate/)).toBeInTheDocument();
+  expect(screen.queryByText(/~.*min/)).not.toBeInTheDocument();
 });

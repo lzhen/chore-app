@@ -1,17 +1,18 @@
 import { dateKey, shiftDate } from '../utils/dates';
 import { CompletionDialog } from './CompletionDialog';
-import { useMemo, useRef, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { useCallback, useMemo, useRef, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import listPlugin from '@fullcalendar/list';
 import interactionPlugin from '@fullcalendar/interaction';
-import { EventClickArg, DateSelectArg, EventDropArg } from '@fullcalendar/core';
+import { EventClickArg, DateSelectArg, EventDropArg, DatesSetArg } from '@fullcalendar/core';
 import { EventResizeDoneArg } from '@fullcalendar/interaction';
 import { useApp } from '../context/AppContext';
 import { generateChoreInstances, getCalendarRange } from '../utils/recurrence';
 import { Chore, ChoreInstance } from '../types';
 import { EventPopover } from './EventPopover';
+import { moveChoreSchedule, resizeChoreSchedule } from '../utils/calendarSchedule';
 
 interface CalendarProps {
   onAddClick: (defaultValues?: { date?: string; startTime?: string; endTime?: string; allDay?: boolean }) => void;
@@ -64,9 +65,19 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [popover.visible]);
 
+    const [visibleRange, setVisibleRange] = useState(getCalendarRange);
+    const handleDatesSet = useCallback(({start, end}: DatesSetArg) => {
+      // FullCalendar includes spillover days and supplies an exclusive end.
+      const lastDay = new Date(end);
+      lastDay.setDate(lastDay.getDate() - 1);
+      setVisibleRange(previous => dateKey(previous.start) === dateKey(start) && dateKey(previous.end) === dateKey(lastDay)
+        ? previous : {start: new Date(start), end: lastDay});
+      setPopover(previous => ({...previous, visible: false}));
+    }, []);
+
     // Generate calendar events
     const instances = useMemo(() => {
-      const { start, end } = getCalendarRange();
+      const { start, end } = visibleRange;
       return generateChoreInstances(
         state.chores,
         state.teamMembers,
@@ -74,7 +85,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
         start,
         end
       );
-    }, [state.chores, state.teamMembers, state.completions]);
+    }, [state.chores, state.teamMembers, state.completions, visibleRange]);
 
     // Apply search filter and visibility filter
     const filteredInstances = useMemo(() => {
@@ -180,7 +191,6 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
     // Handle event drag/drop
     const handleEventDrop = async (info: EventDropArg) => {
       const choreId = info.event.extendedProps.choreId;
-      const isRecurring = info.event.extendedProps.isRecurring;
       const chore = state.chores.find(c => c.id === choreId);
 
       if (!chore) {
@@ -188,56 +198,21 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
         return;
       }
 
-      // For recurring events, we would need to ask user if they want to update all or just this instance
-      // For now, we update all occurrences
-      if (isRecurring && !confirm('Move the entire repeating series? This changes all occurrences.')) {info.revert();return;}
+      if (!info.event.start || !info.oldEvent.start) {info.revert(); return;}
+      // Scope comes from the stored chore, never only from rendered event metadata.
+      if (chore.recurrence !== 'none' && !confirm('Move the entire repeating series? This changes all occurrences.')) {info.revert();return;}
+      setOperationError('');
       try {
-      if (isRecurring) {
-        const newDate = info.event.start;
-        if (newDate) {
-          const newDateStr = dateKey(newDate);
-          const newTime = info.event.allDay ? undefined : newDate.toTimeString().slice(0, 5);
-
-          await updateChore({
-            ...chore,
-            date: newDateStr,
-            dueTime: newTime,
-            endTime: undefined,
-          });
-        }
-      } else {
-        // Single event - update directly
-        const newDate = info.event.start;
-        if (newDate) {
-          const newDateStr = dateKey(newDate);
-          const newTime = info.event.allDay ? undefined : newDate.toTimeString().slice(0, 5);
-
-          await updateChore({
-            ...chore,
-            date: newDateStr,
-            dueTime: newTime,
-            endTime: undefined,
-          });
-        }
-      }
+        await updateChore(moveChoreSchedule(chore, info.oldEvent.start, info.event.start, info.event.allDay));
       } catch(e) {info.revert();setOperationError(e instanceof Error?e.message:'Could not move chore.');}
     };
 
-    // Handle event resize
     const handleEventResize = async (info: EventResizeDoneArg) => {
-      const choreId = info.event.extendedProps.choreId;
-      const chore = state.chores.find(c => c.id === choreId);
-
-      if (!chore || !info.event.start || !info.event.end) {
-        info.revert();
-        return;
-      }
-
-      const startTime = info.event.start.toTimeString().slice(0, 5);
-      const endTime = info.event.end.toTimeString().slice(0, 5);
-
-      if (chore.recurrence!=='none'&&!confirm('Change the time for the entire repeating series?')) {info.revert();return;}
-      try {await updateChore({...chore,dueTime:startTime,endTime});}
+      const chore = state.chores.find(c => c.id === info.event.extendedProps.choreId);
+      if (!chore || !info.event.start || !info.event.end) {info.revert();return;}
+      if (chore.recurrence !== 'none' && !confirm('Change the time for the entire repeating series?')) {info.revert();return;}
+      setOperationError('');
+      try {await updateChore(resizeChoreSchedule(chore, info.event.start, info.event.end, info.event.allDay));}
       catch(e){info.revert();setOperationError(e instanceof Error?e.message:'Could not save time.');}
     };
 
@@ -267,6 +242,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
               plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
               initialView="dayGridMonth"
               events={events}
+              datesSet={handleDatesSet}
               eventClick={handleEventClick}
               eventDidMount={({el,event})=>{el.setAttribute('aria-label',event.title);el.setAttribute('title',event.title);}}
               select={handleDateSelect}
