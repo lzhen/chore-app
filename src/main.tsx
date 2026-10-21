@@ -5,6 +5,9 @@ import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import './index.css';
 import './nesmi-refinement.css';
+import { installDynamicType } from './utils/dynamicType';
+
+installDynamicType();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

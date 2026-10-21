@@ -589,12 +589,7 @@
 .nesmi-month-toolbar h2 {flex:1 0 auto;max-width:100%;}
 .nesmi-month-toolbar button:first-of-type {width:auto;min-width:44px;padding-inline:8px;}
 
-/* Adopt iOS Dynamic Type for rem-based content without changing desktop type. */
-@media (max-width: 767px) {
-  @supports (font: -apple-system-body) {
-    html { font: -apple-system-body; }
-  }
-}
+/* Dynamic Type uses the original 16px baseline; desktop type stays unchanged. */
 @media (max-width: 767px) {
   .chore-task-body > strong { font-size: 1.0625rem; }
   .chore-task-meta, .chore-task-date, .chore-task-details { font-size: .75rem; }
