@@ -575,7 +575,12 @@
 .nesmi-day-tasks h3 {font-size:1rem;margin:0 0 8px;font-weight:600;}
 .nesmi-day-tasks .chore-task-title {white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;display:block;-webkit-line-clamp:unset;}
 .nesmi-day-empty {padding:12px 0;color:var(--text-secondary);font-size:.875rem;}
-.chore-load-more {display:block;min-height:44px;margin:12px 0;padding:10px 0;font-size:.875rem;text-align:left;color:var(--text-secondary);text-decoration:underline;}
+.chore-load-more {display:block;width:100%;min-height:44px;margin:12px auto;padding:10px 0;font-size:.875rem;text-align:left;color:var(--text-secondary);text-decoration:underline;}
+.chore-list-empty-action {width:100%;}
+@media(min-width:768px) {
+  .nesmi-desktop-add {bottom:max(12px,env(safe-area-inset-bottom));}
+  .nesmi-desktop-add > .chore-fab {height:48px;min-height:48px;}
+}
 .chore-list-filters {justify-content:flex-start;}
 .chore-list-filters .chore-input {background:transparent;border:1px solid var(--border-subtle);}
 @media(max-width:767px) { .chore-list-filters label {max-width:100%;} }
