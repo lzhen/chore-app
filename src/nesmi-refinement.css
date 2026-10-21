@@ -557,3 +557,34 @@
   .nesmi-task-tools { padding-right: max(24px, env(safe-area-inset-right)); padding-bottom: max(12px, env(safe-area-inset-bottom)); }
   .chore-calendar-page { padding: 40px max(32px, env(safe-area-inset-right)) 80px max(32px, env(safe-area-inset-left)) !important; }
 }
+
+/* Mobile calendar: dates navigate; task text belongs in the day list. */
+.nesmi-mobile-calendar {padding:16px 8px 100px; min-width:0; width:100%; min-height:0; overflow-y:auto; overscroll-behavior:contain;}
+.nesmi-month-toolbar {display:flex; align-items:center; gap:2px; padding:0 8px;}
+.nesmi-month-toolbar h2 {font-size:1.125rem; line-height:1.4; flex:1; margin:0; font-weight:600;}
+.nesmi-month-toolbar button {min-width:44px; min-height:44px; font-size:.875rem;}
+.nesmi-month-toolbar button[aria-label] {font-size:1.5rem;}
+.nesmi-month-weekdays,.nesmi-month-grid {display:grid;grid-template-columns:repeat(7,minmax(0,1fr));}
+.nesmi-month-weekdays {margin-top:12px;text-align:center;color:var(--text-secondary);font-size:.75rem;}
+.nesmi-month-grid button {position:relative;min-height:44px;min-width:0;border-radius:12px;background:transparent;color:var(--text-primary);font-size:.875rem;border:1px solid transparent;margin:1px 0;}
+.nesmi-month-grid button.is-today {border-color:var(--text-secondary);}
+.nesmi-month-grid button[aria-pressed=true] {background:#daff61;color:#141414;}
+.nesmi-month-grid button.outside-month {color:var(--text-secondary);}
+.nesmi-month-grid i {position:absolute;bottom:4px;left:calc(50% - 2px);width:4px;height:4px;background:currentColor;border-radius:50%;}
+.nesmi-day-tasks {padding:16px 8px 0;border-top:1px solid var(--border-subtle);margin-top:16px;}
+.nesmi-day-tasks h3 {font-size:1rem;margin:0 0 8px;font-weight:600;}
+.nesmi-day-tasks .chore-task-title {white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;display:block;-webkit-line-clamp:unset;}
+.nesmi-day-empty {padding:12px 0;color:var(--text-secondary);font-size:.875rem;}
+.chore-load-more {display:block;min-height:44px;margin:12px 0;padding:10px 0;font-size:.875rem;text-align:left;color:var(--text-secondary);text-decoration:underline;}
+.chore-list-filters {justify-content:flex-start;}
+.chore-list-filters .chore-input {background:transparent;border:1px solid var(--border-subtle);}
+@media(max-width:767px) { .chore-list-filters label {max-width:100%;} }
+.nesmi-month-toolbar {flex-wrap:wrap;}
+.nesmi-month-toolbar h2 {min-width:120px;}
+
+.chore-list-filters {display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+.chore-list-filters h2 {margin:0 8px 0 0;font-size:1rem;font-weight:600;}
+.chore-list-filters label {flex:0 1 auto;min-width:0;}
+.chore-list-filters .chore-input {width:auto;max-width:100%;font-size:.875rem;}
+.nesmi-month-toolbar h2 {flex:1 0 auto;max-width:100%;}
+.nesmi-month-toolbar button:first-of-type {width:auto;min-width:44px;padding-inline:8px;}

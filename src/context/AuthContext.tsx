@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteAccount = async () => {
-    const { error } = await supabase.functions.invoke('delete-account', {
+    const { data, error } = await supabase.functions.invoke('delete-account', {
       method: 'POST',
     });
 
@@ -85,7 +85,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: error as Error };
     }
 
-    localStorage.clear();
+    if (data?.deleted !== true) {
+      return { error: new Error('Account deletion was not confirmed. Please try again.') };
+    }
+    // Only remove caches owned by Nesmi. Other apps may share this origin.
+    localStorage.removeItem('chore-app-chores');
+    localStorage.removeItem('chore-app-members');
     await supabase.auth.signOut({ scope: 'local' });
     setSession(null);
     setUser(null);

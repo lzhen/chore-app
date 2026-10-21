@@ -1,4 +1,5 @@
 import { dateKey, shiftDate } from '../utils/dates';
+import { MobileCalendar } from './MobileCalendar';
 import { CompletionDialog } from './CompletionDialog';
 import { useCallback, useMemo, useRef, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import FullCalendar from '@fullcalendar/react';
@@ -29,7 +30,7 @@ export interface CalendarRef {
   prev: () => void;
 }
 
-export const Calendar = forwardRef<CalendarRef, CalendarProps>(
+const DesktopCalendar = forwardRef<CalendarRef, CalendarProps>(
   ({ onAddClick, onEventClick, searchQuery, hiddenMembers = new Set() }, ref) => {
     const { state, updateChore } = useApp();
     const [completionInstance,setCompletionInstance] = useState<ChoreInstance|null>(null);
@@ -294,11 +295,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
                       {!isCompleted && priority && (
                         <span className="nesmi-calendar-dot" style={{ backgroundColor: arg.event.extendedProps.memberColor }} aria-hidden="true" />
                       )}
-                      {isCompleted && (
-                        <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
+
                       <span className="truncate text-xs">{arg.event.title}</span>{priority === 'high' && <span className="nesmi-calendar-priority" title="High priority" aria-label="High priority">!</span>}
                     </div>
                   );
@@ -318,11 +315,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
                       {!isCompleted && priority && (
                         <span className="nesmi-calendar-dot" style={{ backgroundColor: arg.event.extendedProps.memberColor }} aria-hidden="true" />
                       )}
-                      {isCompleted && (
-                        <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
+
                       <span className="truncate text-xs font-medium">{arg.event.title}</span>{priority === 'high' && <span className="nesmi-calendar-priority" title="High priority" aria-label="High priority">!</span>}
                     </div>
                     {arg.event.extendedProps.assigneeName && (
@@ -353,4 +346,10 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
   }
 );
 
-Calendar.displayName = 'Calendar';
+DesktopCalendar.displayName = 'DesktopCalendar';
+export const Calendar = forwardRef<CalendarRef, CalendarProps>((props,ref)=>{
+ const [mobile,setMobile]=useState(()=>window.matchMedia('(max-width: 767px)').matches);
+ useEffect(()=>{const query=window.matchMedia('(max-width: 767px)');const update=()=>setMobile(query.matches);update();query.addEventListener('change',update);return ()=>query.removeEventListener('change',update);},[]);
+ return mobile?<MobileCalendar {...props} ref={ref}/>:<DesktopCalendar {...props} ref={ref}/>;
+});
+Calendar.displayName='Calendar';

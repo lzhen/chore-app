@@ -20,7 +20,8 @@ export function ListView({onAddClick, onEventClick, searchQuery='', hiddenMember
   const {state} = useApp();
   const today = dateKey();
   const [selected, setSelected] = useState(today);
-  const [rangeOffset, setRangeOffset] = useState(0);
+  const [earlierMonths, setEarlierMonths] = useState(0);
+  const [laterMonths, setLaterMonths] = useState(0);
   const [who, setWho] = useState('everyone');
   const [filter, setFilter] = useState('all');
   const [completing, setCompleting] = useState<ChoreInstance | null>(null);
@@ -33,13 +34,9 @@ export function ListView({onAddClick, onEventClick, searchQuery='', hiddenMember
     if (todayView && (selectedDate < start || selectedDate > end)) {
       return {start: new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1), end: new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 4, 0)};
     }
-    if (!todayView && rangeOffset) {
-      const first = new Date(start.getFullYear(), start.getMonth() + rangeOffset * 5, 1);
-      return {start: first, end: new Date(first.getFullYear(), first.getMonth() + 5, 0)};
-    }
+    if (!todayView) return {start:new Date(start.getFullYear(),start.getMonth()-earlierMonths,1),end:new Date(end.getFullYear(),end.getMonth()+laterMonths+1,0)};
     return {start, end};
-  }, [selected, todayView, rangeOffset, today]);
-  const rangeLabel = `${repeatRange.start.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})} – ${repeatRange.end.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}`;
+  }, [selected, todayView, earlierMonths, laterMonths, today]);
   const instances = useMemo(() => {
     const {start, end} = repeatRange;
     // Keep old one-off chores without spending the recurrence limit on past years.
@@ -51,8 +48,14 @@ export function ListView({onAddClick, onEventClick, searchQuery='', hiddenMember
       if (date < singleStart) singleStart.setTime(date.getTime());
       if (date > singleEnd) singleEnd.setTime(date.getTime());
     });
+    // Generate explicit month chunks so loading farther never silently hits the occurrence cap.
+    const repeating:ChoreInstance[]=[];
+    for(let month=new Date(start);month<=end;month=new Date(month.getFullYear(),month.getMonth()+1,1)) {
+      const last=new Date(month.getFullYear(),month.getMonth()+1,0);
+      repeating.push(...generateChoreInstances(state.chores.filter(chore=>chore.recurrence!=='none'),state.teamMembers,state.completions,month,last>end?end:last));
+    }
     return [
-      ...generateChoreInstances(state.chores.filter(chore => chore.recurrence !== 'none'), state.teamMembers, state.completions, start, end),
+      ...repeating,
       ...generateChoreInstances(singleChores, state.teamMembers, state.completions, singleStart, singleEnd),
     ];
   }, [state.chores, state.teamMembers, state.completions, repeatRange]);
@@ -102,21 +105,18 @@ export function ListView({onAddClick, onEventClick, searchQuery='', hiddenMember
   return <section className="chore-list-page">
     {todayView && <>
       <div className="today-intro"><div><p>{selectedDate.toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric'})}</p><h2>{selected === today ? 'Today' : formatDay(selected)}</h2></div></div>
-      <div className="chore-day-tools"><div className="chore-day-summary" aria-label="Selected day progress">
+      <div className="chore-day-tools">{dayInstances.length===0?<p className="nesmi-day-empty">{selected===today?'No chores due today':'No chores due on this date'}</p>:<div className="chore-day-summary" aria-label="Selected day progress">
         <div className="chore-summary-line"><p><strong>{doneCount}</strong> of {dayInstances.length} done{who !== 'everyone' || hiddenMembers.size > 0 ? ' · selected members' : ''}</p>{pendingMinutes > 0 && <p className="chore-summary-estimate"><strong>~{pendingMinutes} min</strong><span>{selected === today ? ' remaining today' : ' remaining on this day'}</span></p>}</div>
         <p className="chore-summary-minute-note">{pendingDay.length} remaining {selected === today ? 'today' : 'on this day'}</p>
         <progress className="chore-progress" value={doneCount} max={dayInstances.length || 1} aria-label={`${doneCount} of ${dayInstances.length} chores completed on ${formatDay(selected)}`}/>
         {pendingMinutes > 0 && <p className="chore-summary-minute-note">{estimatedPending.length === pendingDay.length ? 'Based on your chore estimates.' : `Estimates set for ${estimatedPending.length} of ${pendingDay.length} remaining chores.`}</p>}
-      </div>
+      </div>}
       <div className="chore-week"><div className="week-heading"><button className="touch-button" aria-label="Previous week" onClick={() => setSelected(shiftDate(selected, -7))}>‹</button><strong>{selectedDate.toLocaleDateString('en-US', {month: 'long', year: 'numeric'})}</strong><button className="week-today" onClick={() => setSelected(today)}>Today</button><button className="touch-button" aria-label="Next week" onClick={() => setSelected(shiftDate(selected, 7))}>›</button></div><div className="week-days">{week.map(date => <button key={date} className={date === selected ? 'selected' : ''} onClick={() => setSelected(date)} aria-label={parseDate(date).toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric'})} aria-pressed={date === selected}><small>{parseDate(date).toLocaleDateString('en-US', {weekday: 'narrow'})}</small><b>{parseDate(date).getDate()}</b><span className={instances.some(instance => instance.date === date) ? 'has-chores' : ''}/></button>)}</div></div>
     </div></>}
-    {!todayView && <div className="chore-search-range" aria-label="Chore date range">
-      <p className="chore-muted">Repeating chores: {rangeLabel}. One-off chores: all dates.</p>
-      <div className="chore-list-filters"><button className="chore-button secondary" aria-label="Earlier repeating chores" onClick={() => setRangeOffset(offset => offset - 1)}>Earlier</button><button className="chore-button secondary" aria-label="Current repeating chores" onClick={() => setRangeOffset(0)} disabled={rangeOffset === 0}>Current</button><button className="chore-button secondary" aria-label="Later repeating chores" onClick={() => setRangeOffset(offset => offset + 1)}>Later</button></div>
-    </div>}
-    {todayView && selected === today && overdue.length > 0 && <p className="chore-muted">Overdue is separate: all one-off chores and repeating chores since {repeatRange.start.toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'})}.</p>}
-    <div className="chore-list-filters"><label><span className="sr-only">Filter by family member</span><ChoicePicker className="chore-input" label="Filter by family member" value={who} onChange={setWho} options={[{id:'everyone',label:'Everyone'},{id:'unassigned',label:'Unassigned'},...state.teamMembers.map(member=>({id:member.id,label:member.name}))]}/></label>{!todayView && <label><span className="sr-only">Completion status</span><ChoicePicker className="chore-input" label="Completion status" value={filter} onChange={setFilter} options={[{id:'all',label:'All statuses'},{id:'pending',label:'Not done'},{id:'completed',label:'Completed'}]}/></label>}<span className="chore-muted">{display.length} {display.length === 1 ? 'chore' : 'chores'}{query && todayView ? (selected === today ? ' · this day + overdue' : ' · this day') : ''}</span>{hasFilters && <button className="chore-filter-reset" onClick={clearFilters}>Clear filters</button>}</div>
-    {display.length === 0 ? <div className="chore-empty"><h3>{query ? 'No matching chores' : hasFilters ? 'No chores match these filters.' : state.chores.length ? 'A little breathing room.' : 'Start with one small chore.'}</h3><p>{hasFilters ? 'Clear your filters to see the chores in this view.' : state.chores.length ? 'Nothing to do in this view.' : 'Add what needs doing. Assign it now, or decide later.'}</p>{hasFilters ? <button className="chore-button secondary" onClick={clearFilters}>Clear filters</button> : <button className="chore-button primary" onClick={onAddClick}>Add a chore</button>}</div> : groups.filter(group => group.items.length).map(group => group.name === 'Done' ? <details className="chore-task-group" key={group.name}><summary>Done <span>{group.items.length}</span></summary>{group.items.map(row)}</details> : <div className="chore-task-group" key={group.name}><h3>{group.name} <span>{group.items.length}</span></h3>{group.items.map(row)}</div>)}
+    <div className="chore-list-filters">{!todayView && <h2>Chores</h2>}<label><span className="sr-only">Filter by family member</span><ChoicePicker className="chore-input" label="Filter by family member" value={who} onChange={setWho} options={[{id:'everyone',label:'Everyone'},{id:'unassigned',label:'Unassigned'},...state.teamMembers.map(member=>({id:member.id,label:member.name}))]}/></label>{!todayView && <label><span className="sr-only">Completion status</span><ChoicePicker className="chore-input" label="Completion status" value={filter} onChange={setFilter} options={[{id:'all',label:'All statuses'},{id:'pending',label:'Not done'},{id:'completed',label:'Completed'}]}/></label>}{hasFilters && <button className="chore-filter-reset" onClick={clearFilters}>Clear filters</button>}</div>
+    {!todayView&&<button className="chore-load-more" onClick={()=>setEarlierMonths(n=>n+3)}>Load earlier chores</button>}
+    {display.length === 0 ? (todayView && !hasFilters ? <button className="chore-button secondary" onClick={onAddClick}>Add chore</button> : <div className="chore-empty"><h3>{query ? 'No matching chores' : hasFilters ? 'No chores match these filters.' : state.chores.length ? 'No chores in this view' : 'No chores yet'}</h3><p>{hasFilters ? 'Clear your filters to see the chores in this view.' : state.chores.length ? 'Nothing to do in this view.' : 'Add a chore to get started.'}</p>{hasFilters ? <button className="chore-button secondary" onClick={clearFilters}>Clear filters</button> : <button className="chore-button primary" onClick={onAddClick}>Add a chore</button>}</div>) : groups.filter(group => group.items.length).map(group => group.name === 'Done' ? <details className="chore-task-group" key={group.name}><summary>Done <span>{group.items.length}</span></summary>{group.items.map(row)}</details> : <div className="chore-task-group" key={group.name}><h3>{group.name} <span>{group.items.length}</span></h3>{group.items.map(row)}</div>)}
+    {!todayView&&<button className="chore-load-more" onClick={()=>setLaterMonths(n=>n+3)}>Load later chores</button>}
     {completing && <CompletionDialog instance={completing} onClose={() => setCompleting(null)}/>}
   </section>;
 }

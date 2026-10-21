@@ -24,11 +24,11 @@ test('month navigation loads future and past repeats, including spillover dates'
 test('search states its repeat window and can browse later results',async({page},info)=>{
  const {db,calls}=await fixture(page,390);db.chores=[{id:'44444444-4444-4444-8444-444444444444',title:'Future routine',date:'2027-02-01',assignee_id:null,recurrence:'weekly',priority:'medium'}];await page.reload();
  await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Chores',exact:true}).click();
- await expect(page.getByLabel('Chore date range')).toContainText('Repeating chores: Aug 1, 2026 – Dec 31, 2026. One-off chores: all dates.');
+ await expect(page.getByText(/Repeating chores:/)).toHaveCount(0);
  await expect(page.getByRole('button',{name:'Edit Future routine'})).toHaveCount(0);
- await page.getByRole('button',{name:'Later repeating chores'}).click();
+ await page.getByRole('button',{name:'Load later chores'}).click();
  await expect(page.getByRole('button',{name:'Edit Future routine'}).first()).toBeVisible();
- await expect(page.getByLabel('Chore date range')).toContainText('Jan 1, 2027 – May 31, 2027');
+ await expect(page.getByRole('button',{name:'Load earlier chores'})).toBeVisible();
  await page.screenshot({path:info.outputPath('search-range.png')});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
  expect(calls.filter(c=>c.method!=='GET')).toHaveLength(0);
@@ -101,7 +101,7 @@ test('confirmed recurring move shifts the original series and preserves its 15-m
 
 test('accepted month-end monthly drag explains and reverts an unrepresentable target',async({page},info)=>{
  const mock=await fixture(page,1440);mock.db.chores=[{id:'11111111-1111-4111-8111-111111111111',title:'Month-end chore',date:'2026-01-31',recurrence:'monthly',due_time:'09:00:00',end_time:'09:15:00',assignee_id:null,priority:'medium'}];
- await page.clock.setFixedTime(new Date('2026-02-20T19:00:00Z'));await page.reload();await expect(page.getByRole('progressbar')).toBeVisible();
+ await page.clock.setFixedTime(new Date('2026-02-20T19:00:00Z'));await page.reload();await expect(page.getByText('No chores due today')).toBeVisible();
  await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Calendar',exact:true}).click();await expect(page.locator('.fc-toolbar-title')).toHaveText('Feb 2026');
  let accepted=false;page.once('dialog',async dialog=>{accepted=true;await dialog.accept();});
  await moveBetweenDays(page,'Month-end chore','2026-02-28','2026-02-27');
