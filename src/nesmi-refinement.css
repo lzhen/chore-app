@@ -602,3 +602,8 @@
   .chore-task-group > h3 > span { font-size: .75rem; }
   .chore-list-page .chore-task-title { white-space: normal; overflow: visible; overflow-wrap: anywhere; -webkit-line-clamp: unset; }
 }
+
+/* The assistant has its own footer row; reserve only a small list-end inset. */
+.chore-list-page { padding-bottom: 20px; }
+.chore-list-page > .chore-task-group:last-child { margin-bottom: 0; }
+.nesmi-auth-footer { justify-content: center; }

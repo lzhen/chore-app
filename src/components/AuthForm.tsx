@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { ThemeSelector } from './ThemeSelector';
 import { Logo } from './Logo';
 import './AuthForm.css';
 
@@ -81,11 +80,9 @@ export function AuthForm() {
       <div className="chore-auth">
         <header className="nesmi-auth-header">
           <div><Logo size="md" /></div>
-          <ThemeSelector />
         </header>
         <main className="nesmi-auth-layout">
           <section className="nesmi-auth-story" aria-labelledby="nesmi-welcome-title">
-            <p className="nesmi-eyebrow">A LITTLE LESS TO REMEMBER</p>
             <h1 id="nesmi-welcome-title">Less reminding.<br /><span>More living.</span></h1>
             <p className="nesmi-auth-description">A simple place for chores, routines, and the people who share them.</p>
             <div className="nesmi-example" aria-label="Example household chore list">
@@ -96,9 +93,8 @@ export function AuthForm() {
             </div>
           </section>
           <section className="nesmi-auth-form">
-          <p className="nesmi-eyebrow">{mode === 'signUp' ? 'MAKE YOURSELF AT HOME' : mode === 'forgotPassword' ? 'LET’S GET YOU BACK IN' : 'WELCOME HOME'}</p>
-          <h2 id="nesmi-auth-title">{getTitle()}</h2>
-          <p className="nesmi-auth-form-description">{mode === 'signUp' ? 'Start with one chore. Build a routine that works for you.' : mode === 'forgotPassword' ? 'We’ll email you a link to reset your password.' : 'Your household, all in one place.'}</p>
+          <h2 id="nesmi-auth-title" className={mode === 'signIn' ? 'sr-only' : undefined}>{getTitle()}</h2>
+          {mode !== 'signIn' && <p className="nesmi-auth-form-description">{mode === 'signUp' ? 'Start with one chore. Build a routine that works for you.' : 'We’ll email you a link to reset your password.'}</p>}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -203,12 +199,11 @@ export function AuthForm() {
             )}
           </div>
           <p className="nesmi-auth-privacy">
-            Your household data stays tied to your account.{' '}
             <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noreferrer" className="text-brand hover:underline">Privacy Policy</a>
           </p>
           </section>
         </main>
-        <footer className="nesmi-auth-footer"><span>Nesmi · A little more together.</span><span>Made by Empathie</span></footer>
+        <footer className="nesmi-auth-footer"><span>Made by Empathie</span></footer>
       </div>
     </>
   );
