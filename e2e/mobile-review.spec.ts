@@ -8,7 +8,7 @@ for(const width of [320,390,430])for(const theme of ['light','dark'])for(const s
  await expect(page.locator('.nesmi-month-grid')).toBeVisible();
  const toolbarBoxes=await page.locator('.nesmi-month-toolbar > *').evaluateAll(els=>els.map(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom};}));for(let i=0;i<toolbarBoxes.length;i++)for(let j=i+1;j<toolbarBoxes.length;j++){const a=toolbarBoxes[i],b=toolbarBoxes[j];expect(a.right<=b.x||b.right<=a.x||a.bottom<=b.y||b.bottom<=a.y).toBe(true);}await expect(page.locator('.fc')).toHaveCount(0);
  await expect(page.getByRole('button',{name:`Edit ${title}`})).toBeVisible();
- const titleStyle=await page.locator('.nesmi-day-tasks .chore-task-title').first().evaluate(el=>({whiteSpace:getComputedStyle(el).whiteSpace,overflow:getComputedStyle(el).overflow}));expect(titleStyle.whiteSpace).toBe('normal');expect(titleStyle.overflow).toBe('visible');
+ const titleStyle=await page.locator('.nesmi-day-tasks .chore-task-title').first().evaluate(el=>({whiteSpace:getComputedStyle(el).whiteSpace,overflow:getComputedStyle(el).overflow,fontSize:parseFloat(getComputedStyle(el).fontSize)}));expect(titleStyle.whiteSpace).toBe('normal');expect(titleStyle.overflow).toBe('visible');expect(titleStyle.fontSize).toBeCloseTo(17*scale,1);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
  if(scale===1){const b=await page.locator('.nesmi-month-grid').boundingBox();expect(b!.height).toBeLessThanOrEqual(300);}
  await page.getByRole('button',{name:'Next month',exact:true}).click();await expect(page.locator('.nesmi-month-toolbar h2')).toHaveText('October 2026');
