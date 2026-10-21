@@ -28,6 +28,7 @@ export interface ChatAction {
     | 'help'
     | 'greeting'
     | 'choose_date'
+    | 'choose_title'
     | 'unknown';
   data?: {
     title?: string;
@@ -156,6 +157,11 @@ export function parseUserInput(input: string, _teamMembers: TeamMember[]): ChatA
   }
   const assignment = input.trim().match(/^(?:assign|give)\s+(.+?)\s+to\s+(.+)$/i);
   if (assignment) return {type: 'assign_chore', data: {title: assignment[1].trim(), assigneeName: assignment[2].trim()}};
+  // A quick-action starter is not a title. Guard before the optional
+  // called/named group can backtrack and treat that word as the chore name.
+  if (/^(?:add|create|new)\s+(?:a\s+)?(?:chore|task)(?:\s+(?:called|named))?[\s:]*$/i.test(input.trim())) {
+    return {type: 'choose_title'};
+  }
   const creation = input.trim().match(/^(?:add|create|new) (?:a )?(?:chore|task)(?: called| named)?[ :]+(.+)$/i);
   if (creation) {
     let title = creation[1].trim();
@@ -402,6 +408,8 @@ Dates: today, tomorrow, next week or YYYY-MM-DD. Use Calendar for other dates, r
 
     case 'choose_date':
       return {text: 'Choose a date in Calendar. No changes made.'};
+    case 'choose_title':
+      return {text: 'Please add a chore name, for example: add a chore called Wash dishes. No changes made.'};
     case 'unknown':
     default:
       return {

@@ -7,6 +7,23 @@ const mock = vi.hoisted(() => ({state: {chores: [] as any[], teamMembers: [{id:'
 vi.mock('../context/AppContext',()=>({useApp:()=>mock}));
 beforeEach(()=>{Element.prototype.scrollIntoView=vi.fn();mock.state.teamMembers=[{id:"a",name:"Alex"},{id:"b",name:"Sam"}];mock.state.chores=[];mock.state.completions=[];mock.completeChore.mockResolvedValue(undefined);mock.updateChore.mockResolvedValue(undefined);});
 afterEach(cleanup);
+it.each(['add a chore called', 'create a task named', 'new chore', 'add a chore called: ', 'ADD A CHORE CALLED'])('asks for a name without saving incomplete command %s', async text => {
+ render(<ChatAssistant active/>);await command(text);
+ expect(screen.getByRole('log')).toHaveTextContent('Please add a chore name');
+ expect(mock.addChore).not.toHaveBeenCalled();expect(mock.updateChore).not.toHaveBeenCalled();expect(mock.completeChore).not.toHaveBeenCalled();
+ expect(screen.getByRole('log')).not.toHaveTextContent('Could not save');
+});
+it('lets the quick-action starter be completed after an incomplete submission', async () => {
+ render(<ChatAssistant active/>);await userEvent.click(screen.getByRole('button',{name:'Add a chore'}));
+ await userEvent.click(screen.getByRole('button',{name:'Send message'}));expect(mock.addChore).not.toHaveBeenCalled();
+ await command('add a chore called Wash dishes');
+ expect(mock.addChore).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({title:'Wash dishes',date:dateKey()}));
+ expect(screen.getByRole('log')).toHaveTextContent('Added “Wash dishes”.');
+});
+it.each(['create a task named Wash dishes','new task: Wash dishes','add chore Wash dishes'])('preserves complete command %s', async text => {
+ render(<ChatAssistant active/>);await command(text);
+ expect(mock.addChore).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({title:'Wash dishes'}));
+});
 const chore=(id:string,title:string,extra={})=>({id,title,date:dateKey(),assigneeId:'a',recurrence:'none',priority:'medium',...extra});
 async function command(text:string){await userEvent.type(screen.getByRole('textbox',{name:'Message'}),text);await userEvent.click(screen.getByRole('button',{name:'Send message'}));}
 it('requires explicit choice for fuzzy and duplicate exact titles; mutates only selected ID',async()=>{
