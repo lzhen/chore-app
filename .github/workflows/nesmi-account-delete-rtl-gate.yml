@@ -1,0 +1,46 @@
+name: Nesmi account-deletion UI regression
+
+# Narrow release-branch PR gate. It does not deploy, archive iOS, access
+# production credentials, use third-party paid services, or submit to Apple.
+on:
+  pull_request:
+    branches:
+      - fix/chorely-auth-viewport-20260927-native-followup-20261016
+    paths:
+      - 'src/components/AccountSettings.tsx'
+      - 'src/components/AgentPanel.tsx'
+      - 'src/components/App.tsx'
+      - 'src/components/account-delete-remount.integration.test.tsx'
+      - 'tests/release/account-delete-ui-guard.node.cjs'
+      - '.github/workflows/nesmi-account-delete-rtl-gate.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nesmi-delete-rtl-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  deletion-rtl:
+    name: Account deletion remount and Assistant portal
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout proposed changes (not deployed)
+        uses: actions/checkout@v4
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install lockfile dependencies
+        run: npm ci
+        env:
+          HUSKY: '0'
+      - name: Account deletion source regressions
+        run: npm run test:release-delete
+      - name: Real jsdom RTL portal and remount regressions
+        run: npx vitest run src/components/account-delete-remount.integration.test.tsx src/components/AgentPanel.test.tsx
+      - name: Typecheck proposed source
+        run: npm run typecheck
