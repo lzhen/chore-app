@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { ThemeSelector } from './ThemeSelector';
 
@@ -15,16 +15,31 @@ export function AccountSettings({ isOpen, onClose, onInsights, embedded=false }:
   const { user, signOut, deleteAccount } = useAuth();
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const deleteInFlight = useRef(false);
+  const [deletionAttempted, setDeletionAttempted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
+  // A missing acknowledgement can mean deletion already happened. Never
+  // offer a second irreversible attempt without server-side reconciliation.
   const handleDelete = async () => {
+    if (deleteInFlight.current || deletionAttempted) return;
+    deleteInFlight.current = true;
+    setDeletionAttempted(true);
     setDeleting(true);
     setError(null);
-    const result = await deleteAccount();
-    if (result.error) {
-      setError('We could not delete your account. Please try again.');
+    try {
+      const result = await deleteAccount();
+      if (result.error) {
+        
+        setError('Deletion could not be confirmed. Please contact support before trying again.');
+      }
+    } catch {
+      
+      setError('Deletion could not be confirmed. Please contact support before trying again.');
+    } finally {
+      deleteInFlight.current = false;
       setDeleting(false);
     }
   };
@@ -42,7 +57,7 @@ export function AccountSettings({ isOpen, onClose, onInsights, embedded=false }:
             <h2 id="account-settings-title" className="nesmi-page-title">Account</h2>
             <p className="mt-1 text-sm text-content-secondary">{user?.email}</p>
           </div>
-          <button hidden={embedded} onClick={onClose} className="p-2 text-content-secondary hover:text-content-primary" aria-label="Close account settings">✕</button>
+          <button hidden={embedded} onClick={() => { if (!deleteInFlight.current) onClose(); }} disabled={deleting} className="p-2 text-content-secondary hover:text-content-primary" aria-label="Close account settings">✕</button>
         </div>
 
         <div className="nesmi-account-appearance nesmi-settings-section"><h3>Appearance</h3><p>Choose light or dark.</p><ThemeSelector/></div>
@@ -50,7 +65,7 @@ export function AccountSettings({ isOpen, onClose, onInsights, embedded=false }:
         {onInsights && <section className="nesmi-settings-section" aria-labelledby="account-insights-title">
           <div className="nesmi-settings-row">
             <div><h3 id="account-insights-title">Activity &amp; insights</h3><p>Review household activity.</p></div>
-            <button type="button" className="chore-button secondary" onClick={onInsights}>View activity</button>
+            <button type="button" className="chore-button secondary" onClick={() => { if (!deleteInFlight.current) onInsights(); }} disabled={deleting}>View activity</button>
           </div>
         </section>}
 
@@ -61,7 +76,8 @@ export function AccountSettings({ isOpen, onClose, onInsights, embedded=false }:
         </div>
 
         <button
-          onClick={signOut}
+          onClick={() => { if (!deleteInFlight.current) void signOut(); }}
+          disabled={deleting}
           className="chore-button secondary mt-6"
         >
           Sign Out
@@ -72,13 +88,13 @@ export function AccountSettings({ isOpen, onClose, onInsights, embedded=false }:
           <p className="mt-1 text-sm text-content-secondary">Permanently deletes your sign-in and profile. This cannot be undone.</p>
           {error && <p className="mt-3 text-sm text-red-500" role="alert">{error}</p>}
           {!confirming ? (
-            <button onClick={() => setConfirming(true)} className="mt-4 rounded-fluent-sm border border-red-500 px-4 py-2 text-sm text-red-500 hover:bg-red-500/10">Delete my account</button>
+            <button onClick={() => { if (!deleteInFlight.current && !deletionAttempted) setConfirming(true); }} disabled={deleting || deletionAttempted} className="mt-4 rounded-fluent-sm border border-red-500 px-4 py-2 text-sm text-red-500 hover:bg-red-500/10">Delete my account</button>
           ) : (
             <div className="mt-4 rounded-fluent-sm border border-red-500/40 bg-red-500/10 p-4">
               <p className="text-sm text-content-primary">Are you sure you want to permanently delete your account?</p>
               <div className="mt-3 flex gap-3">
-                <button onClick={handleDelete} disabled={deleting} className="rounded-fluent-sm bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-60">{deleting ? 'Deleting…' : 'Delete permanently'}</button>
-                <button onClick={() => setConfirming(false)} disabled={deleting} className="rounded-fluent-sm border border-border px-4 py-2 text-sm text-content-primary">Cancel</button>
+                <button onClick={handleDelete} disabled={deleting || deletionAttempted} className="rounded-fluent-sm bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-60">{deleting ? 'Deleting…' : deletionAttempted ? 'Deletion attempted' : 'Delete permanently'}</button>
+                <button onClick={() => { if (!deleteInFlight.current) setConfirming(false); }} disabled={deleting} className="rounded-fluent-sm border border-border px-4 py-2 text-sm text-content-primary">Cancel</button>
               </div>
             </div>
           )}
