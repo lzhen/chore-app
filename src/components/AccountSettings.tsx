@@ -57,7 +57,7 @@ export function AccountSettings({ isOpen, onClose, onInsights, embedded=false }:
             <h2 id="account-settings-title" className="nesmi-page-title">Account</h2>
             <p className="mt-1 text-sm text-content-secondary">{user?.email}</p>
           </div>
-          <button hidden={embedded} onClick={() => { if (!deleteInFlight.current) onClose(); }} disabled={deleting} className="p-2 text-content-secondary hover:text-content-primary" aria-label="Close account settings">✕</button>
+          <button hidden={embedded} onClick={() => { if (!deleteInFlight.current && !deletionAttempted) onClose(); }} disabled={deleting || deletionAttempted} className="p-2 text-content-secondary hover:text-content-primary" aria-label="Close account settings">✕</button>
         </div>
 
         {/* Native fieldset semantics prevent nested settings controls from making
@@ -81,8 +81,8 @@ export function AccountSettings({ isOpen, onClose, onInsights, embedded=false }:
         </div>
 
         <button
-          onClick={() => { if (!deleteInFlight.current) void signOut(); }}
-          disabled={deleting}
+          onClick={() => { if (!deleteInFlight.current && !deletionAttempted) void signOut(); }}
+          disabled={deleting || deletionAttempted}
           className="chore-button secondary mt-6"
         >
           Sign Out
@@ -104,7 +104,7 @@ export function AccountSettings({ isOpen, onClose, onInsights, embedded=false }:
               <p className="text-sm text-content-primary">Are you sure you want to permanently delete your account?</p>
               <div className="mt-3 flex gap-3">
                 <button onClick={handleDelete} disabled={deleting || deletionAttempted} className="rounded-fluent-sm bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-60">{deleting ? 'Deleting…' : deletionAttempted ? 'Deletion attempted' : 'Delete permanently'}</button>
-                <button onClick={() => { if (!deleteInFlight.current) setConfirming(false); }} disabled={deleting} className="rounded-fluent-sm border border-border px-4 py-2 text-sm text-content-primary">Cancel</button>
+                <button onClick={() => { if (!deleteInFlight.current && !deletionAttempted) setConfirming(false); }} disabled={deleting || deletionAttempted} className="rounded-fluent-sm border border-border px-4 py-2 text-sm text-content-primary">Cancel</button>
               </div>
             </div>
           )}
