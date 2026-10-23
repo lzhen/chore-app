@@ -126,3 +126,23 @@ test('confirmed response has no spurious alert and disables repeat from same mou
   assert.equal(h.button('Deletion attempted').props.disabled,true);
   assert.equal(h.data.calls,1);
 });
+
+test('nested appearance, calendar and notification buttons become inert during and after an attempted delete', async () => {
+  const d=makeDeferred();
+  const h=makeHarness(candidatePath,()=>d.promise);
+  const scopedSettings=()=>h.nodes(h.render()).find(node=>node.type==='fieldset' &&
+    h.nodes(node).some(child=>child.type?.name==='ThemeSelector') &&
+    h.nodes(node).some(child=>child.type?.name==='AccountTools'));
+  assert.ok(scopedSettings(), 'expected settings controls in fieldset');
+  assert.equal(scopedSettings().props.disabled,false);
+  confirm(h);
+  assert.equal(scopedSettings().props.disabled,false);
+  const p=press(h.button('Delete permanently'));
+  assert.equal(scopedSettings().props.disabled,true);
+  assert.equal(h.button('View activity').props.disabled,true);
+  d.reject(new Error('uncertain network response'));
+  await p;
+  assert.equal(scopedSettings().props.disabled,true);
+  assert.equal(h.button('View activity').props.disabled,true);
+  assert.equal(h.data.calls,1);
+});
