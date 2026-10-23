@@ -278,7 +278,7 @@ export function App() {
     {state.chores.length>0&&viewMode==='calendar'&&<Calendar ref={calendarRef} onAddClick={handleAddClick} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers}/>}
     {state.chores.length>0&&(viewMode==='today'||viewMode==='list')&&<ListView key={viewMode} todayView={viewMode==='today'} onAddClick={()=>handleAddClick()} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers} onClearFilters={()=>{setSearchQuery('');setHiddenMembers(new Set());}}/>}
     {viewMode==='dashboard'&&<Dashboard embedded onClose={()=>setViewMode('today')}/>}
-    {viewMode==='account'&&<AccountSettings embedded isOpen onInsights={handleDashboardClick} onClose={()=>setViewMode('today')} onDeletionAttempt={() => setAccountDeletionAttempted(true)}/>}
+    {viewMode==='account'&&<AccountSettings embedded isOpen onInsights={handleDashboardClick} onClose={()=>setViewMode('today')} deletionLocked={accountDeletionAttempted} onDeletionAttempt={() => setAccountDeletionAttempted(true)}/>}
 
     </main>
     <div className="nesmi-task-tools" ref={setAssistantTriggerTarget}/>
