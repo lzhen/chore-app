@@ -91,7 +91,12 @@ export function AccountSettings({ isOpen, onClose, onInsights, embedded=false }:
         <div className="mt-6 border-t border-border pt-5">
           <h3 className="font-medium text-red-500">Delete account</h3>
           <p className="mt-1 text-sm text-content-secondary">Permanently deletes your sign-in and profile. This cannot be undone.</p>
-          {error && <p className="mt-3 text-sm text-red-500" role="alert">{error}</p>}
+          {error && (
+            <div className="mt-3 text-sm text-red-500" role="alert">
+              <p>{error}</p>
+              <p className="mt-2">Do not repeat account deletion from another tab or device until support verifies the result.</p>
+            </div>
+          )}
           {!confirming ? (
             <button onClick={() => { if (!deleteInFlight.current && !deletionAttempted) setConfirming(true); }} disabled={deleting || deletionAttempted} className="mt-4 rounded-fluent-sm border border-red-500 px-4 py-2 text-sm text-red-500 hover:bg-red-500/10">Delete my account</button>
           ) : (
