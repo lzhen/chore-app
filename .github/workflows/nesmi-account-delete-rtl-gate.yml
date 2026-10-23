@@ -11,6 +11,9 @@ on:
       - 'src/components/AgentPanel.tsx'
       - 'src/components/App.tsx'
       - 'src/components/account-delete-remount.integration.test.tsx'
+      - 'src/context/AuthContext.tsx'
+      - 'src/context/AuthContext.delete-account.test.tsx'
+      - 'src/test/setup.ts'
       - 'tests/release/account-delete-ui-guard.node.cjs'
       - '.github/workflows/nesmi-account-delete-rtl-gate.yml'
 
@@ -41,6 +44,6 @@ jobs:
       - name: Account deletion source regressions
         run: npm run test:release-delete
       - name: Real jsdom RTL portal and remount regressions
-        run: npx vitest run src/components/account-delete-remount.integration.test.tsx src/components/AgentPanel.test.tsx
+        run: npx vitest run src/components/account-delete-remount.integration.test.tsx src/components/AgentPanel.test.tsx src/context/AuthContext.delete-account.test.tsx
       - name: Typecheck proposed source
         run: npm run typecheck
