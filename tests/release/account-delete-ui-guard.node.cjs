@@ -212,3 +212,32 @@ test('cancelled confirmation never signals App deletion lock', () => {
   assert.equal(h.data.deletionNotices,0);
   assert.equal(h.data.calls,0);
 });
+test('inherited App lock disables a remounted AccountSettings before any new attempt', () => {
+  const h=makeHarness(candidatePath, async () => ({error:null}));
+  h.props.deletionLocked=true; // reconstructed component after leaving and returning to Account tab
+  const tree=h.render();
+  const scoped=h.nodes(tree).find(n=>n.type==='fieldset');
+  assert.equal(scoped.props.disabled,true);
+  assert.equal(h.button('Delete my account').props.disabled,true);
+  assert.equal(h.button('Sign Out').props.disabled,true);
+  assert.equal(h.button('View activity').props.disabled,true);
+  const close=h.nodes(tree).find(n=>n.props?.['aria-label']==='Close account settings');
+  assert.equal(close.props.disabled,true);
+  assert.ok(h.alert(), 'remounted lock must have accessible explanation');
+  assert.match(h.label(h.alert()),/already attempted in this session/i);
+  assert.match(h.label(h.alert()),/another tab or device/i);
+  press(h.button('Delete my account')); press(h.button('Sign Out')); press(h.button('View activity')); press(close);
+  assert.deepEqual([h.data.calls,h.data.signouts,h.data.insights,h.data.closes,h.data.deletionNotices],[0,0,0,0,0]);
+  assert.ok(h.nodes(tree).some(n=>n.type==='a' && String(n.props?.href).endsWith('privacy.html')), 'privacy remains accessible');
+});
+
+test('parent lock arriving during confirmation disables another delete', async () => {
+  const h=makeHarness(candidatePath);
+  confirm(h);
+  h.props.deletionLocked=true;
+  assert.equal(h.button('Deletion attempted').props.disabled,true);
+  assert.equal(h.button('Cancel').props.disabled,true);
+  assert.equal(h.button('Sign Out').props.disabled,true);
+  await press(h.button('Deletion attempted'));
+  assert.deepEqual([h.data.calls,h.data.deletionNotices],[0,0]);
+});
