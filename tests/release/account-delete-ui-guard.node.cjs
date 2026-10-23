@@ -162,3 +162,27 @@ test('nested appearance, calendar and notification buttons become inert during a
    await press(success.button('Delete permanently'));
    assert.equal(success.alert(),undefined);
  });
+
+
+test('uncertain deletion disables close, signout and confirmation cancel after completion', async () => {
+  const h=makeHarness(candidatePath,async()=>({error:new Error('unknown acknowledgement')}));
+  confirm(h);
+  await press(h.button('Delete permanently'));
+  const close=h.nodes(h.render()).find(n=>n.type==='button' && n.props?.['aria-label']==='Close account settings');
+  const signout=h.button('Sign Out');
+  const cancel=h.button('Cancel');
+  assert.deepEqual([close.props.disabled,signout.props.disabled,cancel.props.disabled],[true,true,true]);
+  press(close); press(signout); press(cancel);
+  assert.deepEqual([h.data.closes,h.data.signouts,h.data.calls],[0,0,1]);
+  assert.ok(h.button('Deletion attempted').props.disabled);
+  assert.ok(h.alert());
+});
+
+test('normal close and signout remain usable before an irreversible attempt', () => {
+  const h=makeHarness(candidatePath);
+  const close=h.nodes(h.render()).find(n=>n.type==='button' && n.props?.['aria-label']==='Close account settings');
+  assert.equal(close.props.disabled,false);
+  assert.equal(h.button('Sign Out').props.disabled,false);
+  press(close); press(h.button('Sign Out'));
+  assert.deepEqual([h.data.closes,h.data.signouts,h.data.calls],[1,1,0]);
+});
