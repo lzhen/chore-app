@@ -146,3 +146,19 @@ test('nested appearance, calendar and notification buttons become inert during a
   assert.equal(h.button('View activity').props.disabled,true);
   assert.equal(h.data.calls,1);
 });
+
+ // An unacknowledged delete may already have succeeded server-side. The mounted UI
+ // must explain the risk of remounting or opening a second browser/device.
+ test('ambiguous result warns against retrying in other tabs or devices, but successful result does not', async () => {
+   const uncertain=makeHarness(candidatePath,async()=>({error:new Error('unknown transport outcome')}));
+   assert.equal(uncertain.alert(),undefined);
+   confirm(uncertain);
+   await press(uncertain.button('Delete permanently'));
+   assert.ok(uncertain.alert(), 'warning should be accessible');
+   assert.match(uncertain.label(uncertain.alert()), /do not repeat account deletion from another tab or device/i);
+   assert.equal(uncertain.data.calls,1);
+   const success=makeHarness(candidatePath,async()=>({error:null}));
+   confirm(success);
+   await press(success.button('Delete permanently'));
+   assert.equal(success.alert(),undefined);
+ });
