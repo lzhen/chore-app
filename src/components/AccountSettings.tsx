@@ -9,9 +9,10 @@ interface AccountSettingsProps {
   onClose: () => void;
   embedded?: boolean;
   onInsights?: () => void;
+  onDeletionAttempt?: () => void;
 }
 
-export function AccountSettings({ isOpen, onClose, onInsights, embedded=false }: AccountSettingsProps) {
+export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt, embedded=false }: AccountSettingsProps) {
   const { user, signOut, deleteAccount } = useAuth();
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -27,6 +28,7 @@ export function AccountSettings({ isOpen, onClose, onInsights, embedded=false }:
     if (deleteInFlight.current || deletionAttempted) return;
     deleteInFlight.current = true;
     setDeletionAttempted(true);
+    onDeletionAttempt?.();
     setDeleting(true);
     setError(null);
     try {
