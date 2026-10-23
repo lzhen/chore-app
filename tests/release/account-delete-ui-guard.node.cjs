@@ -22,7 +22,7 @@ function makeDeferred() {
   return {promise,accept,reject};
 }
 function makeHarness(path, deleteAccount = async () => ({error:null})) {
-  const data = {calls:0, signouts:0, closes:0, insights:0};
+  const data = {calls:0, signouts:0, closes:0, insights:0, deletionNotices:0};
   let states = [];
   let idx = 0;
   const jsx=(type,props,key)=>({type, props:props||{}, key});
@@ -55,7 +55,7 @@ function makeHarness(path, deleteAccount = async () => ({error:null})) {
   vm.runInNewContext(compiled.outputText,{exports:module.exports,module,require:mockRequire,console,Error,Promise},
     {filename:'AccountSettings.compiled.cjs',timeout:1000});
   const Component=module.exports.AccountSettings;
-  const props={isOpen:true,onClose:()=>{data.closes++},embedded:false,onInsights:()=>{data.insights++}};
+  const props={isOpen:true,onClose:()=>{data.closes++},embedded:false,onInsights:()=>{data.insights++},onDeletionAttempt:()=>{data.deletionNotices++}};
   function render(){idx=0;return Component(props);}
   function nodes(root){const out=[];const visit=node=>{
     if(node==null || node===false || typeof node==='boolean')return;
@@ -185,4 +185,30 @@ test('normal close and signout remain usable before an irreversible attempt', ()
   assert.equal(h.button('Sign Out').props.disabled,false);
   press(close); press(h.button('Sign Out'));
   assert.deepEqual([h.data.closes,h.data.signouts,h.data.calls],[1,1,0]);
+});
+
+// App can immediately hide/close a portal mounted outside Account. This source-
+// executed check proves the child signal, not a React DOM portal integration.
+test('deletion attempt notifies App exactly once before an async response', async () => {
+  const d=makeDeferred(); const h=makeHarness(candidatePath,()=>d.promise);
+  confirm(h);
+  assert.equal(h.data.deletionNotices,0);
+  const button=h.button('Delete permanently');
+  const pending=press(button);
+  assert.equal(h.data.deletionNotices,1);
+  assert.equal(h.data.calls,1);
+  await press(button); // stale same-turn button cannot signal again
+  assert.equal(h.data.deletionNotices,1);
+  d.reject(new Error('synthetic ambiguous acknowledgement'));
+  await pending;
+  assert.equal(h.data.deletionNotices,1);
+  assert.ok(h.alert());
+});
+
+test('cancelled confirmation never signals App deletion lock', () => {
+  const h=makeHarness(candidatePath);
+  confirm(h);
+  press(h.button('Cancel'));
+  assert.equal(h.data.deletionNotices,0);
+  assert.equal(h.data.calls,0);
 });
