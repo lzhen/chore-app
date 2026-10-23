@@ -60,14 +60,19 @@ export function AccountSettings({ isOpen, onClose, onInsights, embedded=false }:
           <button hidden={embedded} onClick={() => { if (!deleteInFlight.current) onClose(); }} disabled={deleting} className="p-2 text-content-secondary hover:text-content-primary" aria-label="Close account settings">✕</button>
         </div>
 
-        <div className="nesmi-account-appearance nesmi-settings-section"><h3>Appearance</h3><p>Choose light or dark.</p><ThemeSelector/></div>
-        <AccountTools/>
-        {onInsights && <section className="nesmi-settings-section" aria-labelledby="account-insights-title">
-          <div className="nesmi-settings-row">
-            <div><h3 id="account-insights-title">Activity &amp; insights</h3><p>Review household activity.</p></div>
-            <button type="button" className="chore-button secondary" onClick={() => { if (!deleteInFlight.current) onInsights(); }} disabled={deleting}>View activity</button>
-          </div>
-        </section>}
+        {/* Native fieldset semantics prevent nested settings controls from making
+            side-effecting calls during an irreversible/uncertain deletion.
+            Keep the privacy link and support guidance outside this fieldset. */}
+        <fieldset disabled={deleting || deletionAttempted} className="min-w-0 border-0 p-0">
+          <div className="nesmi-account-appearance nesmi-settings-section"><h3>Appearance</h3><p>Choose light or dark.</p><ThemeSelector/></div>
+          <AccountTools/>
+          {onInsights && <section className="nesmi-settings-section" aria-labelledby="account-insights-title">
+            <div className="nesmi-settings-row">
+              <div><h3 id="account-insights-title">Activity &amp; insights</h3><p>Review household activity.</p></div>
+              <button type="button" className="chore-button secondary" onClick={() => { if (!deleteInFlight.current) onInsights(); }} disabled={deleting || deletionAttempted}>View activity</button>
+            </div>
+          </section>}
+        </fieldset>
 
         <div className="mt-6 border-t border-border pt-5">
           <h3 className="font-medium text-content-primary">Privacy</h3>
