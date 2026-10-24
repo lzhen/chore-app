@@ -78,6 +78,43 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
     }
   });
 
+  it('rejects a pending startup session read after a different tab confirms deletion', async () => {
+    // Real network/persistence is NOT exercised here. This isolates the React
+    // startup getSession race with a synthetic same-origin storage event.
+    const staleSession = { user: { id: 'deleted-during-startup' } };
+    let finishSessionRead!: (value: any) => void;
+    const pendingSessionRead = new Promise<any>((resolve) => { finishSessionRead = resolve; });
+    vi.mocked(supabase.auth.getSession).mockReturnValue(pendingSessionRead as any);
+
+    const hook = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    try {
+      expect(hook.result.current.loading).toBe(true);
+      localStorage.setItem('nesmi:account-deletion-confirmed', 'true');
+      await act(async () => {
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: 'nesmi:account-deletion-confirmed',
+          newValue: 'true',
+          storageArea: localStorage,
+        }));
+      });
+      expect(hook.result.current.loading).toBe(false);
+      expect(hook.result.current.user).toBeNull();
+
+      // An in-flight SDK getSession response from BEFORE the deletion event
+      // must never re-authorize the deleted identity in this tab.
+      await act(async () => {
+        finishSessionRead({ data: { session: staleSession }, error: null });
+      });
+      expect(hook.result.current.user).toBeNull();
+      expect(hook.result.current.session).toBeNull();
+      expect(hook.result.current.deletionCleanupWarning).toMatch(/previous account was deleted/i);
+      expect(localStorage.getItem('nesmi:account-deletion-confirmed')).toBe('true');
+      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+    } finally {
+      hook.unmount();
+    }
+  });
+
   it('unblocks login after a failed initial session read without inventing authentication', async () => {
     vi.mocked(supabase.auth.getSession).mockRejectedValue(
       new Error('synthetic session storage read failure')
