@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../utils/supabase';
 
@@ -23,6 +23,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  // Ignore stale SDK callbacks after the server confirms irreversible deletion.
+  // A newly successful sign-in may explicitly re-arm this provider.
+  const deletionConfirmedRef = useRef(false);
+  const authRevisionRef = useRef(0);
   const [isEmailVerification, setIsEmailVerification] = useState(false);
   const [isPasswordReset, setIsPasswordReset] = useState(false);
 
@@ -34,16 +38,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsEmailVerification(true);
     }
 
-    // Get initial session
+    // An initial getSession can resolve after a confirmed account deletion.
+    const initialRevision = authRevisionRef.current;
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+      if (!deletionConfirmedRef.current && authRevisionRef.current === initialRevision) {
+        setSession(session);
+        setUser(session?.user ?? null);
+      }
       setLoading(false);
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        if (deletionConfirmedRef.current) return;
         setSession(session);
         setUser(session?.user ?? null);
       }
@@ -63,12 +71,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (!error && data?.session) {
+      authRevisionRef.current += 1;
+      deletionConfirmedRef.current = false;
+      setSession(data.session);
+      setUser(data.session.user);
+    }
     return { error: error as Error | null };
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!error && data?.session) {
+      authRevisionRef.current += 1;
+      deletionConfirmedRef.current = false;
+      setSession(data.session);
+      setUser(data.session.user);
+    }
     return { error: error as Error | null };
   };
 
@@ -92,6 +112,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
     }
 
+    // Confirmed deletion invalidates any pending getSession/old auth events.
+    // The old user must not be resurrected in this React provider.
+    deletionConfirmedRef.current = true;
+    authRevisionRef.current += 1;
     // The server explicitly acknowledged deletion. Subsequent local cleanup
     // failures must not be presented as an unknown server deletion outcome.
     let cleanupError: Error | null = null;
