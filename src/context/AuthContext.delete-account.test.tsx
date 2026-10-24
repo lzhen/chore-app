@@ -146,7 +146,7 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
       data: { deleted: true }, error: null,
     } as any);
     const originalRemoveItem = Storage.prototype.removeItem;
-    const failingRemove = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(function (key: string) {
+    const failingRemove = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(function (this: Storage, key: string) {
       if (key === NESMI_CHORES) throw new Error('synthetic Storage SecurityError');
       return originalRemoveItem.call(this, key);
     });
