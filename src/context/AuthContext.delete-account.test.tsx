@@ -166,4 +166,49 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
       hook.unmount();
     }
   });
+  it('does not resurrect a deleted user from late getSession or auth events; accepts a new explicit login', async () => {
+    let resolveInitial!: (value: any) => void;
+    const pendingInitial = new Promise<any>((resolve) => { resolveInitial = resolve; });
+    vi.mocked(supabase.auth.getSession).mockReturnValue(pendingInitial);
+    let emitAuth!: (event: string, session: any) => void;
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementation(((listener: any) => {
+      emitAuth = listener;
+      return { data: { subscription: { unsubscribe: vi.fn() } } };
+    }) as any);
+    const staleSession = { user: { id: 'deleted-fixture-user' } };
+    const newSession = { user: { id: 'new-fixture-user' } };
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({
+      data: { deleted: true }, error: null,
+    } as any);
+    const hook = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    try {
+      let deletion: Awaited<ReturnType<typeof hook.result.current.deleteAccount>> | undefined;
+      await act(async () => { deletion = await hook.result.current.deleteAccount(); });
+      expect(deletion?.deletionConfirmed).toBe(true);
+      await act(async () => {
+        resolveInitial({ data: { session: staleSession }, error: null });
+        await pendingInitial;
+      });
+      expect(hook.result.current.loading).toBe(false);
+      expect(hook.result.current.user).toBeNull();
+      expect(hook.result.current.session).toBeNull();
+
+      act(() => { emitAuth('SIGNED_IN', staleSession); });
+      expect(hook.result.current.user).toBeNull();
+      expect(hook.result.current.session).toBeNull();
+
+      // A later, deliberate successful sign-in can start a new session.
+      vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
+        data: { user: newSession.user, session: newSession }, error: null,
+      } as any);
+      await act(async () => {
+        const result = await hook.result.current.signIn('new-fixture@example.invalid', 'synthetic-only');
+        expect(result.error).toBeNull();
+      });
+      expect(hook.result.current.user?.id).toBe('new-fixture-user');
+    } finally {
+      hook.unmount();
+    }
+  });
+
 });
