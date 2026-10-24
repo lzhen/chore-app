@@ -8,6 +8,8 @@ on:
       - fix/chorely-auth-viewport-20260927-native-followup-20261016
     paths:
       - 'src/components/AccountSettings.tsx'
+      - 'src/components/AuthForm.tsx'
+      - 'src/components/AuthForm.test.tsx'
       - 'src/components/AgentPanel.tsx'
       - 'src/components/App.tsx'
       - 'src/components/account-delete-remount.integration.test.tsx'
@@ -44,6 +46,6 @@ jobs:
       - name: Account deletion source regressions
         run: npm run test:release-delete
       - name: Real jsdom RTL portal and remount regressions
-        run: npx vitest run src/components/account-delete-remount.integration.test.tsx src/components/AgentPanel.test.tsx src/context/AuthContext.delete-account.test.tsx
+        run: npx vitest run src/components/account-delete-remount.integration.test.tsx src/components/AgentPanel.test.tsx src/context/AuthContext.delete-account.test.tsx src/components/AuthForm.test.tsx
       - name: Typecheck proposed source
         run: npm run typecheck
