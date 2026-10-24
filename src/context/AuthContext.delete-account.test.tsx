@@ -235,4 +235,72 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
     }
   });
 
+
+  it('ignores old-user SDK events after new explicit login, but accepts fresh-user refresh and logout', async () => {
+    const stale = { user: { id: 'deleted-fixture' }, access_token: 'synthetic-old' };
+    const fresh = { user: { id: 'fresh-fixture' }, access_token: 'synthetic-new' };
+    const refresh = { user: { id: 'fresh-fixture' }, access_token: 'synthetic-refreshed' };
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: stale }, error: null,
+    } as any);
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({
+      data: { deleted: true }, error: null,
+    } as any);
+    let emitAuth!: (event: string, session: any) => void;
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementation(((listener: any) => {
+      emitAuth = listener;
+      return { data: { subscription: { unsubscribe: vi.fn() } } };
+    }) as any);
+    const hook = await mountAuth();
+    try {
+      expect(hook.result.current.user?.id).toBe('deleted-fixture');
+      await act(async () => {
+        const result = await hook.result.current.deleteAccount();
+        expect(result.deletionConfirmed).toBe(true);
+      });
+      expect(hook.result.current.user).toBeNull();
+
+      vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
+        data: { user: fresh.user, session: fresh }, error: null,
+      } as any);
+      await act(async () => {
+        const result = await hook.result.current.signIn('fresh@example.invalid', 'synthetic-only');
+        expect(result.error).toBeNull();
+      });
+      expect(hook.result.current.user?.id).toBe('fresh-fixture');
+
+      act(() => { emitAuth('SIGNED_IN', stale); });
+      expect(hook.result.current.user?.id).toBe('fresh-fixture');
+      expect(hook.result.current.session).toBe(fresh);
+      act(() => { emitAuth('TOKEN_REFRESHED', stale); });
+      expect(hook.result.current.session).toBe(fresh);
+      act(() => { emitAuth('TOKEN_REFRESHED', refresh); });
+      expect(hook.result.current.user?.id).toBe('fresh-fixture');
+      expect(hook.result.current.session).toBe(refresh);
+
+      act(() => { emitAuth('SIGNED_OUT', null); });
+      expect(hook.result.current.session).toBeNull();
+      expect(hook.result.current.user).toBeNull();
+    } finally {
+      hook.unmount();
+    }
+  });
+
+  it('preserves ordinary SDK cross-tab account changes before any deletion', async () => {
+    let emitAuth!: (event: string, session: any) => void;
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementation(((listener: any) => {
+      emitAuth = listener;
+      return { data: { subscription: { unsubscribe: vi.fn() } } };
+    }) as any);
+    const hook = await mountAuth();
+    try {
+      act(() => { emitAuth('SIGNED_IN', { user: { id: 'ordinary-a' } }); });
+      expect(hook.result.current.user?.id).toBe('ordinary-a');
+      act(() => { emitAuth('SIGNED_IN', { user: { id: 'ordinary-b' } }); });
+      expect(hook.result.current.user?.id).toBe('ordinary-b');
+    } finally {
+      hook.unmount();
+    }
+  });
+
 });

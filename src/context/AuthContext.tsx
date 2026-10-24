@@ -27,6 +27,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // A newly successful sign-in may explicitly re-arm this provider.
   const deletionConfirmedRef = useRef(false);
   const authRevisionRef = useRef(0);
+  // An explicit login after verified deletion must not be overwritten by
+  // late events from the deleted identity. Pre-deletion events stay normal.
+  const postDeletionExplicitUserIdRef = useRef<string | null>(null);
   const [isEmailVerification, setIsEmailVerification] = useState(false);
   const [isPasswordReset, setIsPasswordReset] = useState(false);
 
@@ -56,6 +59,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         if (deletionConfirmedRef.current) return;
+        // Ignore delayed old-account auth events after a new explicit login.
+        if (postDeletionExplicitUserIdRef.current && session?.user?.id &&
+            session.user.id !== postDeletionExplicitUserIdRef.current) return;
         setSession(session);
         setUser(session?.user ?? null);
       }
@@ -77,6 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (!error && data?.session) {
+      if (deletionConfirmedRef.current || postDeletionExplicitUserIdRef.current) {
+        postDeletionExplicitUserIdRef.current = data.session.user.id;
+      }
       authRevisionRef.current += 1;
       deletionConfirmedRef.current = false;
       setSession(data.session);
@@ -88,6 +97,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (!error && data?.session) {
+      if (deletionConfirmedRef.current || postDeletionExplicitUserIdRef.current) {
+        postDeletionExplicitUserIdRef.current = data.session.user.id;
+      }
       authRevisionRef.current += 1;
       deletionConfirmedRef.current = false;
       setSession(data.session);
@@ -119,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Confirmed deletion invalidates any pending getSession/old auth events.
     // The old user must not be resurrected in this React provider.
     deletionConfirmedRef.current = true;
+    postDeletionExplicitUserIdRef.current = null;
     authRevisionRef.current += 1;
     // The server explicitly acknowledged deletion. Subsequent local cleanup
     // failures must not be presented as an unknown server deletion outcome.
