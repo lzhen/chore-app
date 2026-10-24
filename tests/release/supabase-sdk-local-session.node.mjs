@@ -17,7 +17,7 @@ const SIBLING_KEYS = [
   'movelight_redesign_v1_language',
 ];
 
-function makeFixture() {
+function makeFixture({ failAuthRemoval = false } = {}) {
   const map = new Map();
   for (const key of SIBLING_KEYS) map.set(key, 'sibling-fixture');
   map.set('unrelated:keep', 'other-fixture');
@@ -40,7 +40,12 @@ function makeFixture() {
   const storage = {
     getItem: key => map.get(key) ?? null,
     setItem: (key, value) => { map.set(key, value); },
-    removeItem: key => { map.delete(key); },
+    removeItem: key => {
+      if (failAuthRemoval && key === AUTH_KEY) {
+        throw new Error('Synthetic auth-key removal failure');
+      }
+      map.delete(key);
+    },
     clear: () => { throw new Error('Whole-origin storage clear is forbidden'); },
   };
   const fetch = async input => {
@@ -79,4 +84,32 @@ test('real SDK removes only persisted auth state on local sign-out; fresh client
   const after = await second.auth.getSession();
   assert.equal(after.error, null);
   assert.equal(after.data.session, null);
+});
+
+
+test('real SDK storage-removal fault is observable and stale auth remains recoverable by a fresh client', async () => {
+  // PD-06 negative-path characterization, not a safety-pass or backend test.
+  // After a server ACK, the React layer must warn/guard against stale SDK data
+  // if local sign-out fails; resetting React state alone does not erase storage.
+  const { map, calls, client } = makeFixture({ failAuthRemoval: true });
+  const first = client();
+  assert.equal((await first.auth.getSession()).data.session?.user?.id, 'fixture-user');
+
+  let cleanupError = null;
+  try {
+    const result = await first.auth.signOut({ scope: 'local' });
+    cleanupError = result.error;
+  } catch (error) {
+    cleanupError = error;
+  }
+  assert.ok(cleanupError, 'Injected storage removal failure must not look like successful sign-out');
+  assert.ok(map.has(AUTH_KEY), 'Persisted SDK state survives the failed removal');
+  assert.equal(calls.length, 0, 'Local-only sign-out must not reach even the intercepted network');
+
+  const reopened = client();
+  const restored = await reopened.auth.getSession();
+  assert.equal(restored.data.session?.user?.id, 'fixture-user',
+    'A fresh SDK client can restore the synthetic stale identity after failed cleanup');
+  for (const key of SIBLING_KEYS) assert.equal(map.get(key), 'sibling-fixture');
+  assert.equal(map.get('unrelated:keep'), 'other-fixture');
 });
