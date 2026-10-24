@@ -127,7 +127,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string) => {
+    const requestRevision = authRevisionRef.current;
     const { data, error } = await supabase.auth.signUp({ email, password });
+    // A deletion receipt from another tab (or a newer explicit login) may
+    // arrive while the SDK request is in flight. Never let the old response
+    // clear that receipt and resurrect/swap the now-revoked identity.
+    if (authRevisionRef.current !== requestRevision) {
+      return { error: new Error('Account state changed during sign-up. Check your email or sign in again.') };
+    }
     if (!error && data?.session) {
       if (deletionConfirmedRef.current || postDeletionExplicitUserIdRef.current) {
         postDeletionExplicitUserIdRef.current = data.session.user.id;
@@ -145,7 +152,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    const requestRevision = authRevisionRef.current;
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (authRevisionRef.current !== requestRevision) {
+      return { error: new Error('Account state changed during sign-in. Please sign in again.') };
+    }
     if (!error && data?.session) {
       if (deletionConfirmedRef.current || postDeletionExplicitUserIdRef.current) {
         postDeletionExplicitUserIdRef.current = data.session.user.id;
