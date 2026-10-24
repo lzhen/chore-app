@@ -339,4 +339,32 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
     }
   });
 
+  it('lets a signed-out user retry after a rejected sign-in request', async () => {
+    // Exercise the real AuthForm within the existing release-gate workflow.
+    // This previously left Loading... disabled forever when SDK rejected.
+    vi.mocked(supabase.auth.signInWithPassword)
+      .mockRejectedValueOnce(new Error('synthetic intermittent SDK failure'))
+      .mockResolvedValueOnce({ data: { user: null, session: null }, error: null } as any);
+    const view = render(<AuthProvider><AuthForm /></AuthProvider>);
+    try {
+      fireEvent.change(screen.getByLabelText('Email'), {
+        target: { value: 'retry@example.invalid' },
+      });
+      fireEvent.change(screen.getByLabelText('Password'), {
+        target: { value: 'synthetic-only' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Could not complete the request. Please try again.'
+      );
+      const button = screen.getByRole('button', { name: 'Sign In' });
+      expect(button).toBeEnabled();
+      fireEvent.click(button);
+      await waitFor(() => expect(supabase.auth.signInWithPassword).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    } finally {
+      view.unmount();
+    }
+  });
+
 });
