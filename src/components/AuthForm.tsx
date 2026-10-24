@@ -6,7 +6,7 @@ import './AuthForm.css';
 type AuthMode = 'signIn' | 'signUp' | 'forgotPassword';
 
 export function AuthForm() {
-  const { signIn, signUp, resetPassword } = useAuth();
+  const { signIn, signUp, resetPassword, deletionCleanupWarning } = useAuth();
   const [mode, setMode] = useState<AuthMode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -95,6 +95,12 @@ export function AuthForm() {
           <section className="nesmi-auth-form">
           <h2 id="nesmi-auth-title" className={mode === 'signIn' ? 'sr-only' : undefined}>{getTitle()}</h2>
           {mode !== 'signIn' && <p className="nesmi-auth-form-description">{mode === 'signUp' ? 'Start with one chore. Build a routine that works for you.' : 'We’ll email you a link to reset your password.'}</p>}
+
+          {deletionCleanupWarning && (
+            <div className="mb-4 rounded-fluent-sm border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-500" role="alert">
+              {deletionCleanupWarning}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
