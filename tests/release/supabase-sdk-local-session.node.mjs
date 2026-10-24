@@ -17,7 +17,7 @@ const SIBLING_KEYS = [
   'movelight_redesign_v1_language',
 ];
 
-function makeFixture({ failAuthRemoval = false } = {}) {
+function makeFixture({ failAuthRemoval = false, failLogoutTransport = false } = {}) {
   const map = new Map();
   for (const key of SIBLING_KEYS) map.set(key, 'sibling-fixture');
   map.set('unrelated:keep', 'other-fixture');
@@ -53,6 +53,11 @@ function makeFixture({ failAuthRemoval = false } = {}) {
     calls.push(url);
     assert.ok(url.startsWith('https://nesmi-release-fixture.invalid/auth/v1/logout'),
       `Unexpected SDK network request in offline fixture: ${url}`);
+    if (failLogoutTransport) {
+      return new Response(JSON.stringify({ message: 'Synthetic intercepted logout failure' }), {
+        status: 503, headers: { 'content-type': 'application/json' },
+      });
+    }
     return new Response(null, { status: 204 });
   };
   const client = () => createClient('https://nesmi-release-fixture.invalid', 'fixture-public-key', {
@@ -113,6 +118,34 @@ test('real SDK storage-removal fault is observable and stale auth remains recove
   const restored = await reopened.auth.getSession();
   assert.equal(restored.data.session?.user?.id, 'fixture-user',
     'A fresh SDK client can restore the synthetic stale identity after failed cleanup');
+  for (const key of SIBLING_KEYS) assert.equal(map.get(key), 'sibling-fixture');
+  assert.equal(map.get('unrelated:keep'), 'other-fixture');
+});
+
+
+test('real SDK logout transport failure does not silently prove persistent local session cleanup', async () => {
+  // PD-06 offline negative-path: deliberately reject only the intercepted
+  // fake logout endpoint. There is no production network, account, or token.
+  // Distinguishes service logout failure from the storage-removal failure above.
+  const { map, calls, client } = makeFixture({ failLogoutTransport: true });
+  const first = client();
+  assert.equal((await first.auth.getSession()).data.session?.user?.id, 'fixture-user');
+
+  let signOutError = null;
+  try {
+    const result = await first.auth.signOut({ scope: 'local' });
+    signOutError = result.error;
+  } catch (error) {
+    signOutError = error;
+  }
+  assert.ok(signOutError, 'Synthetic logout transport failure must be surfaced to the caller');
+  assert.equal(calls.length, 1, 'Exactly one logout request is intercepted; no live network');
+  assert.ok(map.has(AUTH_KEY), 'Storage still contains a session after failed logout');
+
+  const reopened = client();
+  const restored = await reopened.auth.getSession();
+  assert.equal(restored.data.session?.user?.id, 'fixture-user',
+    'A new SDK client may recover stale synthetic auth if logout transport failed');
   for (const key of SIBLING_KEYS) assert.equal(map.get(key), 'sibling-fixture');
   assert.equal(map.get('unrelated:keep'), 'other-fixture');
 });
