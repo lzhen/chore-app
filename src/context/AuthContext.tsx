@@ -13,7 +13,7 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
-  deleteAccount: () => Promise<{ error: Error | null }>;
+  deleteAccount: () => Promise<{ error: Error | null; deletionConfirmed: boolean }>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
 }
 
@@ -82,19 +82,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (error) {
-      return { error: error as Error };
+      return { error: error as Error, deletionConfirmed: false };
     }
 
     if (data?.deleted !== true) {
-      return { error: new Error('Account deletion was not confirmed. Please try again.') };
+      return {
+        error: new Error('Account deletion was not confirmed. Please try again.'),
+        deletionConfirmed: false,
+      };
     }
-    // Only remove caches owned by Nesmi. Other apps may share this origin.
-    localStorage.removeItem('chore-app-chores');
-    localStorage.removeItem('chore-app-members');
-    await supabase.auth.signOut({ scope: 'local' });
+
+    // The server explicitly acknowledged deletion. Subsequent local cleanup
+    // failures must not be presented as an unknown server deletion outcome.
+    let cleanupError: Error | null = null;
+    // Only remove caches owned by Nesmi; do not clear the shared origin.
+    for (const key of ['chore-app-chores', 'chore-app-members']) {
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        cleanupError ??= new Error('Account was deleted, but local cache cleanup did not finish.');
+      }
+    }
+    try {
+      const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' });
+      if (signOutError) {
+        cleanupError ??= new Error('Account was deleted, but local sign-out did not finish.');
+      }
+    } catch {
+      cleanupError ??= new Error('Account was deleted, but local sign-out did not finish.');
+    }
+    // Clearing React state does not prove the SDK persisted session was removed.
+    // The UI must warn the user about any sign-out or storage cleanup failure.
     setSession(null);
     setUser(null);
-    return { error: null };
+    return { error: cleanupError, deletionConfirmed: true };
   };
 
   const resetPassword = async (email: string) => {
