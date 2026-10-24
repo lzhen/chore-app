@@ -367,4 +367,99 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
     }
   });
 
+
+  it('blocks a stale deleted identity on a fresh provider after failed SDK sign-out, until explicit new login', async () => {
+    // Synthetic SDK/localStorage replay, not a real physical-device or Edge test.
+    const staleSession = { user: { id: 'deleted-fixture-identity' } };
+    const freshSession = { user: { id: 'new-fixture-identity' } };
+    const listeners: Array<(event: string, session: any) => void> = [];
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementation(((listener: any) => {
+      listeners.push(listener);
+      return { data: { subscription: { unsubscribe: vi.fn() } } };
+    }) as any);
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: staleSession }, error: null,
+    } as any);
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({
+      data: { deleted: true }, error: null,
+    } as any);
+    vi.mocked(supabase.auth.signOut).mockRejectedValue(
+      new Error('synthetic persisted SDK sign-out failure')
+    );
+
+    const first = await mountAuth();
+    try {
+      expect(first.result.current.user?.id).toBe('deleted-fixture-identity');
+      await act(async () => {
+        const result = await first.result.current.deleteAccount();
+        expect(result.deletionConfirmed).toBe(true);
+        expect(result.error).toBeInstanceOf(Error);
+      });
+      expect(localStorage.getItem('nesmi:account-deletion-confirmed')).toBe('true');
+      expect(first.result.current.user).toBeNull();
+      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+    } finally {
+      first.unmount();
+    }
+
+    // A fresh provider simulates a complete React remount. A still-persisted
+    // old SDK session must not be trusted, even if an old auth event arrives.
+    const reopened = await mountAuth();
+    try {
+      expect(reopened.result.current.user).toBeNull();
+      expect(reopened.result.current.session).toBeNull();
+      expect(reopened.result.current.deletionCleanupWarning).toMatch(/previous account was deleted/i);
+      expect(supabase.auth.getSession).toHaveBeenCalledTimes(1);
+      act(() => { listeners.at(-1)?.('SIGNED_IN', staleSession); });
+      expect(reopened.result.current.user).toBeNull();
+
+      vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
+        data: { user: freshSession.user, session: freshSession }, error: null,
+      } as any);
+      await act(async () => {
+        const result = await reopened.result.current.signIn('new-fixture@example.invalid', 'synthetic-only');
+        expect(result.error).toBeNull();
+      });
+      expect(reopened.result.current.user?.id).toBe('new-fixture-identity');
+      expect(localStorage.getItem('nesmi:account-deletion-confirmed')).toBeNull();
+    } finally {
+      reopened.unmount();
+    }
+
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: freshSession }, error: null,
+    } as any);
+    const third = await mountAuth();
+    try {
+      expect(third.result.current.user?.id).toBe('new-fixture-identity');
+      expect(third.result.current.deletionCleanupWarning).toBeNull();
+    } finally {
+      third.unmount();
+    }
+  });
+
+  it('warns if storing a deletion receipt fails, without erasing another app cache', async () => {
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({
+      data: { deleted: true }, error: null,
+    } as any);
+    const originalSet = Storage.prototype.setItem;
+    const blocked = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
+      if (key === 'nesmi:account-deletion-confirmed') throw new Error('synthetic quota or security error');
+      return originalSet.call(this, key, value);
+    });
+    const hook = await mountAuth();
+    try {
+      let response: Awaited<ReturnType<typeof hook.result.current.deleteAccount>> | undefined;
+      await act(async () => { response = await hook.result.current.deleteAccount(); });
+      expect(response?.deletionConfirmed).toBe(true);
+      expect(response?.error?.message).toContain('local session protection could not be saved');
+      expect(hook.result.current.deletionCleanupWarning).toMatch(/could not fully clear/i);
+      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+      expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    } finally {
+      blocked.mockRestore();
+      hook.unmount();
+    }
+  });
+
 });
