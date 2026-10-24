@@ -104,7 +104,10 @@ test('real SDK storage-removal fault is observable and stale auth remains recove
   }
   assert.ok(cleanupError, 'Injected storage removal failure must not look like successful sign-out');
   assert.ok(map.has(AUTH_KEY), 'Persisted SDK state survives the failed removal');
-  assert.equal(calls.length, 0, 'Local-only sign-out must not reach even the intercepted network');
+  // The installed SDK emitted one intercepted logout fetch in this scenario;
+  // local scope is not a reason to assume no outgoing request. The .invalid
+  // fixture intercept guarantees the test itself sends no production traffic.
+  assert.equal(calls.length, 1, 'Observe exactly one intercepted SDK logout request');
 
   const reopened = client();
   const restored = await reopened.auth.getSession();
