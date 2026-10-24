@@ -101,4 +101,69 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
     expect(supabase.auth.signOut).not.toHaveBeenCalled();
     hook.unmount();
   });
+
+  it('preserves deletion-confirmed outcome when local sign-out returns an SDK error', async () => {
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({
+      data: { deleted: true }, error: null,
+    } as any);
+    vi.mocked(supabase.auth.signOut).mockResolvedValue({
+      error: new Error('synthetic local SDK failure'),
+    } as any);
+    const hook = await mountAuth();
+    let response: Awaited<ReturnType<typeof hook.result.current.deleteAccount>> | undefined;
+    await act(async () => { response = await hook.result.current.deleteAccount(); });
+    expect(response?.deletionConfirmed).toBe(true);
+    expect(response?.error?.message).toContain('Account was deleted');
+    expect(localStorage.getItem(NESMI_CHORES)).toBeNull();
+    expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+    expect(hook.result.current.user).toBeNull();
+    expect(hook.result.current.session).toBeNull();
+    hook.unmount();
+  });
+
+  it('clears React auth state if local sign-out rejects after the server confirmed deletion', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'synthetic-user' } } }, error: null,
+    } as any);
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({
+      data: { deleted: true }, error: null,
+    } as any);
+    vi.mocked(supabase.auth.signOut).mockRejectedValue(new Error('synthetic sign-out reject'));
+    const hook = await mountAuth();
+    expect(hook.result.current.user?.id).toBe('synthetic-user');
+    let response: Awaited<ReturnType<typeof hook.result.current.deleteAccount>> | undefined;
+    await act(async () => { response = await hook.result.current.deleteAccount(); });
+    expect(response?.deletionConfirmed).toBe(true);
+    expect(response?.error?.message).toContain('Account was deleted');
+    expect(hook.result.current.user).toBeNull();
+    expect(hook.result.current.session).toBeNull();
+    expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+    hook.unmount();
+  });
+
+  it('attempts the remaining cache key and SDK sign-out if a Nesmi storage removal throws', async () => {
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({
+      data: { deleted: true }, error: null,
+    } as any);
+    const originalRemoveItem = Storage.prototype.removeItem;
+    const failingRemove = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(function (key: string) {
+      if (key === NESMI_CHORES) throw new Error('synthetic Storage SecurityError');
+      return originalRemoveItem.call(this, key);
+    });
+    const hook = await mountAuth();
+    try {
+      let response: Awaited<ReturnType<typeof hook.result.current.deleteAccount>> | undefined;
+      await act(async () => { response = await hook.result.current.deleteAccount(); });
+      expect(response?.deletionConfirmed).toBe(true);
+      expect(response?.error?.message).toContain('Account was deleted');
+      expect(localStorage.getItem(NESMI_MEMBERS)).toBeNull();
+      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+      expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+      expect(hook.result.current.session).toBeNull();
+      expect(hook.result.current.user).toBeNull();
+    } finally {
+      failingRemove.mockRestore();
+      hook.unmount();
+    }
+  });
 });
