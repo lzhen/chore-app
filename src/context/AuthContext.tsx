@@ -88,7 +88,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    return () => subscription.unsubscribe();
+    // Web and PWA can have two open same-origin tabs. A confirmed deletion in
+    // one tab must invalidate a still-mounted provider in every other tab;
+    // otherwise a deleted user can remain visibly signed in until refresh.
+    // This event is fired by OTHER tabs, not by the tab writing the receipt.
+    const onDeletionReceiptFromAnotherTab = (event: StorageEvent) => {
+      if (event.key !== DELETION_RECEIPT_KEY || event.newValue !== 'true') return;
+      try {
+        if (event.storageArea !== window.localStorage) return;
+      } catch {
+        return; // Storage disabled; never assume this is a verified receipt.
+      }
+      deletionConfirmedRef.current = true;
+      postDeletionExplicitUserIdRef.current = null;
+      authRevisionRef.current += 1;
+      setSession(null);
+      setUser(null);
+      setLoading(false);
+      setDeletionCleanupWarning(
+        'A previous account was deleted on this device. Old sign-in data will not be restored. Sign in with another account or contact support.'
+      );
+    };
+    window.addEventListener('storage', onDeletionReceiptFromAnotherTab);
+    return () => {
+      window.removeEventListener('storage', onDeletionReceiptFromAnotherTab);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const clearEmailVerification = () => {
