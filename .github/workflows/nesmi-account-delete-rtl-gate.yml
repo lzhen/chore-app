@@ -17,6 +17,7 @@ on:
       - 'src/context/AuthContext.delete-account.test.tsx'
       - 'src/test/setup.ts'
       - 'tests/release/account-delete-ui-guard.node.cjs'
+      - 'tests/release/supabase-sdk-local-session.node.mjs'
       - '.github/workflows/nesmi-account-delete-rtl-gate.yml'
 
 permissions:
@@ -45,6 +46,8 @@ jobs:
           HUSKY: '0'
       - name: Account deletion source regressions
         run: npm run test:release-delete
+      - name: Real Supabase SDK offline storage-adapter gate
+        run: node --test tests/release/supabase-sdk-local-session.node.mjs
       - name: Real jsdom RTL portal and remount regressions
         run: npx vitest run src/components/account-delete-remount.integration.test.tsx src/components/AgentPanel.test.tsx src/context/AuthContext.delete-account.test.tsx src/components/AuthForm.test.tsx
       - name: Typecheck proposed source
