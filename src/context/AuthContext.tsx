@@ -6,6 +6,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  deletionCleanupWarning: string | null;
   isEmailVerification: boolean;
   isPasswordReset: boolean;
   clearEmailVerification: () => void;
@@ -23,6 +24,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  // Survives the Account view unmounting after a confirmed deletion.
+  const [deletionCleanupWarning, setDeletionCleanupWarning] = useState<string | null>(null);
   // Ignore stale SDK callbacks after the server confirms irreversible deletion.
   // A newly successful sign-in may explicitly re-arm this provider.
   const deletionConfirmedRef = useRef(false);
@@ -90,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       deletionConfirmedRef.current = false;
       setSession(data.session);
       setUser(data.session.user);
+      setDeletionCleanupWarning(null);
     }
     return { error: error as Error | null };
   };
@@ -104,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       deletionConfirmedRef.current = false;
       setSession(data.session);
       setUser(data.session.user);
+      setDeletionCleanupWarning(null);
     }
     return { error: error as Error | null };
   };
@@ -156,6 +161,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // The UI must warn the user about any sign-out or storage cleanup failure.
     setSession(null);
     setUser(null);
+    // AccountSettings immediately unmounts when App switches to AuthForm;
+    // its local alert cannot be relied on to display this cleanup failure.
+    setDeletionCleanupWarning(cleanupError
+      ? 'Account deleted, but this device could not fully clear its local sign-in data. Close and restart Nesmi; contact support if the session still appears.'
+      : null);
     return { error: cleanupError, deletionConfirmed: true };
   };
 
@@ -171,7 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset, signUp, signIn, signOut, deleteAccount, resetPassword }}>
+    <AuthContext.Provider value={{ user, session, loading, deletionCleanupWarning, isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset, signUp, signIn, signOut, deleteAccount, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );
