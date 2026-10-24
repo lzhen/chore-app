@@ -462,4 +462,48 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
     }
   });
 
+  it('keeps the deleted-account receipt during unverified signup, then clears it after a real new login', async () => {
+    // Supabase email-confirmation signUp typically has a user but no session.
+    // That is not authentication and must not re-arm an old SDK session.
+    localStorage.setItem('nesmi:account-deletion-confirmed', 'true');
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'deleted-old-account' } } }, error: null,
+    } as any);
+    const hook = await mountAuth();
+    try {
+      expect(hook.result.current.user).toBeNull();
+      expect(supabase.auth.getSession).not.toHaveBeenCalled();
+
+      vi.mocked(supabase.auth.signUp).mockResolvedValue({
+        data: { user: { id: 'pending-email-verification' }, session: null },
+        error: null,
+      } as any);
+      await act(async () => {
+        const result = await hook.result.current.signUp('pending@example.invalid', 'synthetic-only');
+        expect(result.error).toBeNull();
+      });
+      expect(hook.result.current.user).toBeNull();
+      expect(hook.result.current.session).toBeNull();
+      expect(localStorage.getItem('nesmi:account-deletion-confirmed')).toBe('true');
+      expect(hook.result.current.deletionCleanupWarning).toMatch(/previous account was deleted/i);
+      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+
+      // Only a verified explicit sign-in can replace the deleted identity.
+      const freshSession = { user: { id: 'verified-new-account' } };
+      vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
+        data: { user: freshSession.user, session: freshSession }, error: null,
+      } as any);
+      await act(async () => {
+        const result = await hook.result.current.signIn('verified@example.invalid', 'synthetic-only');
+        expect(result.error).toBeNull();
+      });
+      expect(hook.result.current.user?.id).toBe('verified-new-account');
+      expect(localStorage.getItem('nesmi:account-deletion-confirmed')).toBeNull();
+      expect(hook.result.current.deletionCleanupWarning).toBeNull();
+      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+    } finally {
+      hook.unmount();
+    }
+  });
+
 });
