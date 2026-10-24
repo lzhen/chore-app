@@ -274,7 +274,7 @@ describe('AuthForm', () => {
     vi.mocked(supabase.auth.signUp).mockRejectedValueOnce(new Error('synthetic signup rejection'));
     const user = userEvent.setup();
     renderAuthForm();
-    await user.click(screen.getByText(/don't have an account\\? sign up/i));
+    await user.click(screen.getByText(/don't have an account\? sign up/i));
     await user.type(screen.getByLabelText(/email/i), 'test@example.invalid');
     await user.type(screen.getByLabelText(/password/i), 'synthetic-only');
     await user.click(screen.getByRole('button', { name: 'Sign Up' }));
@@ -290,7 +290,7 @@ describe('AuthForm', () => {
     );
     const user = userEvent.setup();
     renderAuthForm();
-    await user.click(screen.getByText(/forgot your password\\?/i));
+    await user.click(screen.getByText(/forgot your password\?/i));
     await user.type(screen.getByLabelText(/email/i), 'test@example.invalid');
     await user.click(screen.getByRole('button', { name: 'Send Reset Link' }));
 
