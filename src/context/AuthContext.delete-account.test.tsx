@@ -3,9 +3,10 @@
  * Mocked Supabase and jsdom Storage ONLY; no real users, credentials, or Edge calls.
  * This does not validate server-side idempotency or physical-device behavior.
  */
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider, useAuth } from './AuthContext';
+import { AuthForm } from '../components/AuthForm';
 import { supabase } from '../utils/supabase';
 
 const NESMI_CHORES = 'chore-app-chores';
@@ -300,6 +301,41 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
       expect(hook.result.current.user?.id).toBe('ordinary-b');
     } finally {
       hook.unmount();
+    }
+  });
+
+  it('shows confirmed-deletion cleanup failure on AuthForm after App removes AccountSettings', async () => {
+    // This simulates App's actual user ? Account : AuthForm branch. The Account
+    // component's own local error message is unmounted when auth becomes null.
+    const stale = { user: { id: 'to-delete-fixture' } };
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: stale }, error: null,
+    } as any);
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({
+      data: { deleted: true }, error: null,
+    } as any);
+    vi.mocked(supabase.auth.signOut).mockResolvedValue({
+      error: new Error('synthetic storage sign-out failure'),
+    } as any);
+
+    function AppLikeGate() {
+      const auth = useAuth();
+      if (auth.loading) return <span>Loading fixture session</span>;
+      return auth.user
+        ? <button type="button" onClick={() => { void auth.deleteAccount(); }}>Delete fixture account</button>
+        : <AuthForm />;
+    }
+
+    const view = render(<AuthProvider><AppLikeGate /></AuthProvider>);
+    try {
+      fireEvent.click(await screen.findByRole('button', { name: 'Delete fixture account' }));
+      const warning = await screen.findByRole('alert');
+      expect(warning).toHaveTextContent('Account deleted, but this device could not fully clear its local sign-in data.');
+      expect(warning).toHaveTextContent('Close and restart Nesmi');
+      expect(screen.getByRole('button', { name: 'Sign In' })).toBeInTheDocument();
+      expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    } finally {
+      view.unmount();
     }
   });
 
