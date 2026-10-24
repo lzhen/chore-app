@@ -149,3 +149,54 @@ test('real SDK logout transport failure does not silently prove persistent local
   for (const key of SIBLING_KEYS) assert.equal(map.get(key), 'sibling-fixture');
   assert.equal(map.get('unrelated:keep'), 'other-fixture');
 });
+
+
+test('real SDK against jsdom localStorage keeps sibling app data across a simulated page reload', async () => {
+  // This exercises the installed Supabase SDK with jsdom's Storage interface
+  // rather than the preceding custom Map adapter. It is NOT a real browser,
+  // backend deletion, cross-tab event, TestFlight, or physical-device test.
+  const { JSDOM } = await import('jsdom');
+  const dom = new JSDOM('<!doctype html>', { url: 'https://empathie.ai/nesmi/' });
+  try {
+    const storage = dom.window.localStorage;
+    const seeded = makeFixture();
+    for (const [key, value] of seeded.map) storage.setItem(key, value);
+    const calls = [];
+    const fixtureFetch = async input => {
+      const url = typeof input === 'string' ? input : input.url;
+      calls.push(url);
+      assert.ok(url.startsWith('https://nesmi-release-fixture.invalid/auth/v1/logout'),
+        `Unexpected network request: ${url}`);
+      return new Response(null, { status: 204 });
+    };
+    const newPageClient = () => createClient('https://nesmi-release-fixture.invalid', 'fixture-public-key', {
+      auth: {
+        storage, storageKey: AUTH_KEY, persistSession: true,
+        detectSessionInUrl: false, autoRefreshToken: false,
+      },
+      global: { fetch: fixtureFetch },
+    });
+    const first = newPageClient();
+    const before = await first.auth.getSession();
+    assert.equal(before.error, null);
+    assert.equal(before.data.session?.user?.id, 'fixture-user');
+
+    const result = await first.auth.signOut({ scope: 'local' });
+    assert.equal(result.error, null);
+    assert.equal(storage.getItem(AUTH_KEY), null);
+    assert.equal(calls.length, 1, 'Logout remains intercepted at the offline .invalid endpoint');
+
+    // A new SDK instance reads the *same* jsdom Storage, modeling persistence
+    // across a new page load without falsely claiming actual browser QA.
+    const reopened = newPageClient();
+    const after = await reopened.auth.getSession();
+    assert.equal(after.error, null);
+    assert.equal(after.data.session, null);
+    for (const key of SIBLING_KEYS) assert.equal(storage.getItem(key), 'sibling-fixture');
+    assert.equal(storage.getItem('unrelated:keep'), 'other-fixture');
+    assert.equal(storage.getItem('chore-app-chores'), 'nesmi-fixture');
+    assert.equal(storage.getItem('chore-app-members'), 'nesmi-fixture');
+  } finally {
+    dom.window.close();
+  }
+});
