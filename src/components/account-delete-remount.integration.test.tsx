@@ -110,4 +110,36 @@ describe('account deletion remount + Assistant portal release gate', () => {
     await user.click(await screen.findByRole('button', { name: 'Assistant' }));
     expect(screen.getByRole('dialog', { name: 'Assistant' })).toBeVisible();
   });
+  it('shows post-confirmation cleanup failure as a deleted account, not an unknown deletion', async () => {
+    const user = userEvent.setup();
+    auth.deleteAccount.mockResolvedValue({
+      error: new Error('synthetic local sign-out failure'),
+      deletionConfirmed: true,
+    });
+    render(<DeletionTabHost />);
+    await user.click(screen.getByRole('button', { name: 'Delete my account' }));
+    await user.click(screen.getByRole('button', { name: 'Delete permanently' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Account deleted, but this device could not fully clear');
+    expect(alert).not.toHaveTextContent('Deletion could not be confirmed');
+    expect(screen.getByRole('button', { name: 'Delete permanently' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Sign Out' })).toBeDisabled();
+    expect(auth.deleteAccount).toHaveBeenCalledTimes(1);
+  });
+
+  it('continues to show uncertainty when the deletion response is not confirmed', async () => {
+    const user = userEvent.setup();
+    auth.deleteAccount.mockResolvedValue({
+      error: new Error('synthetic ambiguous server response'),
+      deletionConfirmed: false,
+    });
+    render(<DeletionTabHost />);
+    await user.click(screen.getByRole('button', { name: 'Delete my account' }));
+    await user.click(screen.getByRole('button', { name: 'Delete permanently' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Deletion could not be confirmed');
+    expect(alert).not.toHaveTextContent('Account deleted, but this device');
+    expect(auth.deleteAccount).toHaveBeenCalledTimes(1);
+  });
+
 });
