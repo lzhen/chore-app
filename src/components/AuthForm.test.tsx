@@ -252,4 +252,51 @@ describe('AuthForm', () => {
 
     expect(screen.queryByText('Invalid credentials')).not.toBeInTheDocument();
   });
+  it('shows a retryable error when sign-in SDK request rejects', async () => {
+    vi.mocked(supabase.auth.signInWithPassword)
+      .mockRejectedValueOnce(new Error('synthetic transport rejection'))
+      .mockResolvedValueOnce({ data: { user: null, session: null }, error: null } as any);
+    const user = userEvent.setup();
+    renderAuthForm();
+    await user.type(screen.getByLabelText(/email/i), 'test@example.invalid');
+    await user.type(screen.getByLabelText(/password/i), 'synthetic-only');
+    await user.click(screen.getByRole('button', { name: 'Sign In' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not complete the request. Please try again.');
+    const submit = screen.getByRole('button', { name: 'Sign In' });
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+    await waitFor(() => expect(supabase.auth.signInWithPassword).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  });
+
+  it('recovers from a rejected sign-up SDK request', async () => {
+    vi.mocked(supabase.auth.signUp).mockRejectedValueOnce(new Error('synthetic signup rejection'));
+    const user = userEvent.setup();
+    renderAuthForm();
+    await user.click(screen.getByText(/don't have an account\\? sign up/i));
+    await user.type(screen.getByLabelText(/email/i), 'test@example.invalid');
+    await user.type(screen.getByLabelText(/password/i), 'synthetic-only');
+    await user.click(screen.getByRole('button', { name: 'Sign Up' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not complete the request. Please try again.');
+    expect(screen.getByRole('button', { name: 'Sign Up' })).toBeEnabled();
+    expect(supabase.auth.signUp).toHaveBeenCalledTimes(1);
+  });
+
+  it('recovers from a rejected password-reset SDK request', async () => {
+    vi.mocked(supabase.auth.resetPasswordForEmail).mockRejectedValueOnce(
+      new Error('synthetic reset rejection')
+    );
+    const user = userEvent.setup();
+    renderAuthForm();
+    await user.click(screen.getByText(/forgot your password\\?/i));
+    await user.type(screen.getByLabelText(/email/i), 'test@example.invalid');
+    await user.click(screen.getByRole('button', { name: 'Send Reset Link' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not complete the request. Please try again.');
+    expect(screen.getByRole('button', { name: 'Send Reset Link' })).toBeEnabled();
+    expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledTimes(1);
+  });
+
 });
