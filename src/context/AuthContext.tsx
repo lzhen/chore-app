@@ -20,15 +20,29 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// Namespaced, non-sensitive receipt: block restoration of an SDK-persisted
+// session after the server confirms the old account was deleted. Kept until
+// another explicit successful login. Do not delete shared-origin app keys.
+const DELETION_RECEIPT_KEY = 'nesmi:account-deletion-confirmed';
+const hasDeletionReceipt = () => {
+  try { return localStorage.getItem(DELETION_RECEIPT_KEY) === 'true'; }
+  catch { return false; }
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   // Survives the Account view unmounting after a confirmed deletion.
-  const [deletionCleanupWarning, setDeletionCleanupWarning] = useState<string | null>(null);
-  // Ignore stale SDK callbacks after the server confirms irreversible deletion.
-  // A newly successful sign-in may explicitly re-arm this provider.
-  const deletionConfirmedRef = useRef(false);
+  const [initialDeletionReceipt] = useState(hasDeletionReceipt);
+  const [deletionCleanupWarning, setDeletionCleanupWarning] = useState<string | null>(
+    initialDeletionReceipt
+      ? 'A previous account was deleted on this device. Old sign-in data will not be restored. Sign in with another account or contact support.'
+      : null
+  );
+  // Guard both the current provider and a newly mounted provider after reload.
+  // A new explicitly successful sign-in can re-arm authentication.
+  const deletionConfirmedRef = useRef(initialDeletionReceipt);
   const authRevisionRef = useRef(0);
   // An explicit login after verified deletion must not be overwritten by
   // late events from the deleted identity. Pre-deletion events stay normal.
@@ -44,19 +58,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsEmailVerification(true);
     }
 
-    // An initial getSession can resolve after a confirmed account deletion.
-    const initialRevision = authRevisionRef.current;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!deletionConfirmedRef.current && authRevisionRef.current === initialRevision) {
-        setSession(session);
-        setUser(session?.user ?? null);
-      }
+    // Never restore an SDK-persisted old identity after an acknowledged delete,
+    // even when a previous local SDK sign-out failed and this is a new provider.
+    if (deletionConfirmedRef.current) {
       setLoading(false);
-    }).catch(() => {
-      // A storage/SDK failure must not leave the login screen loading forever.
-      // Do not infer an authenticated session when the initial read fails.
-      setLoading(false);
-    });
+    } else {
+      const initialRevision = authRevisionRef.current;
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!deletionConfirmedRef.current && authRevisionRef.current === initialRevision) {
+          setSession(session);
+          setUser(session?.user ?? null);
+        }
+        setLoading(false);
+      }).catch(() => {
+        // A storage/SDK failure must not leave the login screen loading forever.
+        setLoading(false);
+      });
+    }
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -91,6 +109,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       authRevisionRef.current += 1;
       deletionConfirmedRef.current = false;
+      // Clear the receipt only after a new identity explicitly authenticated.
+      // A failed storage removal remains a follow-up device acceptance concern.
+      try { localStorage.removeItem(DELETION_RECEIPT_KEY); } catch { /* no broad clear */ }
       setSession(data.session);
       setUser(data.session.user);
       setDeletionCleanupWarning(null);
@@ -106,6 +127,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       authRevisionRef.current += 1;
       deletionConfirmedRef.current = false;
+      // Clear the receipt only after a new identity explicitly authenticated.
+      // A failed storage removal remains a follow-up device acceptance concern.
+      try { localStorage.removeItem(DELETION_RECEIPT_KEY); } catch { /* no broad clear */ }
       setSession(data.session);
       setUser(data.session.user);
       setDeletionCleanupWarning(null);
@@ -141,6 +165,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // The server explicitly acknowledged deletion. Subsequent local cleanup
     // failures must not be presented as an unknown server deletion outcome.
     let cleanupError: Error | null = null;
+    try {
+      localStorage.setItem(DELETION_RECEIPT_KEY, 'true');
+    } catch {
+      cleanupError = new Error('Account was deleted, but local session protection could not be saved.');
+    }
     // Only remove caches owned by Nesmi; do not clear the shared origin.
     for (const key of ['chore-app-chores', 'chore-app-members']) {
       try {
