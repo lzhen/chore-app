@@ -122,7 +122,7 @@ describe('account deletion remount + Assistant portal release gate', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Account deleted, but this device could not fully clear');
     expect(alert).not.toHaveTextContent('Deletion could not be confirmed');
-    expect(screen.getByRole('button', { name: 'Delete permanently' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Deletion attempted' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Sign Out' })).toBeDisabled();
     expect(auth.deleteAccount).toHaveBeenCalledTimes(1);
   });
