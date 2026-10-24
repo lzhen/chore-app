@@ -11,7 +11,17 @@ import { supabase } from '../utils/supabase';
 
 const NESMI_CHORES = 'chore-app-chores';
 const NESMI_MEMBERS = 'chore-app-members';
-const OTHER_APP_FIXTURE = 'movelight-fixture-keep';
+// Actual same-origin MoveLight keys confirmed in empathie-website/movelight/web/index.html.
+// Use synthetic values only; do not read a deployed browser or household records.
+const MOVELIGHT_SAVED_KEYS = [
+  'qingbu.state.v1',
+  'movelight.redesign.v1.state',
+  'movelight.review.focus1.state',
+  'movelight_redesign_v1_theme',
+  'movelight_redesign_v1_language',
+] as const;
+const OTHER_APP_FIXTURE = MOVELIGHT_SAVED_KEYS[0];
+const UNRELATED_APP_FIXTURE = 'unrelated:keep';
 
 async function mountAuth() {
   const hook = renderHook(() => useAuth(), { wrapper: AuthProvider });
@@ -25,7 +35,10 @@ beforeEach(() => {
   localStorage.clear();
   localStorage.setItem(NESMI_CHORES, 'nesmi-chores-fixture');
   localStorage.setItem(NESMI_MEMBERS, 'nesmi-members-fixture');
-  localStorage.setItem(OTHER_APP_FIXTURE, 'sibling-app-data-fixture');
+  for (const key of MOVELIGHT_SAVED_KEYS) {
+    localStorage.setItem(key, 'sibling-app-data-fixture');
+  }
+  localStorage.setItem(UNRELATED_APP_FIXTURE, 'unrelated-app-data-fixture');
   vi.mocked(supabase.auth.getSession).mockResolvedValue({
     data: { session: null }, error: null,
   } as any);
@@ -139,7 +152,7 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
     }
   });
 
-  it('removes only Nesmi cache keys after explicit deleted:true and signs out locally', async () => {
+  it('preserves source-backed MoveLight saved-state and preference keys after confirmed deletion', async () => {
     vi.mocked(supabase.functions.invoke).mockResolvedValue({
       data: { deleted: true }, error: null,
     } as any);
@@ -153,7 +166,10 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
       expect(supabase.functions.invoke).toHaveBeenCalledWith('delete-account', { method: 'POST' });
       expect(localStorage.getItem(NESMI_CHORES)).toBeNull();
       expect(localStorage.getItem(NESMI_MEMBERS)).toBeNull();
-      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+      for (const key of MOVELIGHT_SAVED_KEYS) {
+        expect(localStorage.getItem(key)).toBe('sibling-app-data-fixture');
+      }
+      expect(localStorage.getItem(UNRELATED_APP_FIXTURE)).toBe('unrelated-app-data-fixture');
       expect(broadClear).not.toHaveBeenCalled();
       expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
     } finally {
