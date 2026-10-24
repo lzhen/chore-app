@@ -21,28 +21,33 @@ export function AuthForm() {
     setMessage(null);
     setLoading(true);
 
-    if (mode === 'forgotPassword') {
-      const { error } = await resetPassword(email.trim().toLowerCase());
-      if (error) {
-        setError(error.message);
+    try {
+      if (mode === 'forgotPassword') {
+        const { error } = await resetPassword(email.trim().toLowerCase());
+        if (error) {
+          setError(error.message);
+        } else {
+          setMessage('Check your email for a password reset link!');
+        }
+      } else if (mode === 'signUp') {
+        const { error } = await signUp(email.trim().toLowerCase(), password);
+        if (error) {
+          setError(error.message);
+        } else {
+          setMessage('Check your email for a confirmation link!');
+        }
       } else {
-        setMessage('Check your email for a password reset link!');
+        const { error } = await signIn(email.trim().toLowerCase(), password);
+        if (error) {
+          setError(error.message);
+        }
       }
-    } else if (mode === 'signUp') {
-      const { error } = await signUp(email.trim().toLowerCase(), password);
-      if (error) {
-        setError(error.message);
-      } else {
-        setMessage('Check your email for a confirmation link!');
-      }
-    } else {
-      const { error } = await signIn(email.trim().toLowerCase(), password);
-      if (error) {
-        setError(error.message);
-      }
+    } catch {
+      // A rejected network/SDK promise must never leave authentication disabled.
+      setError('Could not complete the request. Please try again.');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const switchMode = (newMode: AuthMode) => {
