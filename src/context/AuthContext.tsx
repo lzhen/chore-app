@@ -46,6 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
       }
       setLoading(false);
+    }).catch(() => {
+      // A storage/SDK failure must not leave the login screen loading forever.
+      // Do not infer an authenticated session when the initial read fails.
+      setLoading(false);
     });
 
     // Listen for auth changes
