@@ -410,7 +410,7 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
       expect(reopened.result.current.session).toBeNull();
       expect(reopened.result.current.deletionCleanupWarning).toMatch(/previous account was deleted/i);
       expect(supabase.auth.getSession).toHaveBeenCalledTimes(1);
-      act(() => { listeners.at(-1)?.('SIGNED_IN', staleSession); });
+      act(() => { listeners[listeners.length - 1]?.('SIGNED_IN', staleSession); });
       expect(reopened.result.current.user).toBeNull();
 
       vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
