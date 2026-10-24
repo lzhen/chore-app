@@ -35,6 +35,30 @@ beforeEach(() => {
 });
 
 describe('Nesmi account deletion confirmation and same-origin data isolation', () => {
+  it('unblocks login after a failed initial session read without inventing authentication', async () => {
+    vi.mocked(supabase.auth.getSession).mockRejectedValue(
+      new Error('synthetic session storage read failure')
+    );
+    const hook = await mountAuth();
+    try {
+      expect(hook.result.current.loading).toBe(false);
+      expect(hook.result.current.session).toBeNull();
+      expect(hook.result.current.user).toBeNull();
+
+      const freshSession = { user: { id: 'fresh-login-after-storage-failure' } };
+      vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
+        data: { user: freshSession.user, session: freshSession }, error: null,
+      } as any);
+      await act(async () => {
+        const result = await hook.result.current.signIn('fresh@example.invalid', 'synthetic-only');
+        expect(result.error).toBeNull();
+      });
+      expect(hook.result.current.user?.id).toBe('fresh-login-after-storage-failure');
+    } finally {
+      hook.unmount();
+    }
+  });
+
   it('removes only Nesmi cache keys after explicit deleted:true and signs out locally', async () => {
     vi.mocked(supabase.functions.invoke).mockResolvedValue({
       data: { deleted: true }, error: null,
