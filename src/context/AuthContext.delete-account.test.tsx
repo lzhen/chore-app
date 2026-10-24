@@ -548,4 +548,96 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
     }
   });
 
+
+  it('ignores a late sign-in response after another tab confirms deletion', async () => {
+    // Synthetic in-flight Supabase operation; no actual SDK, user, or account deletion.
+    const oldSession = { user: { id: 'deleted-old-tab-user' } };
+    const delayedSession = { user: { id: 'stale-late-login' } };
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: oldSession }, error: null,
+    } as any);
+    const hook = await mountAuth();
+    let finish!: (value: any) => void;
+    const inFlight = new Promise<any>((resolve) => { finish = resolve; });
+    vi.mocked(supabase.auth.signInWithPassword).mockReturnValue(inFlight);
+    try {
+      expect(hook.result.current.user?.id).toBe('deleted-old-tab-user');
+      let request!: ReturnType<typeof hook.result.current.signIn>;
+      act(() => {
+        request = hook.result.current.signIn('old@example.invalid', 'synthetic-only');
+      });
+
+      localStorage.setItem('nesmi:account-deletion-confirmed', 'true');
+      act(() => {
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: 'nesmi:account-deletion-confirmed', newValue: 'true', storageArea: localStorage,
+        }));
+      });
+      expect(hook.result.current.user).toBeNull();
+
+      let outcome!: Awaited<typeof request>;
+      await act(async () => {
+        finish({ data: { user: delayedSession.user, session: delayedSession }, error: null });
+        outcome = await request;
+      });
+      expect(outcome.error?.message).toMatch(/account state changed during sign-in/i);
+      expect(hook.result.current.user).toBeNull();
+      expect(hook.result.current.session).toBeNull();
+      expect(localStorage.getItem('nesmi:account-deletion-confirmed')).toBe('true');
+      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+
+      // A new deliberate sign-in AFTER receiving the receipt is still allowed.
+      const newSession = { user: { id: 'new-explicit-login-user' } };
+      vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
+        data: { user: newSession.user, session: newSession }, error: null,
+      } as any);
+      await act(async () => {
+        const result = await hook.result.current.signIn('new@example.invalid', 'synthetic-only');
+        expect(result.error).toBeNull();
+      });
+      expect(hook.result.current.user?.id).toBe('new-explicit-login-user');
+      expect(localStorage.getItem('nesmi:account-deletion-confirmed')).toBeNull();
+    } finally {
+      hook.unmount();
+    }
+  });
+
+  it('preserves the deletion receipt if a prior sign-up resolves with an SDK session late', async () => {
+    const hook = await mountAuth();
+    let finish!: (value: any) => void;
+    const inFlight = new Promise<any>((resolve) => { finish = resolve; });
+    vi.mocked(supabase.auth.signUp).mockReturnValue(inFlight);
+    try {
+      let request!: ReturnType<typeof hook.result.current.signUp>;
+      act(() => {
+        request = hook.result.current.signUp('pending@example.invalid', 'synthetic-only');
+      });
+
+      localStorage.setItem('nesmi:account-deletion-confirmed', 'true');
+      act(() => {
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: 'nesmi:account-deletion-confirmed', newValue: 'true', storageArea: localStorage,
+        }));
+      });
+
+      let outcome!: Awaited<typeof request>;
+      await act(async () => {
+        finish({
+          data: {
+            user: { id: 'late-signup-user' },
+            session: { user: { id: 'late-signup-user' } },
+          }, error: null,
+        });
+        outcome = await request;
+      });
+      expect(outcome.error?.message).toMatch(/account state changed during sign-up/i);
+      expect(hook.result.current.user).toBeNull();
+      expect(hook.result.current.session).toBeNull();
+      expect(localStorage.getItem('nesmi:account-deletion-confirmed')).toBe('true');
+      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+    } finally {
+      hook.unmount();
+    }
+  });
+
 });
