@@ -36,6 +36,48 @@ beforeEach(() => {
 });
 
 describe('Nesmi account deletion confirmation and same-origin data isolation', () => {
+  it('revokes an already-mounted tab when a cross-tab deletion receipt arrives, preserving sibling data', async () => {
+    const oldSession = { user: { id: 'synthetic-deleted-user' } };
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: oldSession }, error: null,
+    } as any);
+    let emitAuth!: (event: string, session: any) => void;
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementation(((listener: any) => {
+      emitAuth = listener;
+      return { data: { subscription: { unsubscribe: vi.fn() } } };
+    }) as any);
+    const hook = await mountAuth();
+    try {
+      expect(hook.result.current.user?.id).toBe('synthetic-deleted-user');
+      // An unrelated sibling-app key cannot revoke the Nesmi session.
+      await act(async () => {
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: OTHER_APP_FIXTURE, newValue: 'changed', storageArea: localStorage,
+        }));
+      });
+      expect(hook.result.current.user?.id).toBe('synthetic-deleted-user');
+
+      // Model the native storage event delivered to a DIFFERENT same-origin tab.
+      // jsdom does not automatically emit it for writes made in this window.
+      localStorage.setItem('nesmi:account-deletion-confirmed', 'true');
+      await act(async () => {
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: 'nesmi:account-deletion-confirmed', newValue: 'true', storageArea: localStorage,
+        }));
+      });
+      expect(hook.result.current.user).toBeNull();
+      expect(hook.result.current.session).toBeNull();
+      expect(hook.result.current.deletionCleanupWarning).toMatch(/previous account was deleted/i);
+      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+
+      // A delayed Supabase event for that deleted identity cannot re-open UI.
+      await act(async () => { emitAuth('SIGNED_IN', oldSession); });
+      expect(hook.result.current.user).toBeNull();
+    } finally {
+      hook.unmount();
+    }
+  });
+
   it('unblocks login after a failed initial session read without inventing authentication', async () => {
     vi.mocked(supabase.auth.getSession).mockRejectedValue(
       new Error('synthetic session storage read failure')
