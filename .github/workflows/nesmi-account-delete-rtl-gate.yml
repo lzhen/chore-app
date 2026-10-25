@@ -8,6 +8,7 @@ on:
       - fix/chorely-auth-viewport-20260927-native-followup-20261016
     paths:
       - 'src/components/AccountSettings.tsx'
+      - 'src/utils/accountDeletionAttempt.ts'
       - 'src/components/AuthForm.tsx'
       - 'src/components/AuthForm.test.tsx'
       - 'src/components/AgentPanel.tsx'
