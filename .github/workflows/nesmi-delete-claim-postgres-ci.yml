@@ -12,6 +12,8 @@ on:
       - 'tests/release/nesmi-edge-actual-source-compatibility.nondeploy.test.cjs'
       - 'docs/release/prototypes/nesmi-delete-edge-sdk-bridge.nondeploy.cjs'
       - 'tests/release/nesmi-delete-edge-sdk-bridge.nondeploy.test.cjs'
+      - 'docs/release/prototypes/nesmi-delete-edge-http-route.nondeploy.cjs'
+      - 'tests/release/nesmi-delete-edge-http-route.nondeploy.test.cjs'
       - '.github/workflows/nesmi-delete-claim-postgres-ci.yml'
 
 permissions:
@@ -50,5 +52,7 @@ jobs:
         run: node --test tests/release/nesmi-edge-actual-source-compatibility.nondeploy.test.cjs
       - name: Check SDK-shaped claim/delete/finalize bridge (no network)
         run: node --test tests/release/nesmi-delete-edge-sdk-bridge.nondeploy.test.cjs
+      - name: Exercise nondeployed Edge HTTP handler boundary (no network)
+        run: node --test tests/release/nesmi-delete-edge-http-route.nondeploy.test.cjs
       - name: Check disposable PostgreSQL prototype (no user data)
         run: bash tests/release/nesmi-delete-claim-postgres-ci.sh
