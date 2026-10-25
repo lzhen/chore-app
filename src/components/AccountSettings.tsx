@@ -123,7 +123,7 @@ export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt
         <div className="mt-6 border-t border-border pt-5">
           <h3 className="font-medium text-red-500">Delete account</h3>
           <p className="mt-1 text-sm text-content-secondary">Permanently deletes your sign-in and profile. This cannot be undone.</p>
-          {deletionLocked && !deletionAttempted && !error && (
+          {attemptLocked && !deletionAttempted && !error && (
             <div className="mt-3 text-sm text-red-500" role="alert">
               <p>Account deletion may already have been attempted for this account. Account changes remain paused.</p>
               <p className="mt-2">Do not repeat account deletion from another tab or device until support verifies the result.</p>
