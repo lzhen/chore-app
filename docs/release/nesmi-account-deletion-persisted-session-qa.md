@@ -1,5 +1,18 @@
 # Nesmi account deletion: persisted-session release acceptance
 
+## Current release gate — Task118 reconciliation (2026-10-25 06:26 PDT)
+
+**Status: RELEASE HOLD — internal draft only.** This block supersedes the *unresolved-source* status in the historical Task116 section immediately below; the Task116 discovery remains preserved as historical evidence. Current existing [draft PR #35](https://github.com/lzhen/chore-app/pull/35) is open, draft and unmerged. On exact app/test source [`b0173c1081af59d2ee7b42835941a7c04e23246b`](https://github.com/lzhen/chore-app/commit/b0173c1081af59d2ee7b42835941a7c04e23246b), Task117 **implemented an account-scoped durable attempt marker** and regressions. The attempted-deletion marker is saved and read back *before* the irreversible Edge request; storage failure, repeated attempt and remount fail closed. AccountSettings and App now read the account-scoped marker; App listens to same-origin storage notifications. This is a **client-side best-effort mechanism**, not atomic cross-tab locking or backend idempotency.
+
+**Independently rechecked exact-SHA CI:** [UI regression workflow 40196209294](https://github.com/lzhen/chore-app/actions/runs/40196209294) and [dependency workflow 40196209320](https://github.com/lzhen/chore-app/actions/runs/40196209320) are both completed/success for `b0173c1...`. Task117 runner-level evidence specifies 21/21 source-executed Node, 4/4 synthetic installed Supabase SDK, 44/44 jsdom/RTL and typecheck PASS. These are **offline/synthetic**, not a real account, real HTTP, browser concurrency, iPhone or App Review clearance. No new build or production deployment is implied by this QA-document edit.
+
+**Remaining P0 release-safety boundary:** two tabs can still simultaneously observe an absent localStorage marker, then both write/confirm it before network execution. Cross-device clients do not share the marker. A safe release requires an authorized server-side replay/reconciliation/idempotency strategy and a documented client/Edge compatibility rollout. The unshipped strict Edge implementation requires `expectedUserId`; the known installable iOS **Nesmi 1.0(122)** (Apple notice Oct 21, B122 source `d0610712...`) sends no such body. Deploying strict Edge alone would return HTTP 400 to legacy clients. Do **not** deploy strict Edge by itself, merge PR #35, delete a real account, upload a build or submit to App Store based on these offline passes.
+
+**Next exact gates:** confirm current App Store Connect selected review build and reviewer access, choose an owner-approved B122/strict-Edge transition and disposable test identity, verify real SDK + Edge HTTP/ACK/reconciliation and same-origin browser behavior, then real physical-device TestFlight and App Review. All remain **NOT EXECUTED** at this checkpoint. Ordinary progress only; no new founder decision was needed for this documentation correction.
+
+---
+
+
 ## Open QA finding — attempt guard resets across reload/cross-tab (Task116, 2026-10-25)
 
 **Status: SOURCE-CONFIRMED GAP; NOT LIVE-REPRODUCED.** This is a new release-safety test target in the existing **draft PR #35** only; the proposed fix is **not implemented**. **RELEASE HOLD** remains. The pinned draft source for this inspection is [`6876295ca6c475464fd33ef2c9c9a944f99a5351`](https://github.com/lzhen/chore-app/commit/6876295ca6c475464fd33ef2c9c9a944f99a5351), which Task115 independently verified with 18/18 source Node, 4/4 synthetic installed SDK, 41/41 mocked RTL and typecheck PASS. Those tests do **not** cover this reload/cross-tab gap.
