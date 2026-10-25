@@ -24,11 +24,13 @@ function compileCurrentEdge() {
     '(payload as { expectedUserId?: unknown })',
     'adminClient.auth.admin.deleteUser(user.id)',
   ]) assert.ok(edgeSource.includes(marker), 'Source contract changed: ' + marker);
+  assert.equal((edgeSource.match(/Deno\.env\.get\('[A-Z_]+'\)!/g) || []).length, 3);
   return edgeSource
     .replace(/^import .*\r?\n/gm, '')
     .replace('Deno.serve(async (request: Request) =>', 'Deno.serve(async (request) =>')
     .replace('let payload: unknown', 'let payload')
-    .replace('(payload as { expectedUserId?: unknown })', '(payload)');
+    .replace('(payload as { expectedUserId?: unknown })', '(payload)')
+    .replace(/(Deno\.env\.get\('[A-Z_]+'\))!/g, '$1');
 }
 
 function offlineEdge({ authenticatedUser = 'synthetic-A', adminError = null } = {}) {
