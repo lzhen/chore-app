@@ -552,3 +552,112 @@ test('KNOWN UNSAFE: concurrent valid Edge requests both reach admin deletion bef
   assert.deepEqual(responses.map(r=>r.status),[200,200],
     'Synthetic admin success must not be mistaken for production idempotency');
 });
+
+/*
+ * DESIGN CONTRACT ONLY: synthetic server-side atomic reservation candidate.
+ *
+ * This is NOT the deployed or draft Edge handler: it cannot establish an
+ * atomic Supabase/Postgres claim, a live deletion, or recoverability. Its
+ * synchronous Map insertion is atomic only inside one JS process. A real
+ * implementation would require a durable account-scoped unique constraint /
+ * transactional RPC, role-restricted access, audit/reconciliation and an
+ * approved B122 migration/rollout. Passing cases validate requirements for
+ * that future implementation, NOT current release safety.
+ */
+function syntheticAtomicDeletionContract() {
+  const reservations = new Map();
+  async function handle({ bearerAccountId, expectedUserId, adminDelete }) {
+    if (!bearerAccountId) return { status: 401, code: 'UNAUTHORIZED' };
+    // Chosen fail-closed policy for a prospective upgraded endpoint only.
+    // Installed B122 sends bodyless requests, so THIS IS NOT DEPLOYABLE ALONE.
+    if (typeof expectedUserId !== 'string' || !expectedUserId.trim()) {
+      return { status: 400, code: 'CLIENT_UPGRADE_REQUIRED' };
+    }
+    if (expectedUserId !== bearerAccountId) {
+      return { status: 409, code: 'SESSION_IDENTITY_MISMATCH' };
+    }
+    const existing = reservations.get(bearerAccountId);
+    if (existing) {
+      if (existing.state === 'pending') return { status: 202, code: 'IN_PROGRESS' };
+      if (existing.state === 'confirmed') return { status: 200, code: 'ALREADY_CONFIRMED' };
+      return { status: 409, code: 'UNCERTAIN_MANUAL_RECONCILIATION' };
+    }
+    // Only an illustrative JS-process atomicity point. This cannot be
+    // implemented as SELECT followed by INSERT or a client localStorage guard.
+    const claim = { state: 'pending' };
+    reservations.set(bearerAccountId, claim);
+    try {
+      const result = await adminDelete(bearerAccountId);
+      if (result?.error) throw result.error;
+      claim.state = 'confirmed';
+      return { status: 200, code: 'DELETED' };
+    } catch {
+      // An exception/lost ACK cannot prove the irreversible call did not run.
+      claim.state = 'uncertain';
+      return { status: 503, code: 'UNKNOWN_OUTCOME_DO_NOT_RETRY' };
+    }
+  }
+  return { handle, state: id => reservations.get(id)?.state ?? null };
+}
+
+test('DESIGN CONTRACT ONLY: legacy bodyless and identity drift never create an account claim', async () => {
+  const p = syntheticAtomicDeletionContract();
+  let adminCalls = 0;
+  const adminDelete = async () => { adminCalls++; return {error:null}; };
+  const legacy = await p.handle({bearerAccountId:'synthetic-A',adminDelete});
+  const malformed = await p.handle({bearerAccountId:'synthetic-A',expectedUserId:42,adminDelete});
+  const swapped = await p.handle({bearerAccountId:'synthetic-B',expectedUserId:'synthetic-A',adminDelete});
+  assert.deepEqual(legacy,{status:400,code:'CLIENT_UPGRADE_REQUIRED'});
+  assert.deepEqual(malformed,{status:400,code:'CLIENT_UPGRADE_REQUIRED'});
+  assert.deepEqual(swapped,{status:409,code:'SESSION_IDENTITY_MISMATCH'});
+  assert.equal(adminCalls,0);
+  assert.equal(p.state('synthetic-A'),null);
+  assert.equal(p.state('synthetic-B'),null);
+});
+
+test('DESIGN CONTRACT ONLY: two concurrent same-account requests have one synthetic winner', async () => {
+  const p = syntheticAtomicDeletionContract();
+  let releaseAdmin;
+  const hold = new Promise(resolveHold => {releaseAdmin = resolveHold;});
+  let adminCalls = 0;
+  const adminDelete = async () => {
+    adminCalls++;
+    await hold;
+    return {error:null};
+  };
+  const req = () => p.handle({
+    bearerAccountId:'synthetic-one-account',
+    expectedUserId:'synthetic-one-account',
+    adminDelete,
+  });
+  const first = req();
+  const raced = await req();
+  assert.deepEqual(raced,{status:202,code:'IN_PROGRESS'});
+  assert.equal(p.state('synthetic-one-account'),'pending');
+  assert.equal(adminCalls,1,'only the reservation winner enters the synthetic admin call');
+  releaseAdmin();
+  assert.deepEqual(await first,{status:200,code:'DELETED'});
+  assert.deepEqual(await req(),{status:200,code:'ALREADY_CONFIRMED'});
+  assert.equal(adminCalls,1,'a replay cannot start another synthetic deletion');
+});
+
+test('DESIGN CONTRACT ONLY: unknown outcome stays locked, while distinct account can progress', async () => {
+  const p = syntheticAtomicDeletionContract();
+  let uncertainCalls=0;
+  const interrupted = () => p.handle({
+    bearerAccountId:'synthetic-interrupted',
+    expectedUserId:'synthetic-interrupted',
+    adminDelete:async()=>{uncertainCalls++;throw new Error('synthetic lost ACK');},
+  });
+  assert.deepEqual(await interrupted(),{status:503,code:'UNKNOWN_OUTCOME_DO_NOT_RETRY'});
+  assert.equal(p.state('synthetic-interrupted'),'uncertain');
+  assert.deepEqual(await interrupted(),{status:409,code:'UNCERTAIN_MANUAL_RECONCILIATION'});
+  assert.equal(uncertainCalls,1,'do not auto retry a potentially irreversible operation');
+  const another = await p.handle({
+    bearerAccountId:'synthetic-other',
+    expectedUserId:'synthetic-other',
+    adminDelete:async()=>({error:null}),
+  });
+  assert.deepEqual(another,{status:200,code:'DELETED'});
+  assert.equal(p.state('synthetic-other'),'confirmed');
+});
