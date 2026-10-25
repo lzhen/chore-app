@@ -1,5 +1,29 @@
 # Nesmi account deletion: persisted-session release acceptance
 
+## Current release-order compatibility gate — Task112 (2026-10-25 PDT, document-only)
+
+**Canonical candidate:** existing [draft PR #35](https://github.com/lzhen/chore-app/pull/35) at source/test commit [`81f05d662dd97c6471f096eccbd61ec5faec868a`](https://github.com/lzhen/chore-app/commit/81f05d662dd97c6471f096eccbd61ec5faec868a); **open / unmerged / NOT in TestFlight**. Last Apple-email-confirmed installable **Nesmi** is iOS **1.0(122)** (2026-10-21 16:54 UTC), pinned to `d0610712e1dfedbe970d6d8c4ae54213d9a2dddc`. Current App Store Connect selected review build and physical-iPhone acceptance are **unknown**, not inferred from email. **RELEASE HOLD**. The separate MoveLight review issue/builds do not change this gate.
+
+**Fresh source comparison (no production mutations):** B122 `AuthContext.deleteAccount()` sends POST to `delete-account` **without a body**. The B122-era repository Edge function authenticates the bearer, then calls `admin.deleteUser(user.id)` **without checking a separately confirmed account ID**. In PR #35, `AccountSettings` freezes user ID when the two-step confirmation starts, `AuthContext` sends `{ expectedUserId }`, and the *unshipped* strict Edge function returns **400** for missing/invalid body, **409** for intended-ID/bearer mismatch, and only on matched authenticated identity can proceed to `admin.deleteUser`. Earlier deployed-Edge readback (Task108) was read-only and does not prove present live code at this checkpoint.
+
+| Installed client / Edge source variant | Expected deletion behavior | Release safety consequence |
+| --- | --- | --- |
+| B122 client + B122-era Edge | Old bodyless request can succeed, Edge deletes authenticated bearer | No server-side binding to original confirmation; **not an approved hardened release**. |
+| B122 client + PR #35 strict Edge | Missing `expectedUserId` -> **400 before delete** | Fail closed, but older installed B122 users cannot delete via existing UI; B122's generic retry copy is not suitable customer guidance. **Do not deploy strict Edge alone.** |
+| PR #35 client + B122-era Edge | New body is sent but old Edge ignores it; uses bearer identity | UI guard reduces one switch window but server is still not bound; **client-first alone does not complete safety**. |
+| PR #35 client + PR #35 strict Edge | Matching bearer / `expectedUserId` required; mismatches **409**, legacy/malformed requests **400** | Tested only via source-executed Node, synthetic installed-SDK and mocked RTL; **no real Supabase HTTP/physical device release clearance**. |
+
+**Rollout conclusion / stop rule:** There is **no proven zero-disruption order** for replacing the old shared endpoint with the strict handler while old B122 clients remain installed. Stop any one-sided release. A coordinated decision must account for legacy B122 deletion availability, a user-facing no-retry/support notice, and a safely reversible rollout; a versioned endpoint would require separately addressing the still-live legacy endpoint and does not by itself remove that risk. Do **not** claim "safe to release" just because the PR CI passes or an Archive/TestFlight build succeeds.
+
+**Preflight checklist before any sensitive production action:** (1) independently re-read deployed `delete-account` source/version and current selected ASC review build; (2) nominate exact app SHA and compatible Edge SHA and write down old-client behavior; (3) rehearse B122-bodyless -> 400, A-confirm/B-bearer -> 409, and matched synthetic success path without real data; (4) choose and authorize the controlled legacy-client handling/rollout window and recovery messaging; (5) require explicit permission for production Edge/client changes and real disposable identity; (6) verify real SDK/Edge, same-origin browser isolation, persisted session, then exact physical iPhone + ASC release gate. A rollback that restores old unbound deletion is **not** an automatic safe recovery; escalate the tradeoff first.
+
+**Evidence boundaries:** [exact-SHA regression CI 40172434986](https://github.com/lzhen/chore-app/actions/runs/40172434986) success on `81f05d6...` (16 Node source, 4 synthetic installed-SDK, 41 mocked RTL, typecheck), and [dependency report 40172434983](https://github.com/lzhen/chore-app/actions/runs/40172434983) success. **This Task112 edit changes documentation only; no new CI run is claimed.** No merge, production deployment, real account deletion, Xcode build, App Review submit, or credentials read. **PD-01 offline PASS only; PD-02–PD-10/05a remain NOT EXECUTED.**
+
+---
+
+## Historical acceptance and QA evidence (superseded for latest-head status by Task112 above)
+
+
 **Status:** Draft PR #35 offline gate PASS at exact latest app/test head [`a6b856952b79af87b4819295fe7ffad3f9b845a9`](https://github.com/lzhen/chore-app/commit/a6b856952b79af87b4819295fe7ffad3f9b845a9) (2026-10-24 Task108: **15 Node source tests**, **4 installed Supabase SDK synthetic-offline tests**—three Map-storage cases and one jsdom `localStorage` case—**39 mocked jsdom/RTL tests**, TypeScript typecheck; [exact-head CI 40159697637](https://github.com/lzhen/chore-app/actions/runs/40159697637) completed/success). The SDK scenarios exercise successful local logout, simulated auth-storage removal failure, intercepted HTTP 503 logout failure, and synthetic jsdom Storage reload/isolation. **No actual backend deletion, disposable account, same-origin browser, physical iPhone, selected App Store Connect build, or Apple approval was verified. Release HOLD.**  
 **Owner:** Nesmi release QA. **Candidate:** existing draft PR #35 only; base is the known TestFlight B122 source `d0610712e1dfedbe970d6d8c4ae54213d9a2dddc`.  
 **Do not mistake this document or passing mocked CI for validation of installed iOS Build 122 or an App Store release.**
