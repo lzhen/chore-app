@@ -252,18 +252,20 @@ test('repository Edge ACK contract only confirms authenticated successful delete
   const clientSource = readFileSync(resolve(__dirname, '../../src/context/AuthContext.tsx'), 'utf8');
   assert.match(clientSource, /functions\.invoke\(['"]delete-account['"],\s*\{\s*method:\s*['"]POST['"]/);
   assert.match(clientSource, /data\?\.deleted\s*!==\s*true/);
+  assert.match(clientSource, /body:\s*\{\s*expectedUserId\s*\}/);
 
   const code = ts.transpileModule(edgeSource, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
   }).outputText;
   let handler;
   let authOk = true;
+  let authUserId = 'synthetic-user';
   let adminError = null;
   const deletedIds = [];
   const stubClient = (_url, key) => {
     if (key === 'synthetic-anon') return {
       auth: { getUser: async () => authOk
-        ? { data: { user: { id: 'synthetic-user' } }, error: null }
+        ? { data: { user: { id: authUserId } }, error: null }
         : { data: { user: null }, error: new Error('synthetic unauthorized') } },
     };
     if (key === 'synthetic-service') return {
@@ -292,9 +294,15 @@ test('repository Edge ACK contract only confirms authenticated successful delete
     Request, Response, JSON, Error, Promise,
   }, { timeout: 1000, filename: 'delete-account.edge.compiled.cjs' });
   assert.equal(typeof handler, 'function');
-  const request = (method, authorized = false) => new Request('https://synthetic.invalid/functions/v1/delete-account', {
-    method, headers: authorized ? { Authorization: 'Bearer synthetic-only' } : {},
-  });
+  const request = (method, authorized = false, payload = { expectedUserId: 'synthetic-user' }) => {
+    const headers = authorized ? { Authorization: 'Bearer synthetic-only', 'Content-Type': 'application/json' } : {};
+    return new Request('https://synthetic.invalid/functions/v1/delete-account', {
+      method, headers,
+      ...(method === 'POST' && payload !== false ? {
+        body: typeof payload === 'string' ? payload : JSON.stringify(payload),
+      } : {}),
+    });
+  };
 
   const options = await handler(request('OPTIONS'));
   assert.equal(options.status, 200);
@@ -314,6 +322,21 @@ test('repository Edge ACK contract only confirms authenticated successful delete
   assert.deepEqual(deletedIds, [], 'Invalid users cannot invoke the admin delete');
 
   authOk = true;
+  const legacyNoBody = await handler(request('POST', true, false));
+  assert.equal(legacyNoBody.status, 400, 'Legacy empty-body request must fail closed');
+  const malformedBody = await handler(request('POST', true, '{bad-json'));
+  assert.equal(malformedBody.status, 400);
+  const missingIdentity = await handler(request('POST', true, {}));
+  assert.equal(missingIdentity.status, 400);
+  const numericIdentity = await handler(request('POST', true, { expectedUserId: 2 }));
+  assert.equal(numericIdentity.status, 400);
+  const mismatchedIdentity = await handler(request('POST', true, { expectedUserId: 'user-A' }));
+  assert.equal(mismatchedIdentity.status, 409);
+  authUserId = 'synthetic-user-B'; // Token swaps after UI captured intent A.
+  const switchedBearer = await handler(request('POST', true));
+  assert.equal(switchedBearer.status, 409);
+  authUserId = 'synthetic-user';
+  assert.deepEqual(deletedIds, [], 'No malformed or wrong-account attempt may delete');
   adminError = new Error('synthetic admin failure');
   const failedAdmin = await handler(request('POST', true));
   assert.equal(failedAdmin.status, 500);

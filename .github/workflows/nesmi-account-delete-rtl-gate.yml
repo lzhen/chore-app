@@ -14,6 +14,7 @@ on:
       - 'src/components/App.tsx'
       - 'src/components/account-delete-remount.integration.test.tsx'
       - 'src/context/AuthContext.tsx'
+      - 'supabase/functions/delete-account/index.ts'
       - 'src/context/AuthContext.delete-account.test.tsx'
       - 'src/test/setup.ts'
       - 'tests/release/account-delete-ui-guard.node.cjs'

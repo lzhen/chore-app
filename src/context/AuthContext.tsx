@@ -178,8 +178,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteAccount = async () => {
+    // Bind this irreversible request to the user shown at confirmation.
+    // Edge rejects if the SDK's current bearer changes to another account.
+    const expectedUserId = user?.id ?? '';
     const { data, error } = await supabase.functions.invoke('delete-account', {
       method: 'POST',
+      body: { expectedUserId },
     });
 
     if (error) {

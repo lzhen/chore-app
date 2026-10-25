@@ -27,6 +27,27 @@ Deno.serve(async (request: Request) => {
     })
   }
 
+  // Fail closed for legacy/empty requests: never delete the account of an
+  // unrelated bearer if the SDK session switches after user confirmation.
+  let payload: unknown
+  try {
+    payload = await request.json()
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid deletion request' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+  const expectedUserId = typeof payload === 'object' && payload !== null && !Array.isArray(payload)
+    ? (payload as { expectedUserId?: unknown }).expectedUserId
+    : undefined
+  if (typeof expectedUserId !== 'string' || !expectedUserId.trim()) {
+    return new Response(JSON.stringify({ error: 'Expected account is required' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -39,6 +60,13 @@ Deno.serve(async (request: Request) => {
   if (userError || !user) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
+  if (user.id !== expectedUserId) {
+    return new Response(JSON.stringify({ error: 'Account session changed. Deletion was not performed.' }), {
+      status: 409,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }

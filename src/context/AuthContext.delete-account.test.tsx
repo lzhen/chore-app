@@ -156,6 +156,9 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
     vi.mocked(supabase.functions.invoke).mockResolvedValue({
       data: { deleted: true }, error: null,
     } as any);
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'synthetic-intended-account' } } }, error: null,
+    } as any);
     const hook = await mountAuth();
     const broadClear = vi.spyOn(Storage.prototype, 'clear');
     let response: { error: Error | null } | undefined;
@@ -163,7 +166,9 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
       await act(async () => { response = await hook.result.current.deleteAccount(); });
       expect(response?.error).toBeNull();
       expect(supabase.functions.invoke).toHaveBeenCalledTimes(1);
-      expect(supabase.functions.invoke).toHaveBeenCalledWith('delete-account', { method: 'POST' });
+      expect(supabase.functions.invoke).toHaveBeenCalledWith('delete-account', {
+        method: 'POST', body: { expectedUserId: 'synthetic-intended-account' },
+      });
       expect(localStorage.getItem(NESMI_CHORES)).toBeNull();
       expect(localStorage.getItem(NESMI_MEMBERS)).toBeNull();
       for (const key of MOVELIGHT_SAVED_KEYS) {
