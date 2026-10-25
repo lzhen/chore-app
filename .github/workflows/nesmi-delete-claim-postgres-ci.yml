@@ -7,6 +7,8 @@ on:
     paths:
       - 'docs/release/prototypes/nesmi_delete_claim_nondeploy.sql'
       - 'tests/release/nesmi-delete-claim-postgres-ci.sh'
+      - 'docs/release/prototypes/nesmi-delete-edge-orchestration.nondeploy.cjs'
+      - 'tests/release/nesmi-delete-edge-orchestration.contract.test.cjs'
       - '.github/workflows/nesmi-delete-claim-postgres-ci.yml'
 
 permissions:
@@ -39,5 +41,7 @@ jobs:
       PGPASSWORD: synthetic_ci_only
     steps:
       - uses: actions/checkout@v4
+      - name: Check no-network Edge claim coordination contract
+        run: node --test tests/release/nesmi-delete-edge-orchestration.contract.test.cjs
       - name: Check disposable PostgreSQL prototype (no user data)
         run: bash tests/release/nesmi-delete-claim-postgres-ci.sh
