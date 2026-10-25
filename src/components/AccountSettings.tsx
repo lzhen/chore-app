@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { reserveAccountDeletionAttempt, wasAccountDeletionAttempted } from '../utils/accountDeletionAttempt';
 import { ThemeSelector } from './ThemeSelector';
 
 import { AccountTools } from './AccountTools';
@@ -24,7 +25,7 @@ export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt
   const [deletionAttempted, setDeletionAttempted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Inherited App lock survives leaving and returning to the Account tab.
-  const attemptLocked = deletionAttempted || deletionLocked;
+  const attemptLocked = deletionAttempted || deletionLocked || wasAccountDeletionAttempted(user?.id);
 
   if (!isOpen) return null;
 
@@ -39,6 +40,15 @@ export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt
       setConfirming(false);
       setIdentityChanged(true);
       setError('The signed-in account changed before deletion. No deletion request was sent. Review the account and confirm again.');
+      return;
+    }
+    // Reserve this exact identity before ANY irreversible network request.
+    // Existing or inaccessible storage means uncertain prior state: fail closed.
+    if (!reserveAccountDeletionAttempt(confirmedAccountId)) {
+      setDeletionAttempted(true);
+      onDeletionAttempt?.();
+      setConfirming(false);
+      setError('Account deletion is paused: another attempt may already exist, or this device cannot safely save the attempt. Contact support before trying again.');
       return;
     }
     setIdentityChanged(false);
@@ -115,7 +125,7 @@ export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt
           <p className="mt-1 text-sm text-content-secondary">Permanently deletes your sign-in and profile. This cannot be undone.</p>
           {deletionLocked && !deletionAttempted && !error && (
             <div className="mt-3 text-sm text-red-500" role="alert">
-              <p>Account deletion was already attempted in this session. Account changes remain paused.</p>
+              <p>Account deletion may already have been attempted for this account. Account changes remain paused.</p>
               <p className="mt-2">Do not repeat account deletion from another tab or device until support verifies the result.</p>
             </div>
           )}
