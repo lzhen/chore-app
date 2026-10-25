@@ -241,3 +241,87 @@ test('parent lock arriving during confirmation disables another delete', async (
   await press(h.button('Deletion attempted'));
   assert.deepEqual([h.data.calls,h.data.deletionNotices],[0,0]);
 });
+
+
+// Source-executed, deterministic offline contract check. The handler is loaded
+// from the exact repository Edge source with synthetic Deno/Supabase adapters:
+// no live function invocation, real identity, credentials, network or deletion.
+// This is PD-01 only; it cannot prove what App Store or production devices run.
+test('repository Edge ACK contract only confirms authenticated successful deletes and matches the client guard', async () => {
+  const edgeSource = readFileSync(resolve(__dirname, '../../supabase/functions/delete-account/index.ts'), 'utf8');
+  const clientSource = readFileSync(resolve(__dirname, '../../src/context/AuthContext.tsx'), 'utf8');
+  assert.match(clientSource, /functions\.invoke\(['"]delete-account['"],\s*\{\s*method:\s*['"]POST['"]/);
+  assert.match(clientSource, /data\?\.deleted\s*!==\s*true/);
+
+  const code = ts.transpileModule(edgeSource, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  }).outputText;
+  let handler;
+  let authOk = true;
+  let adminError = null;
+  const deletedIds = [];
+  const stubClient = (_url, key) => {
+    if (key === 'synthetic-anon') return {
+      auth: { getUser: async () => authOk
+        ? { data: { user: { id: 'synthetic-user' } }, error: null }
+        : { data: { user: null }, error: new Error('synthetic unauthorized') } },
+    };
+    if (key === 'synthetic-service') return {
+      auth: { admin: { deleteUser: async id => {
+        deletedIds.push(id);
+        return { error: adminError };
+      } } },
+    };
+    throw Error('Unexpected synthetic key');
+  };
+  const mockRequire = name => {
+    if (name === 'jsr:@supabase/functions-js/edge-runtime.d.ts') return {};
+    if (name === 'npm:@supabase/supabase-js@2') return { createClient: stubClient };
+    throw Error('Blocked external module: ' + name);
+  };
+  vm.runInNewContext(code, {
+    exports: {}, require: mockRequire, console: { error: () => {} },
+    Deno: {
+      env: { get: name => ({
+        SUPABASE_URL: 'https://synthetic.invalid',
+        SUPABASE_ANON_KEY: 'synthetic-anon',
+        SUPABASE_SERVICE_ROLE_KEY: 'synthetic-service',
+      })[name] },
+      serve: fn => { handler = fn; },
+    },
+    Request, Response, JSON, Error, Promise,
+  }, { timeout: 1000, filename: 'delete-account.edge.compiled.cjs' });
+  assert.equal(typeof handler, 'function');
+  const request = (method, authorized = false) => new Request('https://synthetic.invalid/functions/v1/delete-account', {
+    method, headers: authorized ? { Authorization: 'Bearer synthetic-only' } : {},
+  });
+
+  const options = await handler(request('OPTIONS'));
+  assert.equal(options.status, 200);
+  assert.equal(await options.text(), 'ok');
+  const invalidMethod = await handler(request('GET'));
+  assert.equal(invalidMethod.status, 405);
+  assert.deepEqual(JSON.parse(await invalidMethod.text()), { error: 'Method not allowed' });
+  const withoutAuth = await handler(request('POST'));
+  assert.equal(withoutAuth.status, 401);
+  assert.deepEqual(JSON.parse(await withoutAuth.text()), { error: 'Unauthorized' });
+  assert.deepEqual(deletedIds, [], 'Unverified requests cannot delete a user');
+
+  authOk = false;
+  const rejectedUser = await handler(request('POST', true));
+  assert.equal(rejectedUser.status, 401);
+  assert.deepEqual(JSON.parse(await rejectedUser.text()), { error: 'Unauthorized' });
+  assert.deepEqual(deletedIds, [], 'Invalid users cannot invoke the admin delete');
+
+  authOk = true;
+  adminError = new Error('synthetic admin failure');
+  const failedAdmin = await handler(request('POST', true));
+  assert.equal(failedAdmin.status, 500);
+  assert.deepEqual(JSON.parse(await failedAdmin.text()), { error: 'Account deletion failed' });
+
+  adminError = null;
+  const confirmed = await handler(request('POST', true));
+  assert.equal(confirmed.status, 200);
+  assert.deepEqual(JSON.parse(await confirmed.text()), { deleted: true });
+  assert.deepEqual(deletedIds, ['synthetic-user', 'synthetic-user']);
+});
