@@ -68,7 +68,8 @@ function createNonDeployedSdkDeleteHandler({ createClient, url, anonKey, service
         // See https://supabase.com/docs/reference/javascript/auth-admin-deleteuser
         return response?.error === null &&
           response?.data?.user !== null &&
-          typeof response?.data?.user === 'object';
+          typeof response?.data?.user === 'object' &&
+          !Array.isArray(response.data.user);
       },
 
       async finalizeClaim(accountId, claimId, state) {
