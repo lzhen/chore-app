@@ -490,3 +490,65 @@ test('KNOWN UNSAFE: two synthetic tabs both reserve under deterministic interlea
   assert.equal(tabB.reserveAccountDeletionAttempt('synthetic-race-account'),false,
     'sequential attempts are blocked, but this does not fix simultaneous tabs');
 });
+
+test('KNOWN UNSAFE: concurrent valid Edge requests both reach admin deletion before either ACK', async () => {
+  // Deterministic OFFLINE negative gate against the actual Edge source.
+  // Passing means the unshipped handler lacks a server-side once-only claim;
+  // it does NOT prove two real Supabase deletions or any production impact.
+  const source = readFileSync(resolve(__dirname, '../../supabase/functions/delete-account/index.ts'), 'utf8');
+  const compiled = ts.transpileModule(source, {compilerOptions:{
+    target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,
+  }}).outputText;
+  let handler;
+  let adminCalls = 0;
+  let releaseAdmin;
+  const holdAdmin = new Promise(resolveRelease => {releaseAdmin = resolveRelease;});
+  const syntheticId = 'synthetic-concurrent-account';
+  const createClient = (_url, key) => {
+    if (key === 'synthetic-anon') return {
+      auth:{getUser:async()=>({data:{user:{id:syntheticId}},error:null})},
+    };
+    if (key === 'synthetic-service') return {
+      auth:{admin:{deleteUser:async id=>{
+        assert.equal(id,syntheticId);
+        adminCalls++;
+        await holdAdmin; // Both requests must have reached this point pre-ACK.
+        return {error:null}; // Simulated result only, not live Supabase.
+      }}},
+    };
+    throw Error('Unexpected synthetic key');
+  };
+  const mockRequire = name => {
+    if (name === 'jsr:@supabase/functions-js/edge-runtime.d.ts') return {};
+    if (name === 'npm:@supabase/supabase-js@2') return {createClient};
+    throw Error('Blocked external module: '+name);
+  };
+  vm.runInNewContext(compiled, {
+    exports:{},require:mockRequire,console:{error:()=>{}},
+    Deno:{
+      env:{get:name=>({
+        SUPABASE_URL:'https://synthetic.invalid',
+        SUPABASE_ANON_KEY:'synthetic-anon',
+        SUPABASE_SERVICE_ROLE_KEY:'synthetic-service',
+      })[name]},
+      serve:fn=>{handler=fn;},
+    },
+    Request,Response,JSON,Error,Promise,
+  }, {timeout:1000,filename:'delete-account.edge.concurrent.compiled.cjs'});
+  assert.equal(typeof handler,'function');
+  const makeRequest = () => new Request('https://synthetic.invalid/functions/v1/delete-account',{
+    method:'POST',
+    headers:{Authorization:'Bearer synthetic-only','Content-Type':'application/json'},
+    body:JSON.stringify({expectedUserId:syntheticId}),
+  });
+  const inFlight = Promise.all([handler(makeRequest()),handler(makeRequest())]);
+  // Allow request JSON parsing and both async getUser() calls to settle.
+  await new Promise(done=>setImmediate(done));
+  const preAcknowledgementCalls = adminCalls;
+  releaseAdmin();
+  const responses = await inFlight;
+  assert.equal(preAcknowledgementCalls,2,
+    'KNOWN UNSAFE: both concurrent requests can reach the irreversible admin call');
+  assert.deepEqual(responses.map(r=>r.status),[200,200],
+    'Synthetic admin success must not be mistaken for production idempotency');
+});
