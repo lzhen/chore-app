@@ -54,11 +54,11 @@ function sandbox(options = {}) {
     spawn: () => createNonDeployedEdgeHttpRoute(sdk) };
 }
 
-function request(body = { expectedUserId: A }, { method = 'POST', bearer = 'Bearer synthetic' } = {}) {
+function request(body = { expectedUserId: A }, { method = 'POST', bearer = 'Bearer synthetic', bodyless = false } = {}) {
   return new Request('https://synthetic.invalid/functions/v1/delete-account', {
     method,
     headers: bearer ? { Authorization: bearer } : {},
-    ...((method === 'GET' || method === 'OPTIONS' || body === undefined)
+    ...((method === 'GET' || method === 'OPTIONS' || bodyless)
       ? {} : { body: JSON.stringify(body), headers: { Authorization: bearer || '' } }),
   });
 }
@@ -95,7 +95,7 @@ test('shared synthetic claim rejects replay from separately constructed HTTP rou
 
 test('B122 bodyless request fails without creating a privileged client; 426 is not a live policy', async () => {
   const h = sandbox();
-  const result = await h.route(request(undefined));
+  const result = await h.route(request(undefined, { bodyless: true }));
   assert.equal(result.status, 426);
   assert.equal((await result.json()).deleted, false);
   assert.deepEqual(h.calls, []);
