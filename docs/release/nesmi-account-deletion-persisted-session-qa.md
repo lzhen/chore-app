@@ -1,6 +1,6 @@
 # Nesmi account deletion: persisted-session release acceptance
 
-**Status:** Draft PR #35 offline gate PASS at exact test/source head `69e0bb451f7cdfd2a81a6d231141b90521e97efb` (2026-10-24 Task103: 14 Node source tests, **4 real installed Supabase SDK synthetic-offline tests**—three Map-storage cases and one jsdom `localStorage` case—39 mocked jsdom/RTL tests, TypeScript typecheck). The SDK scenarios exercise successful local logout, simulated auth-storage removal failure, intercepted HTTP 503 logout failure, and synthetic jsdom Storage reload/isolation. **No actual backend deletion, disposable account, same-origin browser, physical iPhone, selected App Store Connect build, or Apple approval was verified. Release HOLD.**  
+**Status:** Draft PR #35 offline gate PASS at exact latest tested app/test head `5af5d2714832cfe642f1fc2a521d633de1ce37b6` (2026-10-24 Task105: 14 Node source tests, **4 installed Supabase SDK synthetic-offline tests**—three Map-storage cases and one jsdom `localStorage` case—39 mocked jsdom/RTL tests, TypeScript typecheck; [exact-head CI 40149668195](https://github.com/lzhen/chore-app/actions/runs/40149668195) completed/success). The SDK scenarios exercise successful local logout, simulated auth-storage removal failure, intercepted HTTP 503 logout failure, and synthetic jsdom Storage reload/isolation. **No actual backend deletion, disposable account, same-origin browser, physical iPhone, selected App Store Connect build, or Apple approval was verified. Release HOLD.**  
 **Owner:** Nesmi release QA. **Candidate:** existing draft PR #35 only; base is the known TestFlight B122 source `d0610712e1dfedbe970d6d8c4ae54213d9a2dddc`.  
 **Do not mistake this document or passing mocked CI for validation of installed iOS Build 122 or an App Store release.**
 
@@ -10,7 +10,14 @@ Current draft `AuthContext.deleteAccount()` waits for `delete-account` to return
 
 **Promotion rule:** Do not promote PR #35 as a fully validated release candidate until the persisted-session/relaunch row below is observed on the exact candidate build and the current App Store Connect selected build is independently confirmed.
 
-## Latest offline CI evidence (2026-10-24 15:31 PDT; Task103)
+## Latest verified offline CI (2026-10-24 ~18:15 PDT; Task105)
+
+- **Exact current tested application/test head:** [`5af5d2714832cfe642f1fc2a521d633de1ce37b6`](https://github.com/lzhen/chore-app/commit/5af5d2714832cfe642f1fc2a521d633de1ce37b6), on **open/draft/unmerged** [PR #35](https://github.com/lzhen/chore-app/pull/35). Its source change replaces unsafe generic retry wording when the Edge deletion response lacks an explicit `{ deleted: true }` acknowledgment; a new RTL assertion requires **no repeat deletion until support confirms the result**.
+- **[Exact-SHA GitHub Actions 40149668195](https://github.com/lzhen/chore-app/actions/runs/40149668195): completed/success**, with 14/14 Node source, 4/4 installed-SDK synthetic-offline, 39/39 mocked jsdom/RTL, and TypeScript typecheck; separately verified from current GitHub run state and company Task105 runner-log record. [Dependency report 40149668189](https://github.com/lzhen/chore-app/actions/runs/40149668189) also succeeded but is **not** release approval.
+- These cases **do not** validate a server deletion ACK or idempotency, a real same-origin browser, disposable real identity, physical-device relaunch, current App Store Connect selected review build, or App Store approval. **PD-01 offline PASS only; PD-02–PD-10 and PD-05a remain unexecuted. Release HOLD.**
+- The Task103 evidence below is historical and remains valid only for its cited older source/test commit. A subsequent documentation-only commit **must not** be described as new application-test success.
+
+## Earlier offline CI evidence (2026-10-24 15:31 PDT; Task103)
 
 - **Exact tested draft HEAD:** [`69e0bb451f7cdfd2a81a6d231141b90521e97efb`](https://github.com/lzhen/chore-app/commit/69e0bb451f7cdfd2a81a6d231141b90521e97efb). The branch `fix/nesmi-b122-account-delete-ui-guard-20261023` remains open/draft/unmerged; this commit and preceding Tasks 99–101 are not in confirmed TestFlight **Nesmi 1.0(122)**.
 - **[GitHub Actions run 40138803582](https://github.com/lzhen/chore-app/actions/runs/40138803582)**, at exact tested source/test SHA: completed/success; job **121005951316**. Independently checked the runner job and its successful source regressions, real Supabase SDK offline storage-adapter gate, jsdom/RTL regressions and TypeScript typecheck. Detailed counts **14/14 source Node, 4/4 real-SDK synthetic offline (including jsdom Storage), 39/39 mocked RTL, typecheck PASS** are reported in Task103. This is a synthetic offline gate; no browser/device/Edge call was executed.
@@ -53,12 +60,12 @@ Current draft `AuthContext.deleteAccount()` waits for `delete-account` to return
 
 | Field | Value |
 | --- | --- |
-| Candidate branch / SHA | `fix/nesmi-b122-account-delete-ui-guard-20261023` / latest executed offline app/test SHA `69e0bb451f7cdfd2a81a6d231141b90521e97efb` (a subsequent documentation-only commit does not turn it into a release candidate) |
-| PR / CI run URL | [Draft PR #35](https://github.com/lzhen/chore-app/pull/35) / [CI run 40138803582](https://github.com/lzhen/chore-app/actions/runs/40138803582), completed/success at exact tested SHA above |
+| Candidate branch / SHA | `fix/nesmi-b122-account-delete-ui-guard-20261023` / latest executed offline app/test SHA `5af5d2714832cfe642f1fc2a521d633de1ce37b6` (this QA-document-only update does not create a new tested app SHA) |
+| PR / CI run URL | [Draft PR #35](https://github.com/lzhen/chore-app/pull/35) / [CI run 40149668195](https://github.com/lzhen/chore-app/actions/runs/40149668195), completed/success at exact tested SHA above |
 | Physical iOS app build / availability proof | **NOT VERIFIED FOR PR #35**; B122 available-to-test does not contain these changes |
 | Device / iOS / date | **NOT TESTED** |
 | Disposable QA identity (redacted) | **NOT CREATED / NOT TESTED** |
-| PD-01..PD-10 (+ PD-05a) result and linked evidence | **PD-01: PASS, offline CI only** (14 Node + 4 real-SDK synthetic offline + 39 mocked RTL + typecheck at `69e0bb4...`, Task103); **PD-02–PD-10 and PD-05a: NOT EXECUTED / no real-world acceptance evidence** |
+| PD-01..PD-10 (+ PD-05a) result and linked evidence | **PD-01: PASS, offline CI only** (14 Node + 4 installed-SDK synthetic offline + 39 mocked RTL + typecheck at `5af5d27...`, Task105); **PD-02–PD-10 and PD-05a: NOT EXECUTED / no real-world acceptance evidence** |
 | Current ASC selected App Review build | **NOT VERIFIED** |
 | Release decision | **HOLD** pending real SDK persistence + exact-device candidate evidence and other App Review requirements |
 
