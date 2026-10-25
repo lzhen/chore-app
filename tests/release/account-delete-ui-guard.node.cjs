@@ -104,7 +104,7 @@ test('same-turn double click cannot start second delete', async () => {
   const p=press(b); await press(b);
   assert.equal(h.data.calls,1);
   assert.equal(h.button('Deleting…').props.disabled,true);
-  d.accept({error:null}); await p;
+  d.accept({error:null, deletionConfirmed:true}); await p;
   assert.equal(h.button('Deletion attempted').props.disabled,true);
   assert.equal(h.data.calls,1);
 });
@@ -115,7 +115,7 @@ test('signout, close and insights cannot navigate during unresolved delete', asy
   press(h.nodes(h.render()).find(n=>n.type==='button' && n.props?.['aria-label']==='Close account settings'));
   press(h.button('View activity'));
   assert.deepEqual([h.data.signouts,h.data.closes,h.data.insights],[0,0,0]);
-  d.accept({error:null}); await p;
+  d.accept({error:null, deletionConfirmed:true}); await p;
 });
 test('rejected SDK promise cannot leave Deleting forever or invite a retry', async () => {
   const h=makeHarness(candidatePath,async()=>{throw new Error('simulated rejection')}); confirm(h);
@@ -134,8 +134,18 @@ test('ambiguous error response is not displayed as safe-to-retry', async () => {
   assert.equal(h.button('Deletion attempted').props.disabled,true);
   assert.equal(h.data.calls,1);
 });
+test('missing deletion ACK with a null SDK error stays uncertain and cannot be retried', async () => {
+  const h=makeHarness(candidatePath,async()=>({error:null, deletionConfirmed:false}));
+  confirm(h);
+  await press(h.button('Delete permanently'));
+  assert.equal(h.data.calls,1);
+  assert.match(h.label(h.alert()),/deletion could not be confirmed/i);
+  assert.match(h.label(h.alert()),/do not repeat account deletion from another tab or device/i);
+  assert.equal(h.button('Deletion attempted').props.disabled,true);
+});
+
 test('confirmed response has no spurious alert and disables repeat from same mounted UI', async () => {
-  const h=makeHarness(candidatePath,async()=>({error:null})); confirm(h);
+  const h=makeHarness(candidatePath,async()=>({error:null, deletionConfirmed:true})); confirm(h);
   await press(h.button('Delete permanently'));
   assert.equal(h.alert(),undefined);
   assert.equal(h.button('Deletion attempted').props.disabled,true);
@@ -172,7 +182,7 @@ test('nested appearance, calendar and notification buttons become inert during a
    assert.ok(uncertain.alert(), 'warning should be accessible');
    assert.match(uncertain.label(uncertain.alert()), /do not repeat account deletion from another tab or device/i);
    assert.equal(uncertain.data.calls,1);
-   const success=makeHarness(candidatePath,async()=>({error:null}));
+   const success=makeHarness(candidatePath,async()=>({error:null, deletionConfirmed:true}));
    confirm(success);
    await press(success.button('Delete permanently'));
    assert.equal(success.alert(),undefined);
