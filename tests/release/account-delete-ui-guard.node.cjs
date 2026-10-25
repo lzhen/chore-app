@@ -22,7 +22,7 @@ function makeDeferred() {
   return {promise,accept,reject};
 }
 function makeHarness(path, deleteAccount = async () => ({error:null})) {
-  const data = {calls:0, signouts:0, closes:0, insights:0, deletionNotices:0};
+  const data = {calls:0, signouts:0, closes:0, insights:0, deletionNotices:0, lastExpectedUserId:null};
   let states = [];
   let idx = 0;
   const jsx=(type,props,key)=>({type, props:props||{}, key});
@@ -32,9 +32,9 @@ function makeHarness(path, deleteAccount = async () => ({error:null})) {
     useRef(initial){const n=idx++;if(!(n in states))states[n]={current:initial};return states[n];}
   };
   const auth={
-    user:{email:'synthetic@example.invalid'},
+    user:{id:'synthetic-user-A',email:'synthetic@example.invalid'},
     signOut: ()=>{data.signouts++},
-    deleteAccount:()=>{data.calls++;return deleteAccount();}
+    deleteAccount:(id)=>{data.calls++;data.lastExpectedUserId=id;return deleteAccount(id);}
   };
   const mockRequire=id=>{
     if(id==='react')return mockReact;
@@ -71,12 +71,27 @@ function makeHarness(path, deleteAccount = async () => ({error:null})) {
   function button(name){return nodes(render()).find(n=>n.type==='button' && label(n).includes(name));}
   function alert(){return nodes(render()).find(n=>n.props?.role==='alert');}
   function childrenByName(name){return nodes(render()).filter(n=>n.type?.name===name);}
-  return {data,props,render,nodes,label,button,alert,childrenByName};
+  return {data,auth,props,render,nodes,label,button,alert,childrenByName};
 }
 function press(b){assert.ok(b,'Expected button');assert.equal(typeof b.props.onClick,'function');return b.props.onClick();}
 function confirm(h){press(h.button('Delete my account'));assert.ok(h.button('Delete permanently'))}
 
 
+test('auth switch during confirmation safely aborts before any deletion request', async () => {
+  const h=makeHarness(candidatePath,async()=>({error:null, deletionConfirmed:true}));
+  confirm(h); // identity A
+  h.auth.user={id:'synthetic-user-B',email:'switched@example.invalid'};
+  await press(h.button('Delete permanently'));
+  assert.equal(h.data.calls,0);
+  assert.equal(h.data.deletionNotices,0);
+  assert.match(h.label(h.alert()),/no deletion request was sent/i);
+  assert.doesNotMatch(h.label(h.alert()),/do not repeat account deletion/i);
+  assert.ok(h.button('Delete my account'));
+  confirm(h); // explicit new confirmation for identity B
+  await press(h.button('Delete permanently'));
+  assert.equal(h.data.calls,1);
+  assert.equal(h.data.lastExpectedUserId,'synthetic-user-B');
+});
 test('no irreversible call before explicit two-step confirmation', () => {
   const h=makeHarness(candidatePath);
   assert.ok(h.button('Delete my account')); assert.equal(h.data.calls,0);

@@ -152,6 +152,30 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
     }
   });
 
+  it('preserves explicitly confirmed ID across a changed React auth identity', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: 'synthetic-account-B' } } }, error: null,
+    } as any);
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({
+      data: null, error: new Error('synthetic 409 account mismatch'),
+    } as any);
+    const hook = await mountAuth();
+    try {
+      await act(async () => {
+        const response = await hook.result.current.deleteAccount('synthetic-account-A');
+        expect(response.deletionConfirmed).toBe(false);
+        expect(response.error).toBeInstanceOf(Error);
+      });
+      expect(supabase.functions.invoke).toHaveBeenCalledWith('delete-account', {
+        method: 'POST', body: { expectedUserId: 'synthetic-account-A' },
+      });
+      expect(supabase.auth.signOut).not.toHaveBeenCalled();
+      expect(localStorage.getItem(NESMI_CHORES)).toBe('nesmi-chores-fixture');
+    } finally {
+      hook.unmount();
+    }
+  });
+
   it('preserves source-backed MoveLight saved-state and preference keys after confirmed deletion', async () => {
     vi.mocked(supabase.functions.invoke).mockResolvedValue({
       data: { deleted: true }, error: null,

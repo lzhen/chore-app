@@ -18,6 +18,9 @@ export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const deleteInFlight = useRef(false);
+  // Never silently switch the account targeted by a two-step confirmation.
+  const confirmedAccountIdRef = useRef<string | null>(null);
+  const [identityChanged, setIdentityChanged] = useState(false);
   const [deletionAttempted, setDeletionAttempted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Inherited App lock survives leaving and returning to the Account tab.
@@ -29,13 +32,23 @@ export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt
   // offer a second irreversible attempt without server-side reconciliation.
   const handleDelete = async () => {
     if (deleteInFlight.current || attemptLocked) return;
+    const confirmedAccountId = confirmedAccountIdRef.current;
+    if (!confirmedAccountId || confirmedAccountId !== user?.id) {
+      // Safe abort: no irreversible request, so a fresh confirmation is allowed.
+      confirmedAccountIdRef.current = null;
+      setConfirming(false);
+      setIdentityChanged(true);
+      setError('The signed-in account changed before deletion. No deletion request was sent. Review the account and confirm again.');
+      return;
+    }
+    setIdentityChanged(false);
     deleteInFlight.current = true;
     setDeletionAttempted(true);
     onDeletionAttempt?.();
     setDeleting(true);
     setError(null);
     try {
-      const result = await deleteAccount();
+      const result = await deleteAccount(confirmedAccountId);
       if (result.error) {
         if (result.deletionConfirmed) {
           setError('Account deleted, but this device could not fully clear its local sign-in data. Close and restart Nesmi; contact support if the session still appears.');
@@ -108,17 +121,17 @@ export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt
           {error && (
             <div className="mt-3 text-sm text-red-500" role="alert">
               <p>{error}</p>
-              <p className="mt-2">Do not repeat account deletion from another tab or device until support verifies the result.</p>
+              {!identityChanged && <p className="mt-2">Do not repeat account deletion from another tab or device until support verifies the result.</p>}
             </div>
           )}
           {!confirming ? (
-            <button onClick={() => { if (!deleteInFlight.current && !attemptLocked) setConfirming(true); }} disabled={deleting || attemptLocked} className="mt-4 rounded-fluent-sm border border-red-500 px-4 py-2 text-sm text-red-500 hover:bg-red-500/10">Delete my account</button>
+            <button onClick={() => { if (!deleteInFlight.current && !attemptLocked) { confirmedAccountIdRef.current = user?.id ?? null; setIdentityChanged(false); setError(null); setConfirming(true); } }} disabled={deleting || attemptLocked} className="mt-4 rounded-fluent-sm border border-red-500 px-4 py-2 text-sm text-red-500 hover:bg-red-500/10">Delete my account</button>
           ) : (
             <div className="mt-4 rounded-fluent-sm border border-red-500/40 bg-red-500/10 p-4">
               <p className="text-sm text-content-primary">Are you sure you want to permanently delete your account?</p>
               <div className="mt-3 flex gap-3">
                 <button onClick={handleDelete} disabled={deleting || attemptLocked} className="rounded-fluent-sm bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-60">{deleting ? 'Deleting…' : attemptLocked ? 'Deletion attempted' : 'Delete permanently'}</button>
-                <button onClick={() => { if (!deleteInFlight.current && !attemptLocked) setConfirming(false); }} disabled={deleting || attemptLocked} className="rounded-fluent-sm border border-border px-4 py-2 text-sm text-content-primary">Cancel</button>
+                <button onClick={() => { if (!deleteInFlight.current && !attemptLocked) { confirmedAccountIdRef.current = null; setConfirming(false); } }} disabled={deleting || attemptLocked} className="rounded-fluent-sm border border-border px-4 py-2 text-sm text-content-primary">Cancel</button>
               </div>
             </div>
           )}

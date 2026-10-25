@@ -12,13 +12,14 @@ import { AccountSettings } from './AccountSettings';
 import { AgentPanel } from './AgentPanel';
 
 const auth = vi.hoisted(() => ({
+  user: { id: 'synthetic-account-A', email: 'release-fixture@example.invalid' },
   deleteAccount: vi.fn(),
   signOut: vi.fn(),
 }));
 
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({
-    user: { email: 'release-fixture@example.invalid' },
+    user: auth.user,
     deleteAccount: auth.deleteAccount,
     signOut: auth.signOut,
   }),
@@ -60,12 +61,30 @@ function DeletionTabHost() {
 }
 
 beforeEach(() => {
+  auth.user = { id: 'synthetic-account-A', email: 'release-fixture@example.invalid' };
   auth.deleteAccount.mockReset();
   auth.signOut.mockReset();
 });
 afterEach(cleanup);
 
 describe('account deletion remount + Assistant portal release gate', () => {
+  it('requires fresh confirmation if signed-in account changes mid-dialog', async () => {
+    const user = userEvent.setup();
+    const view = render(<DeletionTabHost />);
+    await user.click(screen.getByRole('button', { name: 'Delete my account' }));
+    auth.user = { id: 'synthetic-account-B', email: 'switched@example.invalid' };
+    view.rerender(<DeletionTabHost />);
+    await user.click(screen.getByRole('button', { name: 'Delete permanently' }));
+    expect(auth.deleteAccount).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('No deletion request was sent');
+    expect(screen.getByRole('button', { name: 'Delete my account' })).toBeEnabled();
+    auth.deleteAccount.mockResolvedValue({ error: null, deletionConfirmed: true });
+    await user.click(screen.getByRole('button', { name: 'Delete my account' }));
+    await user.click(screen.getByRole('button', { name: 'Delete permanently' }));
+    expect(auth.deleteAccount).toHaveBeenCalledTimes(1);
+    expect(auth.deleteAccount).toHaveBeenCalledWith('synthetic-account-B');
+  });
+
   it('suspends an open Assistant portal immediately and blocks a repeated deletion across an Account tab remount', async () => {
     const user = userEvent.setup();
     const pending = deferred<{ error: Error | null }>();

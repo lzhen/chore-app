@@ -14,7 +14,7 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
-  deleteAccount: () => Promise<{ error: Error | null; deletionConfirmed: boolean }>;
+  deleteAccount: (confirmedAccountId?: string) => Promise<{ error: Error | null; deletionConfirmed: boolean }>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
 }
 
@@ -177,10 +177,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
-  const deleteAccount = async () => {
-    // Bind this irreversible request to the user shown at confirmation.
-    // Edge rejects if the SDK's current bearer changes to another account.
-    const expectedUserId = user?.id ?? '';
+  const deleteAccount = async (confirmedAccountId?: string) => {
+    // The Account view sends the ID captured at the start of confirmation.
+    // Edge rejects any mismatch against the current authenticated bearer.
+    const expectedUserId = confirmedAccountId ?? user?.id ?? '';
     const { data, error } = await supabase.functions.invoke('delete-account', {
       method: 'POST',
       body: { expectedUserId },
