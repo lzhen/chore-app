@@ -18,6 +18,7 @@ import { PasswordReset } from './PasswordReset';
 import { Chore, ViewMode, TeamMember } from '../types';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { accountDeletionAttemptKey, wasAccountDeletionAttempted } from '../utils/accountDeletionAttempt';
 import { generateChoreInstances, getCalendarRange } from '../utils/recurrence';
 
 const starterChores: {label:string;detail:string;draft:ChoreDefaultValues}[] = [
@@ -32,9 +33,25 @@ export function App() {
   const calendarRef = useRef<CalendarRef>(null);
 
   const [assistantTriggerTarget, setAssistantTriggerTarget] = useState<HTMLDivElement | null>(null);
-  // Latch an irreversible deletion attempt for the lifetime of this App mount.
-  // The Assistant portal lives outside AccountSettings and must be suspended too.
-  const [accountDeletionAttempted, setAccountDeletionAttempted] = useState(false);
+  // Keep the independent Assistant portal suspended for the same account even
+  // after an Account tab remount, a full reload or a same-origin sibling-tab attempt.
+  const [attemptedAccountId, setAttemptedAccountId] = useState<string | null>(null);
+  const accountDeletionAttempted = Boolean(user?.id && (
+    attemptedAccountId === user.id || wasAccountDeletionAttempted(user.id)
+  ));
+  useEffect(() => {
+    const accountId = user?.id;
+    if (!accountId) return;
+    const key = accountDeletionAttemptKey(accountId);
+    const onSiblingAttempt = (event: StorageEvent) => {
+      if (event.key !== key || event.newValue === null) return;
+      try { if (event.storageArea !== window.localStorage) return; }
+      catch { return; }
+      setAttemptedAccountId(accountId);
+    };
+    window.addEventListener('storage', onSiblingAttempt);
+    return () => window.removeEventListener('storage', onSiblingAttempt);
+  }, [user?.id]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editChore, setEditChore] = useState<Chore | null>(null);
   const [instanceDate, setInstanceDate] = useState<string | undefined>(undefined);
@@ -278,7 +295,7 @@ export function App() {
     {state.chores.length>0&&viewMode==='calendar'&&<Calendar ref={calendarRef} onAddClick={handleAddClick} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers}/>}
     {state.chores.length>0&&(viewMode==='today'||viewMode==='list')&&<ListView key={viewMode} todayView={viewMode==='today'} onAddClick={()=>handleAddClick()} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers} onClearFilters={()=>{setSearchQuery('');setHiddenMembers(new Set());}}/>}
     {viewMode==='dashboard'&&<Dashboard embedded onClose={()=>setViewMode('today')}/>}
-    {viewMode==='account'&&<AccountSettings embedded isOpen onInsights={handleDashboardClick} onClose={()=>setViewMode('today')} deletionLocked={accountDeletionAttempted} onDeletionAttempt={() => setAccountDeletionAttempted(true)}/>}
+    {viewMode==='account'&&<AccountSettings embedded isOpen onInsights={handleDashboardClick} onClose={()=>setViewMode('today')} deletionLocked={accountDeletionAttempted} onDeletionAttempt={() => { if (user?.id) setAttemptedAccountId(user.id); }}/>}
 
     </main>
     <div className="nesmi-task-tools" ref={setAssistantTriggerTarget}/>
