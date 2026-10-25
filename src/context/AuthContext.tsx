@@ -188,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (data?.deleted !== true) {
       return {
-        error: new Error('Account deletion was not confirmed. Please try again.'),
+        error: new Error('Account deletion could not be confirmed. Do not retry until support verifies whether the account was deleted.'),
         deletionConfirmed: false,
       };
     }
