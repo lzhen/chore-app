@@ -4,7 +4,8 @@
  * components; the small host intentionally mirrors App's deletion latch / tab switch.
  * It makes no Supabase, network, or deletion requests (the auth hook is mocked).
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { accountDeletionAttemptKey, wasAccountDeletionAttempted } from '../utils/accountDeletionAttempt';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -38,7 +39,22 @@ function deferred<T>() {
 /** React host using the same callback/prop contract as App.tsx in PR #35. */
 function DeletionTabHost() {
   const [tab, setTab] = useState<'account' | 'today'>('account');
-  const [deletionAttempted, setDeletionAttempted] = useState(false);
+  const [attemptedId, setAttemptedId] = useState<string | null>(null);
+  const deletionAttempted = Boolean(auth.user?.id && (
+    attemptedId === auth.user.id || wasAccountDeletionAttempted(auth.user.id)
+  ));
+  useEffect(() => {
+    const accountId = auth.user?.id;
+    if (!accountId) return;
+    const onSiblingAttempt = (event: StorageEvent) => {
+      if (event.key === accountDeletionAttemptKey(accountId) &&
+          event.newValue !== null && event.storageArea === localStorage) {
+        setAttemptedId(accountId);
+      }
+    };
+    window.addEventListener('storage', onSiblingAttempt);
+    return () => window.removeEventListener('storage', onSiblingAttempt);
+  }, [auth.user?.id]);
   const [assistantTarget, setAssistantTarget] = useState<HTMLDivElement | null>(null);
   return (
     <>
@@ -51,7 +67,7 @@ function DeletionTabHost() {
         isOpen embedded
         onClose={() => setTab('today')}
         deletionLocked={deletionAttempted}
-        onDeletionAttempt={() => setDeletionAttempted(true)}
+        onDeletionAttempt={() => { if (auth.user?.id) setAttemptedId(auth.user.id); }}
       />}
       {tab === 'today' && <p>Today content</p>}
       <div className="nesmi-task-tools" ref={setAssistantTarget} />
@@ -64,6 +80,7 @@ beforeEach(() => {
   auth.user = { id: 'synthetic-account-A', email: 'release-fixture@example.invalid' };
   auth.deleteAccount.mockReset();
   auth.signOut.mockReset();
+  localStorage.clear(); // synthetic jsdom isolation; never a real browser
 });
 afterEach(cleanup);
 
@@ -105,7 +122,7 @@ describe('account deletion remount + Assistant portal release gate', () => {
     await user.click(screen.getByRole('button', { name: 'Today tab' }));
     expect(screen.getByText('Today content')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Account tab' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('already attempted in this session');
+    expect(screen.getByRole('alert')).toHaveTextContent('may already have been attempted');
     expect(screen.getByRole('button', { name: 'Delete my account' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Sign Out' })).toBeDisabled();
     expect(screen.getByRole('link', { name: 'View Privacy Policy' })).toBeInTheDocument();
@@ -161,4 +178,66 @@ describe('account deletion remount + Assistant portal release gate', () => {
     expect(auth.deleteAccount).toHaveBeenCalledTimes(1);
   });
 
+});
+
+describe('durable attempted-deletion lock (synthetic jsdom only)', () => {
+  it('keeps uncertain deletion locked after a full App host remount, scoped to the original identity', async () => {
+    const user = userEvent.setup();
+    auth.deleteAccount.mockResolvedValue({
+      error: new Error('synthetic unresolved ACK'), deletionConfirmed: false,
+    });
+    const first = render(<DeletionTabHost />);
+    await user.click(screen.getByRole('button', { name: 'Delete my account' }));
+    await user.click(screen.getByRole('button', { name: 'Delete permanently' }));
+    expect(auth.deleteAccount).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem(accountDeletionAttemptKey('synthetic-account-A'))).toBe('true');
+    first.unmount();
+    const reloaded = render(<DeletionTabHost />);
+    expect(screen.getByRole('button', { name: 'Delete my account' })).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent('may already have been attempted');
+    expect(screen.queryByRole('button', { name: 'Assistant' })).not.toBeInTheDocument();
+    reloaded.unmount();
+
+    auth.user = { id: 'synthetic-account-B', email: 'other@example.invalid' };
+    render(<DeletionTabHost />);
+    expect(screen.getByRole('button', { name: 'Delete my account' })).toBeEnabled();
+    expect(localStorage.getItem(accountDeletionAttemptKey('synthetic-account-A'))).toBe('true');
+  });
+
+  it('locks another mounted tab when a matching localStorage attempt event arrives', async () => {
+    render(<DeletionTabHost />);
+    const key = accountDeletionAttemptKey('synthetic-account-A');
+    expect(screen.getByRole('button', { name: 'Delete my account' })).toBeEnabled();
+    localStorage.setItem('movelight:synthetic', 'untouched');
+    localStorage.setItem(key, 'true');
+    await act(async () => {
+      window.dispatchEvent(new StorageEvent('storage', {
+        key, newValue: 'true', storageArea: localStorage,
+      }));
+    });
+    expect(screen.getByRole('button', { name: 'Delete my account' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Sign Out' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Assistant' })).not.toBeInTheDocument();
+    expect(localStorage.getItem('movelight:synthetic')).toBe('untouched');
+    expect(auth.deleteAccount).not.toHaveBeenCalled();
+  });
+
+  it('does not send a deletion request when persisted locking fails', async () => {
+    const original = Storage.prototype.setItem;
+    const rejectAttempts = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
+      if (key.startsWith('nesmi:account-deletion-attempt:')) throw new Error('synthetic quota failure');
+      return original.call(this, key, value);
+    });
+    try {
+      const user = userEvent.setup();
+      render(<DeletionTabHost />);
+      await user.click(screen.getByRole('button', { name: 'Delete my account' }));
+      await user.click(screen.getByRole('button', { name: 'Delete permanently' }));
+      expect(auth.deleteAccount).not.toHaveBeenCalled();
+      expect(screen.getByRole('alert')).toHaveTextContent('cannot safely save the attempt');
+      expect(screen.getByRole('button', { name: 'Delete my account' })).toBeDisabled();
+    } finally {
+      rejectAttempts.mockRestore();
+    }
+  });
 });
