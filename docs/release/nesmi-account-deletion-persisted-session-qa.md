@@ -1,5 +1,23 @@
 # Nesmi account deletion: persisted-session release acceptance
 
+## Open QA finding — attempt guard resets across reload/cross-tab (Task116, 2026-10-25)
+
+**Status: SOURCE-CONFIRMED GAP; NOT LIVE-REPRODUCED.** This is a new release-safety test target in the existing **draft PR #35** only; the proposed fix is **not implemented**. **RELEASE HOLD** remains. The pinned draft source for this inspection is [`6876295ca6c475464fd33ef2c9c9a944f99a5351`](https://github.com/lzhen/chore-app/commit/6876295ca6c475464fd33ef2c9c9a944f99a5351), which Task115 independently verified with 18/18 source Node, 4/4 synthetic installed SDK, 41/41 mocked RTL and typecheck PASS. Those tests do **not** cover this reload/cross-tab gap.
+
+**Source evidence, inspected directly on the pinned branch (no real account/HTTP calls):**
+
+- `src/components/App.tsx:35–37` initializes `accountDeletionAttempted` with `useState(false)`; `:281,287` sets it via `onDeletionAttempt` and suspends `AgentPanel` only while the *same App mount* holds that in-memory flag. No persisted-attempt read/write or cross-tab attempt event handler exists in the inspected App file.
+- `src/components/AccountSettings.tsx:24–27,33–51` initializes `deletionAttempted` with `useState(false)`, latches it before awaiting `deleteAccount()` and honors only local/parent in-memory locks. No persisted attempt lock is read before a new delete.
+- `src/context/AuthContext.tsx:23–30,200–211` persists a *confirmed server acknowledgement* receipt under `nesmi:account-deletion-confirmed` **after** `{deleted:true}`, not an in-flight or ambiguous attempt. A rejected/missing ACK does not write that receipt. Existing storage event handling is for the confirmed receipt, not deletion-attempt intent.
+
+**Risk sequence (static inference, not a claimed browser repro):** Account A's first deletion request is sent; an ambiguous transport/ACK failure leaves the tab's attempt flag true; a reload mounts fresh `App`/`AccountSettings` flags as false, or a sibling tab never saw the first tab's in-memory latch. A second irreversible request can be offered despite unresolved first outcome. If server deletion had actually succeeded, later auth/reload may also be signed out via separate paths—this source risk does not prove any customer data was deleted twice.
+
+**Required bounded fix/verification before promoting the draft:** account-scoped, namespaced *attempt* guard must be durably recorded **before** any irreversible network attempt; failure to record it must abort safely without invoking the Edge function; explicit new-account sign-in and storage/privacy boundaries must not create permanent unrelated-account lockout. Synchronize open same-origin tabs and App/AccountSettings remount, exercise ambiguous ACK and cross-tab/reload with synthetic identities, and verify no second SDK call. Document residual simultaneous-tab race and require server-side reconciliation/idempotency; a client localStorage guard alone cannot guarantee atomic cross-tab mutual exclusion. Do not store tokens/secrets, clear sibling app keys, or deploy/invoke production deletion for this gate. Physical-device/real-Edge testing remains a separately authorized release gate.
+
+**Evidence class:** exact source-file inspection + deterministic structural checks only (six checks PASS); **no new code correction, runtime test, workflow success, deployed behavior, Apple build, or user feedback is claimed for Task116**. Older Task112 compatibility matrix below stays in force. 
+
+---
+
 ## Current release-order compatibility gate — Task112 (2026-10-25 PDT, document-only)
 
 **Canonical candidate:** existing [draft PR #35](https://github.com/lzhen/chore-app/pull/35) at source/test commit [`81f05d662dd97c6471f096eccbd61ec5faec868a`](https://github.com/lzhen/chore-app/commit/81f05d662dd97c6471f096eccbd61ec5faec868a); **open / unmerged / NOT in TestFlight**. Last Apple-email-confirmed installable **Nesmi** is iOS **1.0(122)** (2026-10-21 16:54 UTC), pinned to `d0610712e1dfedbe970d6d8c4ae54213d9a2dddc`. Current App Store Connect selected review build and physical-iPhone acceptance are **unknown**, not inferred from email. **RELEASE HOLD**. The separate MoveLight review issue/builds do not change this gate.
