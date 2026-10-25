@@ -52,7 +52,7 @@ export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt
       // The server acknowledgement is the only positive deletion outcome.
       // Even if a future adapter returns error:null with deletionConfirmed:false,
       // treat the result as uncertain and never suggest a safe retry.
-      if (!result.deletionConfirmed) {
+      if (result.deletionConfirmed !== true) {
         setError('Deletion could not be confirmed. Please contact support before trying again.');
       } else if (result.error) {
         setError('Account deleted, but this device could not fully clear its local sign-in data. Close and restart Nesmi; contact support if the session still appears.');

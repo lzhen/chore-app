@@ -144,6 +144,20 @@ test('missing deletion ACK with a null SDK error stays uncertain and cannot be r
   assert.equal(h.button('Deletion attempted').props.disabled,true);
 });
 
+test('truthy non-boolean deletion ACK never unlocks a false success', async () => {
+  // A malformed future adapter response must not be accepted by truthiness.
+  // Use synthetic values only; no live account or deletion call.
+  for (const invalidAck of ['true', 1, { deleted: true }]) {
+    const h=makeHarness(candidatePath,async()=>({error:null, deletionConfirmed:invalidAck}));
+    confirm(h);
+    await press(h.button('Delete permanently'));
+    assert.equal(h.data.calls,1);
+    assert.match(h.label(h.alert()),/deletion could not be confirmed/i);
+    assert.match(h.label(h.alert()),/do not repeat account deletion/i);
+    assert.equal(h.button('Deletion attempted').props.disabled,true);
+  }
+});
+
 test('confirmed response has no spurious alert and disables repeat from same mounted UI', async () => {
   const h=makeHarness(candidatePath,async()=>({error:null, deletionConfirmed:true})); confirm(h);
   await press(h.button('Delete permanently'));
