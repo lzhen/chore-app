@@ -186,6 +186,8 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
     let response: { error: Error | null } | undefined;
     await act(async () => { response = await hook.result.current.deleteAccount(); });
     expect(response?.error).toBeInstanceOf(Error);
+    expect(response?.error?.message).toMatch(/do not retry until support verifies/i);
+    expect(response?.error?.message).not.toMatch(/please try again/i);
     expect(localStorage.getItem(NESMI_CHORES)).toBe('nesmi-chores-fixture');
     expect(localStorage.getItem(NESMI_MEMBERS)).toBe('nesmi-members-fixture');
     expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
