@@ -49,12 +49,13 @@ export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt
     setError(null);
     try {
       const result = await deleteAccount(confirmedAccountId);
-      if (result.error) {
-        if (result.deletionConfirmed) {
-          setError('Account deleted, but this device could not fully clear its local sign-in data. Close and restart Nesmi; contact support if the session still appears.');
-        } else {
-          setError('Deletion could not be confirmed. Please contact support before trying again.');
-        }
+      // The server acknowledgement is the only positive deletion outcome.
+      // Even if a future adapter returns error:null with deletionConfirmed:false,
+      // treat the result as uncertain and never suggest a safe retry.
+      if (!result.deletionConfirmed) {
+        setError('Deletion could not be confirmed. Please contact support before trying again.');
+      } else if (result.error) {
+        setError('Account deleted, but this device could not fully clear its local sign-in data. Close and restart Nesmi; contact support if the session still appears.');
       }
     } catch {
       
