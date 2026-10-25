@@ -44,16 +44,17 @@ function makeSandbox({ subject = A, claimResult, deleteResult, finalizeResult, a
       } } },
     };
   };
-  const handler = createNonDeployedSdkDeleteHandler({
+  const spawn = () => createNonDeployedSdkDeleteHandler({
     createClient: makeClient, url: 'https://synthetic.invalid',
     anonKey: 'synthetic-anon', serviceRoleKey: 'synthetic-service',
   });
+  const handler = spawn();
   const invoke = (body = { expectedUserId: A }, authorization = 'Bearer synthetic') =>
     handler({
       headers: { get: name => name === 'Authorization' ? authorization : null },
       json: async () => body,
     });
-  return { calls, invoke, claimed, handler };
+  return { calls, invoke, claimed, handler, spawn };
 }
 
 test('success uses bearer auth, one durable claim, SDK v2 empty user, confirmed finalize', async () => {
@@ -101,7 +102,11 @@ test('unverified auth never performs a privileged RPC', async () => {
 test('two independently constructed bridge workers share durable claim boundary', async () => {
   const h = makeSandbox();
   const first = await h.invoke();
-  const second = await h.invoke();
+  const secondWorker = h.spawn();
+  const second = await secondWorker({
+    headers: { get: () => 'Bearer synthetic' },
+    json: async () => ({ expectedUserId: A }),
+  });
   assert.equal(first.status, 200);
   assert.equal(second.body.code, 'EXISTING_CLAIM_DO_NOT_RETRY');
   assert.equal(h.calls.filter(x => x === 'delete:' + A).length, 1);
@@ -126,6 +131,7 @@ test('SDK deletion error, absent data or unknown result cannot yield success', a
     { data: { user: null }, error: new Error('synthetic failure') },
     { data: null, error: null },
     { error: null },
+    { data: { user: [] }, error: null },
   ]) {
     const h = makeSandbox({ deleteResult: async () => response });
     const result = await h.invoke();
