@@ -287,7 +287,7 @@ test('inherited App lock disables a remounted AccountSettings before any new att
   const close=h.nodes(tree).find(n=>n.props?.['aria-label']==='Close account settings');
   assert.equal(close.props.disabled,true);
   assert.ok(h.alert(), 'remounted lock must have accessible explanation');
-  assert.match(h.label(h.alert()),/already attempted in this session/i);
+  assert.match(h.label(h.alert()),/may already have been attempted/i);
   assert.match(h.label(h.alert()),/another tab or device/i);
   press(h.button('Delete my account')); press(h.button('Sign Out')); press(h.button('View activity')); press(close);
   assert.deepEqual([h.data.calls,h.data.signouts,h.data.insights,h.data.closes,h.data.deletionNotices],[0,0,0,0,0]);
