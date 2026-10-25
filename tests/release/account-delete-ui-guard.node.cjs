@@ -21,7 +21,30 @@ function makeDeferred() {
   const promise = new Promise((yes,no) => {accept=yes;reject=no});
   return {promise,accept,reject};
 }
-function makeHarness(path, deleteAccount = async () => ({error:null})) {
+function makeHarness(path, deleteAccount = async () => ({error:null}), options = {}) {
+  const storage = options.storage || new Map();
+  const storageAdapter = {
+    getItem(key) {
+      if (options.readBlocked) throw new Error('synthetic localStorage read failure');
+      return storage.has(key) ? storage.get(key) : null;
+    },
+    setItem(key, value) {
+      if (options.writeBlocked) throw new Error('synthetic localStorage write failure');
+      storage.set(key, String(value));
+    },
+  };
+  // Execute the ACTUAL compiled utility, not a hand-copied guard function.
+  const guardPath = resolve(__dirname, '../../src/utils/accountDeletionAttempt.ts');
+  const guardSource = readFileSync(guardPath, 'utf8');
+  const guardCompiled = ts.transpileModule(guardSource, {compilerOptions:{
+    target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,
+  }}).outputText;
+  const guardModule = { exports: {} };
+  vm.runInNewContext(guardCompiled, {
+    module: guardModule, exports: guardModule.exports,
+    window: { localStorage: storageAdapter }, Error,
+  }, {filename:'accountDeletionAttempt.compiled.cjs',timeout:1000});
+  const attemptGuard = guardModule.exports;
   const data = {calls:0, signouts:0, closes:0, insights:0, deletionNotices:0, lastExpectedUserId:null};
   let states = [];
   let idx = 0;
@@ -40,6 +63,7 @@ function makeHarness(path, deleteAccount = async () => ({error:null})) {
     if(id==='react')return mockReact;
     if(id==='react/jsx-runtime')return {jsx,jsxs:jsx,Fragment:Symbol('Fragment')};
     if(id==='../context/AuthContext')return {useAuth:()=>auth};
+    if(id==='../utils/accountDeletionAttempt')return attemptGuard;
     if(id==='./ThemeSelector')return {ThemeSelector:function ThemeSelector(){}};
     if(id==='./AccountTools')return {AccountTools:function AccountTools(){}};
     throw Error('Unallowed module in isolated test: '+id);
@@ -71,7 +95,7 @@ function makeHarness(path, deleteAccount = async () => ({error:null})) {
   function button(name){return nodes(render()).find(n=>n.type==='button' && label(n).includes(name));}
   function alert(){return nodes(render()).find(n=>n.props?.role==='alert');}
   function childrenByName(name){return nodes(render()).filter(n=>n.type?.name===name);}
-  return {data,auth,props,render,nodes,label,button,alert,childrenByName};
+  return {data,auth,props,render,nodes,label,button,alert,childrenByName,storage};
 }
 function press(b){assert.ok(b,'Expected button');assert.equal(typeof b.props.onClick,'function');return b.props.onClick();}
 function confirm(h){press(h.button('Delete my account'));assert.ok(h.button('Delete permanently'))}
@@ -386,4 +410,40 @@ test('repository Edge ACK contract only confirms authenticated successful delete
   assert.equal(confirmed.status, 200);
   assert.deepEqual(JSON.parse(await confirmed.text()), { deleted: true });
   assert.deepEqual(deletedIds, ['synthetic-user', 'synthetic-user']);
+});
+
+test('ambiguous deletion retains a per-account attempt lock after full remount', async () => {
+  const storage = new Map();
+  const h = makeHarness(candidatePath, async () => ({error:new Error('synthetic lost ACK'),deletionConfirmed:false}), {storage});
+  confirm(h);
+  await press(h.button('Delete permanently'));
+  assert.equal(h.data.calls, 1);
+  assert.equal(storage.get('nesmi:account-deletion-attempt:synthetic-user-A'), 'true');
+  const reloaded = makeHarness(candidatePath, async()=>({error:null,deletionConfirmed:true}), {storage});
+  assert.equal(reloaded.button('Delete my account').props.disabled, true);
+  press(reloaded.button('Delete my account'));
+  assert.equal(reloaded.data.calls, 0);
+  assert.match(reloaded.label(reloaded.alert()), /may already have been attempted/i);
+});
+
+test('storage write failure aborts before irreversible request', async () => {
+  const h = makeHarness(candidatePath, async()=>({error:null,deletionConfirmed:true}), {writeBlocked:true});
+  confirm(h);
+  await press(h.button('Delete permanently'));
+  assert.equal(h.data.calls, 0);
+  assert.equal(h.data.deletionNotices, 1);
+  assert.match(h.label(h.alert()), /cannot safely save the attempt/i);
+  assert.equal(h.button('Delete my account').props.disabled, true);
+});
+
+test('a lock for account A does not block confirmed deletion for distinct B', async () => {
+  const storage = new Map([['nesmi:account-deletion-attempt:synthetic-user-A','true']]);
+  const h = makeHarness(candidatePath, async()=>({error:null,deletionConfirmed:true}), {storage});
+  h.auth.user = {id:'synthetic-user-B',email:'other@example.invalid'};
+  confirm(h);
+  await press(h.button('Delete permanently'));
+  assert.equal(h.data.calls, 1);
+  assert.equal(h.data.lastExpectedUserId, 'synthetic-user-B');
+  assert.equal(storage.get('nesmi:account-deletion-attempt:synthetic-user-A'), 'true');
+  assert.equal(storage.get('nesmi:account-deletion-attempt:synthetic-user-B'), 'true');
 });
