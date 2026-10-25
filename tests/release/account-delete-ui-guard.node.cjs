@@ -447,3 +447,46 @@ test('a lock for account A does not block confirmed deletion for distinct B', as
   assert.equal(storage.get('nesmi:account-deletion-attempt:synthetic-user-A'), 'true');
   assert.equal(storage.get('nesmi:account-deletion-attempt:synthetic-user-B'), 'true');
 });
+
+test('KNOWN UNSAFE: two synthetic tabs both reserve under deterministic interleaving', () => {
+  // Negative release-gate reproducer, NOT a real browser race or a safety PASS.
+  // Both contexts execute the current repository TypeScript utility, not a copy.
+  const source = readFileSync(resolve(__dirname, '../../src/utils/accountDeletionAttempt.ts'), 'utf8');
+  const compiled = ts.transpileModule(source, {compilerOptions:{
+    target:ts.ScriptTarget.ES2022, module:ts.ModuleKind.CommonJS,
+  }}).outputText;
+  const loadGuard = localStorage => {
+    const mod = {exports:{}};
+    vm.runInNewContext(compiled, {
+      module:mod, exports:mod.exports, window:{localStorage}, Error,
+    }, {filename:'accountDeletionAttempt.cross-tab.compiled.cjs', timeout:1000});
+    return mod.exports;
+  };
+  const shared = new Map();
+  const storageB = {
+    getItem:k=>shared.has(k)?shared.get(k):null,
+    setItem:(k,v)=>{shared.set(k,String(v));},
+  };
+  const tabB = loadGuard(storageB);
+  let bReserved = null;
+  let interleaved = false;
+  const storageA = {
+    getItem:k=>shared.has(k)?shared.get(k):null,
+    setItem:(k,v)=>{
+      // Simulate another tab running after A read absence but before A writes.
+      if (!interleaved) {
+        interleaved = true;
+        bReserved = tabB.reserveAccountDeletionAttempt('synthetic-race-account');
+      }
+      shared.set(k,String(v));
+    },
+  };
+  const tabA = loadGuard(storageA);
+  const aReserved = tabA.reserveAccountDeletionAttempt('synthetic-race-account');
+  assert.equal(interleaved,true,'interleaving must actually execute');
+  assert.equal(bReserved,true,'tab B would pass the pre-request guard');
+  assert.equal(aReserved,true,'tab A can also pass after B has written');
+  assert.equal(shared.get('nesmi:account-deletion-attempt:synthetic-race-account'),'true');
+  assert.equal(tabB.reserveAccountDeletionAttempt('synthetic-race-account'),false,
+    'sequential attempts are blocked, but this does not fix simultaneous tabs');
+});
