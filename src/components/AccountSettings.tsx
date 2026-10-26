@@ -65,7 +65,7 @@ export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt
       if (result.deletionConfirmed !== true) {
         setError('Deletion could not be confirmed. Please contact support before trying again.');
       } else if (result.error) {
-        setError('Account deleted, but this device could not fully clear its local sign-in data. Close and restart Nesmi; contact support if the session still appears.');
+        setError('Account deleted, but this device could not fully clear its local sign-in data. Closing or restarting Nesmi may restore an old session. Contact support before using Nesmi on this device again.');
       }
     } catch {
       
