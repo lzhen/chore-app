@@ -190,6 +190,25 @@ test('confirmed response has no spurious alert and disables repeat from same mou
   assert.equal(h.data.calls,1);
 });
 
+test('confirmed deletion with local cleanup failure never advises restarting a stale session', async () => {
+  // Synthetic adapter: server ACK true but SDK local sign-out fails.
+  // This mounted Account view warning must match the AuthProvider's fail-safe guidance.
+  const h=makeHarness(candidatePath,async()=>({
+    error:new Error('synthetic local sign-out failure'),
+    deletionConfirmed:true,
+  }));
+  confirm(h);
+  await press(h.button('Delete permanently'));
+  const alert=h.alert(); assert.ok(alert, 'cleanup warning remains accessible');
+  const warning=h.label(alert);
+  assert.match(warning,/account deleted/i);
+  assert.match(warning,/closing or restarting Nesmi may restore an old session/i);
+  assert.match(warning,/contact support before using Nesmi on this device again/i);
+  assert.doesNotMatch(warning,/close and restart Nesmi;/i);
+  assert.equal(h.button('Deletion attempted').props.disabled,true);
+  assert.equal(h.data.calls,1);
+});
+
 test('nested appearance, calendar and notification buttons become inert during and after an attempted delete', async () => {
   const d=makeDeferred();
   const h=makeHarness(candidatePath,()=>d.promise);
