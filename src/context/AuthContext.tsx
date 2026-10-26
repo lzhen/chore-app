@@ -24,9 +24,14 @@ const AuthContext = createContext<AuthContextType | null>(null);
 // session after the server confirms the old account was deleted. Kept until
 // another explicit successful login. Do not delete shared-origin app keys.
 const DELETION_RECEIPT_KEY = 'nesmi:account-deletion-confirmed';
-const hasDeletionReceipt = () => {
-  try { return localStorage.getItem(DELETION_RECEIPT_KEY) === 'true'; }
-  catch { return false; }
+type DeletionReceiptState = 'confirmed' | 'absent' | 'unavailable';
+const readDeletionReceipt = (): DeletionReceiptState => {
+  try { return localStorage.getItem(DELETION_RECEIPT_KEY) === 'true' ? 'confirmed' : 'absent'; }
+  catch {
+    // A storage permission failure can hide an earlier deletion receipt.
+    // Never auto-restore an SDK session when that safeguard cannot be read.
+    return 'unavailable';
+  }
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -34,11 +39,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   // Survives the Account view unmounting after a confirmed deletion.
-  const [initialDeletionReceipt] = useState(hasDeletionReceipt);
+  const [initialDeletionReceiptState] = useState(readDeletionReceipt);
+  const initialDeletionReceipt = initialDeletionReceiptState !== 'absent';
   const [deletionCleanupWarning, setDeletionCleanupWarning] = useState<string | null>(
-    initialDeletionReceipt
+    initialDeletionReceiptState === 'confirmed'
       ? 'A previous account was deleted on this device. Old sign-in data will not be restored. Sign in with another account or contact support.'
-      : null
+      : initialDeletionReceiptState === 'unavailable'
+        ? 'Account protection could not be read on this device. Automatic sign-in is paused to avoid restoring a possibly deleted account. Check browser storage permissions and sign in again.'
+        : null
   );
   // Guard both the current provider and a newly mounted provider after reload.
   // A new explicitly successful sign-in can re-arm authentication.
@@ -133,6 +141,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!deletionConfirmedRef.current) return null;
     try {
       localStorage.removeItem(DELETION_RECEIPT_KEY);
+      // A successful removeItem call does not prove storage is readable.
+      // Do not re-arm React auth when the safeguard cannot be verified.
+      if (localStorage.getItem(DELETION_RECEIPT_KEY) !== null) {
+        return new Error('Sign-in could not verify removal of the previous account deletion safeguard. Check browser storage permissions and try again.');
+      }
       return null;
     } catch {
       return new Error('Sign-in could not finish because this device could not clear the previous account deletion safeguard. Check browser storage permissions and try again.');
