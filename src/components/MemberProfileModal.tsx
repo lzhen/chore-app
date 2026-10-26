@@ -1,5 +1,5 @@
 import { memberAvatarStyle } from '../utils/colors';
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { TeamMember } from '../types';
 import { useApp } from '../context/AppContext';
 import { SkillTagInput } from './SkillTagInput';
@@ -22,7 +22,6 @@ const DAYS_OF_WEEK = [
 
 export function MemberProfileModal({ member, onClose }: MemberProfileModalProps) {
   const { updateMember, getMemberStats } = useApp();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: member.name,
@@ -37,48 +36,54 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
 
   const [activeTab, setActiveTab] = useState<'profile' | 'badges'>('profile');
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  // Display-only defaults must not overwrite unset scheduling/capacity data.
+  const [scheduleTouched, setScheduleTouched] = useState(false);
+  const [capacityTouched, setCapacityTouched] = useState(false);
 
   const stats = getMemberStats(member.id);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
+    setSaveError(null);
 
     const updatedMember: TeamMember = {
       ...member,
       name: formData.name,
       email: formData.email || undefined,
-      avatarUrl: formData.avatarUrl || undefined,
+      // Existing avatar may be displayed but uploads cannot be persisted yet.
+      avatarUrl: member.avatarUrl,
       skills: formData.skills.length > 0 ? formData.skills : undefined,
-      workingHours: {
+      workingHours: scheduleTouched ? {
         start: formData.workingHoursStart,
         end: formData.workingHoursEnd,
         days: formData.workingDays,
-      },
-      weeklyCapacityMinutes: formData.weeklyCapacityMinutes === '' ? undefined : Number(formData.weeklyCapacityMinutes),
+      } : member.workingHours,
+      weeklyCapacityMinutes: capacityTouched
+        ? (formData.weeklyCapacityMinutes === '' ? undefined : Number(formData.weeklyCapacityMinutes))
+        : member.weeklyCapacityMinutes,
     };
 
-    await updateMember(updatedMember);
-    setSaving(false);
-    onClose();
+    try {
+      await updateMember(updatedMember);
+      onClose();
+    } catch (error) {
+      // Preserve every input and let the user safely retry after resolving
+      // the error. Do not claim a saved profile when Supabase rejected it.
+      setSaveError(error instanceof Error ? error.message : 'Could not save profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleWorkingDay = (day: number) => {
+    setScheduleTouched(true);
     const days = formData.workingDays.includes(day)
       ? formData.workingDays.filter(d => d !== day)
       : [...formData.workingDays, day].sort();
     setFormData({ ...formData, workingDays: days });
-  };
-
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({ ...formData, avatarUrl: reader.result as string });
-      };
-      reader.readAsDataURL(file);
-    }
   };
 
   const earnedBadges = member.badges || [];
@@ -145,41 +150,11 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
                       {formData.name.charAt(0).toUpperCase()}
                     </div>
                   )}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAvatarUpload}
-                    className="hidden"
-                  />
                 </div>
                 <div className="flex-1">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="px-4 py-2 bg-surface-secondary hover:bg-surface-tertiary text-content-primary rounded-fluent-md transition-colors text-sm"
-                  >
-                    Upload Photo
-                  </button>
-                  {formData.avatarUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, avatarUrl: '' })}
-                      className="ml-2 px-4 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-fluent-md transition-colors text-sm"
-                    >
-                      Remove
-                    </button>
-                  )}
-                  <p className="text-xs text-content-secondary mt-2">
-                    Or paste an image URL below
+                  <p className="text-sm text-content-secondary" role="note">
+                    Avatar editing is temporarily unavailable. Existing photos are shown, but uploads and URLs cannot be saved yet.
                   </p>
-                  <input
-                    type="url"
-                    value={formData.avatarUrl}
-                    onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
-                    placeholder="https://example.com/avatar.jpg"
-                    className="mt-2 w-full px-3 py-2 border border-border rounded-fluent-md bg-input-background text-content-primary placeholder-content-disabled focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all text-sm"
-                  />
                 </div>
               </div>
 
@@ -231,14 +206,14 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
                   <input
                     type="time"
                     value={formData.workingHoursStart}
-                    onChange={(e) => setFormData({ ...formData, workingHoursStart: e.target.value })}
+                    onChange={(e) => { setScheduleTouched(true); setFormData({ ...formData, workingHoursStart: e.target.value }); }}
                     className="px-3 py-2 border border-border rounded-fluent-md bg-input-background text-content-primary focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all"
                   />
                   <span className="text-content-secondary">to</span>
                   <input
                     type="time"
                     value={formData.workingHoursEnd}
-                    onChange={(e) => setFormData({ ...formData, workingHoursEnd: e.target.value })}
+                    onChange={(e) => { setScheduleTouched(true); setFormData({ ...formData, workingHoursEnd: e.target.value }); }}
                     className="px-3 py-2 border border-border rounded-fluent-md bg-input-background text-content-primary focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all"
                   />
                 </div>
@@ -269,17 +244,20 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
 
               {/* Weekly Capacity */}
               <div>
-                <label htmlFor="weekly-capacity" className="block text-sm font-medium text-content-primary mb-2">Weekly capacity (minutes) · this session</label>
+                <label htmlFor="weekly-capacity" className="block text-sm font-medium text-content-primary mb-2">Weekly capacity (minutes)</label>
                 <input id="weekly-capacity" type="number" min={0} max={2400} step={1} placeholder="Not set" value={formData.weeklyCapacityMinutes}
-                  onChange={e => setFormData({...formData, weeklyCapacityMinutes:e.target.value})} className="chore-input w-full" />
+                  onChange={e => { setCapacityTouched(true); setFormData({...formData, weeklyCapacityMinutes:e.target.value}); }} className="chore-input w-full" />
               </div>
 
+              {/* Database errors must stay visible with the unsaved inputs. */}
+              {saveError && <p role="alert" className="text-sm text-red-500">{saveError}</p>}
               {/* Submit */}
-              <div className="flex justify-end gap-2 pt-4 border-t border-border">
+              <div className="flex justify-end gap-2 pt-4 border-t border">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 text-content-primary hover:bg-subtle-background-hover rounded-fluent-md transition-colors"
+                  disabled={saving}
+                  className="px-4 py-2 text-content-primary hover:bg-subtle-background-hover rounded-fluent-md transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
