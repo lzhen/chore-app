@@ -41,6 +41,7 @@ function setup(options = {}) {
     }
     if (key !== 'synthetic-service') throw Error('UNEXPECTED_KEY');
     calls.push('service-client');
+    if (options.serviceClientThrows) throw Error('synthetic privileged client initialization failure');
     assert.equal(config.auth.autoRefreshToken, false);
     return {
       rpc: async (name, args) => {
@@ -72,8 +73,11 @@ function setup(options = {}) {
       Response,
       Deno: {
         serve: h => { handler = h; },
-        env: { get: k => ({ SUPABASE_URL: 'https://synthetic.invalid',
-          SUPABASE_ANON_KEY: 'synthetic-anon', SUPABASE_SERVICE_ROLE_KEY: 'synthetic-service' })[k] },
+        env: { get: k => options.missingEnv === k ? undefined : ({
+          SUPABASE_URL: 'https://synthetic.invalid',
+          SUPABASE_ANON_KEY: 'synthetic-anon',
+          SUPABASE_SERVICE_ROLE_KEY: 'synthetic-service',
+        })[k] },
       },
       createClient,
       fetch: () => { throw Error('NETWORK_FORBIDDEN'); },
@@ -101,6 +105,50 @@ test('legacy B123 bodyless request stays fail-closed, compatibility policy remai
   assert.equal(result.status, 400);
   assert.deepEqual(await result.json(), { deleted: false, code: 'EXPECTED_ACCOUNT_REQUIRED' });
   assert.deepEqual(h.calls, []);
+});
+
+test('malformed, scalar, array, and non-UUID bodies fail before any SDK or privileged operation', async () => {
+  const invalidBodies = [
+    null, [], [{ expectedUserId: A }], 0, true, 'invalid', {},
+    { expectedUserId: null }, { expectedUserId: '' },
+    { expectedUserId: 'not-an-account-id' },
+    { expectedUserId: A.slice(0, -1) },
+    JSON.parse('{"__proto__":{"expectedUserId":"00000000-0000-4000-8000-000000000001"}}'),
+  ];
+  for (const body of invalidBodies) {
+    const h = setup();
+    const response = await h.handler(makeReq(body));
+    assert.equal(response.status, 400, 'invalid body must be rejected');
+    assert.deepEqual(await response.json(), { deleted: false, code: 'EXPECTED_ACCOUNT_REQUIRED' });
+    assert.deepEqual(h.calls, [], 'invalid body must not create any SDK client');
+  }
+  const h = setup();
+  const malformedJsonRequest = new Request('https://synthetic.invalid/functions/v1/delete-account', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer synthetic', 'Content-Type': 'application/json' },
+    body: '{"expectedUserId":',
+  });
+  const response = await h.handler(malformedJsonRequest);
+  assert.equal(response.status, 400);
+  assert.deepEqual(h.calls, []);
+});
+
+test('missing configuration fails closed before any SDK client, claim, or deletion', async () => {
+  for (const missingEnv of ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY']) {
+    const h = setup({ missingEnv });
+    const response = await h.handler(makeReq());
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), { deleted: false, code: 'OUTCOME_UNCERTAIN_DO_NOT_RETRY' });
+    assert.deepEqual(h.calls, []);
+  }
+});
+
+test('privileged SDK construction failure never claims or invokes admin deletion', async () => {
+  const h = setup({ serviceClientThrows: true });
+  const response = await h.handler(makeReq());
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { deleted: false, code: 'OUTCOME_UNCERTAIN_DO_NOT_RETRY' });
+  assert.deepEqual(h.calls, ['anon-client', 'auth', 'service-client']);
 });
 
 test('missing bearer and account switch cannot reach privileged client', async () => {
