@@ -724,4 +724,59 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
     }
   });
 
+
+  it('fails closed if a fresh verified session cannot clear the prior deletion receipt (no SDK or browser access)', async () => {
+    // The SDK may have authenticated, but a stale device-level receipt must
+    // never coexist with a user-facing successful login that fails on reload.
+    // Both paths use synthetic sessions, mocked SDK and jsdom localStorage.
+    const marker = 'nesmi:account-deletion-confirmed';
+    const originalRemove = Storage.prototype.removeItem;
+    for (const mode of ['signIn', 'signUp'] as const) {
+      localStorage.setItem(marker, 'true');
+      const attemptedSession = { user: { id: 'new-' + mode + '-synthetic-user' } };
+      vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
+        data: { user: attemptedSession.user, session: attemptedSession }, error: null,
+      } as any);
+      vi.mocked(supabase.auth.signUp).mockResolvedValue({
+        data: { user: attemptedSession.user, session: attemptedSession }, error: null,
+      } as any);
+
+      const hook = await mountAuth();
+      const blocked = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(
+        function (this: Storage, key: string) {
+          if (key === marker) throw new Error('synthetic read-only storage');
+          return originalRemove.call(this, key);
+        }
+      );
+      try {
+        expect(hook.result.current.user).toBeNull();
+        let result: { error: Error | null } | undefined;
+        await act(async () => {
+          result = mode === 'signIn'
+            ? await hook.result.current.signIn('fresh@example.invalid', 'synthetic-only')
+            : await hook.result.current.signUp('fresh@example.invalid', 'synthetic-only');
+        });
+        expect(result?.error?.message).toMatch(/deletion safeguard/i);
+        expect(hook.result.current.user).toBeNull();
+        expect(hook.result.current.session).toBeNull();
+        expect(localStorage.getItem(marker)).toBe('true');
+        expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+      } finally {
+        blocked.mockRestore();
+      }
+      // Storage permission can recover: a new explicit sign-in should then
+      // clear the marker and re-arm a new session without broad storage wipe.
+      try {
+        await act(async () => {
+          const result = await hook.result.current.signIn('fresh@example.invalid', 'synthetic-only');
+          expect(result.error).toBeNull();
+        });
+        expect(hook.result.current.user?.id).toBe(attemptedSession.user.id);
+        expect(localStorage.getItem(marker)).toBeNull();
+      } finally {
+        hook.unmount();
+      }
+    }
+  });
+
 });
