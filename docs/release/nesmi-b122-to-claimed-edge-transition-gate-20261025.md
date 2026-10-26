@@ -1,4 +1,40 @@
-# Nesmi — B122 ↔ claimed Edge transition gate (INTERNAL / NON-DEPLOYED)
+# Nesmi — B122/B123 ↔ claimed Edge transition gate (INTERNAL / NON-DEPLOYED)
+
+## Task132 — current B123 compatibility reconciliation (2026-10-25 ~21:12 PDT)
+
+**Supersedes the Task126 "last installable B122" and latest-draft-SHA statements below; Task126 is preserved as a dated historical worksheet.** **RELEASE HOLD** remains. This change is documentation on the existing open/draft/unmerged PR #35 only; not a deploy, migration, privileged operation, account deletion, build, App Review action, or user communication.
+
+### Source-of-truth snapshot, independently re-read
+
+- **Latest Apple-email-confirmed installable Nesmi:** iOS TestFlight **1.0 (123)**, 2026-10-25 17:39 PDT (Apple mail id `1a175a5dbd92a101`), with Xcode Cloud Build123 success (`1a175a591b3c652c`) from `fix/chorely-auth-viewport-20260927-icon-family-20261026` SHA [`6eab3d3b20a32d07376c1bd938979219a3565a74`](https://github.com/lzhen/chore-app/commit/6eab3d3b20a32d07376c1bd938979219a3565a74). GitHub exact comparison to B122 `d0610712e...` = **one commit ahead, zero behind**, changes only iOS AppIcon PNG and `verify_app_icon.swift`. [Pinned B123 AuthContext](https://github.com/lzhen/chore-app/blob/6eab3d3b20a32d07376c1bd938979219a3565a74/src/context/AuthContext.tsx) still invokes `delete-account` with **`{ method: 'POST' }` and no JSON body**, checks `data?.deleted === true`, and deletes only two Nesmi-owned cache keys; do **not** revive the old broad `localStorage.clear()` claim for B123.
+- Existing [draft PR #35](https://github.com/lzhen/chore-app/pull/35) read back **open/draft/unmerged**, base `d0610712e...`, head [`bef03aabea4503f359cc303001ec6ac841f848ce`](https://github.com/lzhen/chore-app/commit/bef03aabea4503f359cc303001ec6ac841f848ce) before this documentation edit. The **actual** PR path `supabase/functions/delete-account/index.ts` requires `expectedUserId` (missing body -> 400; mismatch -> 409) but directly calls `admin.deleteUser` without a persisted claim. It is **not** the currently installed B123 client and was not deployed by this work.
+- Separately, the **review-only, explicitly nondeployed** [Deno claimed-delete handler](https://github.com/lzhen/chore-app/blob/bef03aabea4503f359cc303001ec6ac841f848ce/docs/release/prototypes/nesmi-delete-claimed-deno-handler.nondeploy.ts) requires `expectedUserId` and draft claim/finalize RPCs. There is no demonstrated deployed claim ledger, privacy/retention decision, production server compatibility, or real account deletion. It is intentionally outside `supabase/functions`.
+- [Source-executed synthetic CI run 40263232784](https://github.com/lzhen/chore-app/actions/runs/40263232784) completed success on `bef03a... ` (13/13 Deno-handler tests plus separate isolation, SDK bridge, client/server compatibility and disposable/rollback PostgreSQL tests); [UI regression 40263232767](https://github.com/lzhen/chore-app/actions/runs/40263232767) and [dependency report 40263232752](https://github.com/lzhen/chore-app/actions/runs/40263232752) also completed success at that SHA. These results are **offline/synthetic and explicitly not release acceptance**. This doc-only edit does not establish a new green CI run.
+- Scoped company Gmail search after October 24 found B123 TestFlight and Xcode notices but no matching new Nesmi reviewer-detail message. **Absence from a scoped mailbox is not evidence of the current selected App Store Connect build or review status.** Actual selected build, real physical iPhone acceptance, current deployed backend revision and live customer cohort remain **UNVERIFIED**.
+
+### Current transition matrix (B123 is the installed-source anchor)
+
+| Client / server pair | Source-observed outcome | Release gate |
+| --- | --- | --- |
+| **B123 bodyless** + **unknown live deployed Edge** | Do not infer server behavior from an old repository copy; current production code/state not verified. | **STOP** until authoritative inventory. |
+| **B123 bodyless** + **existing PR #35 strict Edge** | Synthetic/pinned code: missing `expectedUserId` -> **400**, no admin deletion. Deletion UI would lose its existing function if strict Edge were deployed alone. | **HOLD; do not deploy one-sided**. |
+| **B123 bodyless** + **nondeployed claimed Deno candidate** | Source-executed: missing JSON body -> **400**, before SDK/claim/admin initialization. | **HOLD; candidate is incompatible and nondeployed**. |
+| **Future ID-bearing client** + **existing PR #35 strict Edge** | Intended ID match/mismatch checked, but direct `admin.deleteUser` lacks durable replay claim/finalize. | **HOLD; still not idempotent/reconciled**. |
+| **Future ID-bearing client** + **claimed Deno candidate + draft SQL/RPC** | Synthetic tests cover claim/finalize/error/parallel replay, but live RPC is not installed or privacy-approved; no network/device proof. | **HOLD; test-only prototype**. |
+| **Legacy B122** alongside B123 during any cutover | B122 is also bodyless; a client-only icon update to B123 has not eliminated legacy compatibility risk. | **HOLD until owner-approved legacy policy**. |
+
+### Decision-free next verification and hard stop rules
+
+1. **CT-01:** Before any action against production, read actual current deployed Edge version, ASC review-selected SHA/build, and any installed legacy-client exposure without exporting credentials. If unavailable, leave **UNKNOWN**, do not assume.
+2. **CT-02/03:** A production transition requires an owner-approved legacy-client experience and privacy/retention disposition for durable claim records. Do not silently replace bodyless deletion with unexplained 400, infer that suggested 426 is currently implemented, or roll back to insecure bearer-only deletion as an automatic recovery.
+3. **CT-04/05:** In separately approved staging with disposable identities only, validate real SDK/HTTP/claim state, ambiguous ACK, no automatic destructive retry, cross-tab reload and sibling-app storage isolation. **No real identity/deletion has been exercised by the cited CI.**
+4. **CT-06/07:** Match final compatible client/server SHAs, real physical iPhone validation and App Review evidence before owner-approved protected merge, sensitive backend deployment or formal store submission. TestFlight availability `1.0(123)` alone is not a release gate pass.
+
+**Net decision:** **HOLD / do not deploy** either strict Edge against installed B123 or the proposed Deno handler/SQL. No new founder-only blocker was discovered beyond previously logged approval/device/backend-release gates. Work remains Nesmi-only; no Care/DLS/MoveLight expansion.
+
+---
+
+## Historical Task126 worksheet (state as of 2026-10-25 ~14:24 PDT)
 
 **Task:** NESMI-LS-126 | **Checked:** 2026-10-25 14:24 PDT  
 **Owner workflow:** Nova / Leo / Iris / Kai / Vera / Mira are responsibilities, not separate deployed agents.  
