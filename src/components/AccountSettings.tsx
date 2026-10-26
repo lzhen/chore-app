@@ -127,12 +127,14 @@ export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt
             <div className="mt-3 text-sm text-red-500" role="alert">
               <p>Account deletion may already have been attempted for this account. Account changes remain paused.</p>
               <p className="mt-2">Do not repeat account deletion from another tab or device until support verifies the result.</p>
+              <a className="mt-2 inline-block text-sm text-brand underline underline-offset-2" href="mailto:care@empathie.ai">Email support</a>
             </div>
           )}
           {error && (
             <div className="mt-3 text-sm text-red-500" role="alert">
               <p>{error}</p>
               {!identityChanged && <p className="mt-2">Do not repeat account deletion from another tab or device until support verifies the result.</p>}
+              {!identityChanged && <a className="mt-2 inline-block text-sm text-brand underline underline-offset-2" href="mailto:care@empathie.ai">Email support</a>}
             </div>
           )}
           {!confirming ? (
