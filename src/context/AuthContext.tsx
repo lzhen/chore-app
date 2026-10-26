@@ -106,7 +106,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // otherwise a deleted user can remain visibly signed in until refresh.
     // This event is fired by OTHER tabs, not by the tab writing the receipt.
     const onDeletionReceiptFromAnotherTab = (event: StorageEvent) => {
-      if (event.key !== DELETION_RECEIPT_KEY || event.newValue !== 'true') return;
+      // A malformed but present receipt is also unsafe to ignore: another
+      // tab may have recorded an uncertain deletion outcome.
+      if (event.key !== DELETION_RECEIPT_KEY || event.newValue === null) return;
       try {
         if (event.storageArea !== window.localStorage) return;
       } catch {
@@ -118,8 +120,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(null);
       setUser(null);
       setLoading(false);
-      setDeletionCleanupWarning(
-        'A previous account was deleted on this device. Old sign-in data will not be restored. Sign in with another account or contact support.'
+      setDeletionCleanupWarning(event.newValue === 'true'
+        ? 'A previous account was deleted on this device. Old sign-in data will not be restored. Sign in with another account or contact support.'
+        : 'Account protection could not be verified on this device. Automatic sign-in is paused to avoid restoring a possibly deleted account. Check browser storage permissions and sign in again.'
       );
     };
     window.addEventListener('storage', onDeletionReceiptFromAnotherTab);
