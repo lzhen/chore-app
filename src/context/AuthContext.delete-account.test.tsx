@@ -726,6 +726,46 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
 
 
 
+  it('blocks a malformed deletion receipt until a new explicit verified sign-in', async () => {
+    // An unknown stored value is not evidence that no deletion occurred.
+    // Synthetic identities and jsdom storage only, no external SDK/network.
+    const marker = 'nesmi:account-deletion-confirmed';
+    localStorage.setItem(marker, 'unexpected-marker-value');
+    const staleSession = { user: { id: 'possibly-deleted-synthetic-user' } };
+    const freshSession = { user: { id: 'explicitly-signed-in-synthetic-user' } };
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: staleSession }, error: null,
+    } as any);
+    let emitAuth!: (event: string, session: any) => void;
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementation(((listener: any) => {
+      emitAuth = listener;
+      return { data: { subscription: { unsubscribe: vi.fn() } } };
+    }) as any);
+    const hook = await mountAuth();
+    try {
+      expect(hook.result.current.user).toBeNull();
+      expect(hook.result.current.session).toBeNull();
+      expect(hook.result.current.deletionCleanupWarning).toMatch(/account protection could not be verified/i);
+      expect(supabase.auth.getSession).not.toHaveBeenCalled();
+      act(() => { emitAuth('SIGNED_IN', staleSession); });
+      expect(hook.result.current.user).toBeNull();
+
+      vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
+        data: { user: freshSession.user, session: freshSession }, error: null,
+      } as any);
+      await act(async () => {
+        const result = await hook.result.current.signIn('fresh@example.invalid', 'synthetic-only');
+        expect(result.error).toBeNull();
+      });
+      expect(hook.result.current.user?.id).toBe(freshSession.user.id);
+      expect(hook.result.current.deletionCleanupWarning).toBeNull();
+      expect(localStorage.getItem(marker)).toBeNull();
+      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+    } finally {
+      hook.unmount();
+    }
+  });
+
   it('fails closed when storage cannot read a deletion receipt at startup, even with a stale SDK session', async () => {
     // A storage permission failure may conceal a previously confirmed delete.
     // Synthetic storage and SDK only: never touches a real account or browser.
@@ -757,7 +797,7 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
       hook = await mountAuth();
       expect(hook.result.current.user).toBeNull();
       expect(hook.result.current.session).toBeNull();
-      expect(hook.result.current.deletionCleanupWarning).toMatch(/account protection could not be read/i);
+      expect(hook.result.current.deletionCleanupWarning).toMatch(/account protection could not be verified/i);
       expect(supabase.auth.getSession).not.toHaveBeenCalled();
       act(() => { emitAuth('SIGNED_IN', staleSession); });
       expect(hook.result.current.user).toBeNull();
