@@ -101,7 +101,9 @@ function observedV1Harness(authUserId = 'synthetic-bearer-B', deletionError = nu
   const runnable = OBSERVED_V1_EDGE_SOURCE
     .replace(/^import .*$/gm, '')
     .replace(/request: Request/g, 'request')
-    .replace(/(Deno\\.env\\.get\\('[^']+'\\))!/g, '$1');
+    .replaceAll("Deno.env.get('SUPABASE_URL')!", "Deno.env.get('SUPABASE_URL')")
+    .replaceAll("Deno.env.get('SUPABASE_ANON_KEY')!", "Deno.env.get('SUPABASE_ANON_KEY')")
+    .replaceAll("Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!", "Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')");
   const deletedIds = [];
   let handler = null;
   const fakeDeno = {
@@ -127,7 +129,7 @@ function observedV1Harness(authUserId = 'synthetic-bearer-B', deletionError = nu
 }
 
 test('observed deployed v1 source: installed B123 bodyless POST gets legacy ACK on synthetic success', async () => {
-  assert.doesNotMatch(invocationOptions(releaseSource), /\\bbody\\s*:/);
+  assert.equal(invocationOptions(releaseSource).includes('body:'), false);
   const { handler, deletedIds } = observedV1Harness();
   const response = await handler(new Request('https://synthetic.invalid/delete-account', {
     method: 'POST', headers: { Authorization: 'Bearer synthetic' },
