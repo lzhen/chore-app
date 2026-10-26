@@ -503,6 +503,7 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
       expect(warning).toHaveTextContent('Account deleted, but this device could not fully clear its local sign-in data.');
       expect(warning).toHaveTextContent('Closing or restarting Nesmi may restore an old session.');
       expect(warning).toHaveTextContent('Contact support before using Nesmi on this device again.');
+      expect(screen.getByRole('link', { name: 'Email support' })).toHaveAttribute('href', 'mailto:care@empathie.ai');
       expect(screen.getByRole('button', { name: 'Sign In' })).toBeInTheDocument();
       expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
     } finally {
