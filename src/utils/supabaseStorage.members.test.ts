@@ -16,9 +16,9 @@ const row = {
   skills: ['planning'],
   working_hours_start: '07:00',
   working_hours_end: '16:00',
-  working_days: [],
+  working_days: [] as number[],
   points: 0,
-  badges: [],
+  badges: [] as string[],
   weekly_capacity_minutes: 0,
 };
 const member: TeamMember = {
