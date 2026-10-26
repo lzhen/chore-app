@@ -1,5 +1,31 @@
 # Nesmi — B122/B123 ↔ claimed Edge transition gate (INTERNAL / NON-DEPLOYED)
 
+## Task134 — authoritative production Edge source inventory (2026-10-25 23:07 PDT; READ-ONLY)
+
+**This section supersedes ONLY Task132's previously-unknown live-Edge inventory row and CT-01 Edge-source unknown, not its release HOLD, the strict candidate incompatibility, or any App Store/physical-device gate.** The Task132 matrix below is preserved as a dated snapshot so the existing documentation regression continues to guard its historical stop rules. No live deletion, HTTP request, new backend deployment, app build, or privileged change was performed.
+
+**First-party deployed source observed in connected Supabase (production project `rosofbnimiothwxsabyr`):**
+- `list_edge_functions`: `delete-account` is **ACTIVE**, **version 1**, `verify_jwt=true`, function ID `ea0d57b3-0eb4-4571-8f5e-ca52c9512605`, platform-provided `ezbr_sha256=589f4d5f888678251c976ee287c4b450623eaa088a56c22d9136249daf6d5e5e`. The hash is a Supabase metadata field, **not** a GitHub commit SHA or independent binary attestation.
+- `get_edge_function` returned actual deployed `index.ts`: `Deno.serve` accepts `POST` without parsing a JSON body, obtains `Authorization`, validates the bearer via `userClient.auth.getUser()`, calls `adminClient.auth.admin.deleteUser(user.id)`, and returns HTTP **200** `{deleted:true}` only when that API reports no error. Source also returns 401 for missing/invalid bearer, 405 for non-POST and 500 for admin deletion error. No `expectedUserId` binding, durable claim/finalize RPC, server idempotency receipt or explicit no-retry reconciliation appears in **this deployed handler source**. Secrets/variable values were **not** retrieved.
+- The immutable **installed B123** `AuthContext.tsx` at `6eab3d3b20a32d07376c1bd938979219a3565a74` sends a **bodyless POST** and expects `data.deleted === true`. **Therefore the deployed v1 source accepts B123's request SHAPE and returns its expected success ACK on the successful server path**. This is a *static client/server source contract check*, **not an executed HTTP/SDK test**, not proof that every authenticated request succeeds, and **not a hardened deletion release pass**. It still lacks server-side confirmation of the identity the user originally approved at the UI.
+- The **proposed strict PR #35 Edge** and **nondeployed claimed-Deno candidate** both require `expectedUserId`, unlike deployed v1; deploying either alone would make B123 bodyless requests fail closed with 400. The current production handler is **not** either draft. No claim migration/retention policy or approved backward-compatibility path was verified.
+
+**Updated matrix (source-only; release remains HOLD):**
+
+| Exact pair | What the observed source establishes | Gate |
+| --- | --- | --- |
+| B123 bodyless + **deployed Supabase Edge v1**, ACTIVE at this checkpoint | Bodyless POST is parse-compatible; on authenticated successful `admin.deleteUser`, v1 returns `{deleted:true}`. There is **no expected-ID binding or durable replay claim**. No real call executed. | **HOLD for hardened release / real-world QA untested**; current legacy behavior must not be misreported as a new 400. |
+| B123 bodyless + **draft strict PR #35 Edge** | Missing `expectedUserId` -> source/synthetic 400; the draft is unmerged/unshipped. | **HOLD, do not deploy one-sided**. |
+| B123 bodyless + **nondeployed Deno claim candidate** | Missing `expectedUserId` -> source/synthetic 400 before claim/admin. | **HOLD, do not deploy**. |
+| Future ID-bearing client + deployed v1 | v1 ignores the new body and deletes based on the bearer; client-first alone is **not** server hardening. | **HOLD**. |
+| Future ID-bearing client + verified claimed Edge/SQL | Source/isolated CI only; actual deployment, privacy retention, SDK/HTTP, retries, concurrency and physical-device flows unknown. | **HOLD**. |
+
+**CT-01 after this read:** Edge inventory **source-observed PASS (narrow)**, but actual live HTTP behavior, which real clients use this function, selected ASC review build, legacy-client exposure and real-device acceptance remain **OPEN**. The latest Apple first-party message confirms only TestFlight **Nesmi 1.0(123) available to test** (2026-10-25 17:39 PDT), not an ASC-selected build. The last exact draft PR #35 head inspected before the present documentation change was `99986c917659076388bc63009e9d2b25e5d79a59` (open/draft/unmerged); do not interpret draft tests as current deployed code.
+
+**Next permission-safe step:** Use this verified live v1 contract to scope a *nondeployed, source-executed* compatibility regression or inspect read-only actual ASC reviewer/build metadata if an approved connector permits. Do not run a live account deletion, change this Edge function, introduce claim storage/retention, merge, build, resubmit, or publish without the separate approval/device/release gates. No new founder-only decision beyond previously recorded security/compatibility approvals and iPhone/ASC validation.
+
+---
+
 ## Task132 — current B123 compatibility reconciliation (2026-10-25 ~21:12 PDT)
 
 **Supersedes the Task126 "last installable B122" and latest-draft-SHA statements below; Task126 is preserved as a dated historical worksheet.** **RELEASE HOLD** remains. This change is documentation on the existing open/draft/unmerged PR #35 only; not a deploy, migration, privileged operation, account deletion, build, App Review action, or user communication.
