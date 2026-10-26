@@ -79,6 +79,6 @@ test('current B123 transition worksheet retains strict bodyless-client release H
   assert.match(candidate, /400/);
   assert.match(candidate, /\*\*HOLD/);
   assert.match(legacy, /\*\*HOLD/);
-  assert.match(gate.slice(begin, end), /HOLD \//, 'matrix must continue to reject unsafe transitions');
+  assert.match(strict, /do not deploy one-sided/, 'strict Edge must remain blocked for bodyless B123');
   // This safeguards release-document integrity, not production behavior or approval.
 });
