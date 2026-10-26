@@ -725,6 +725,70 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
   });
 
 
+
+  it('fails closed when storage cannot read a deletion receipt at startup, even with a stale SDK session', async () => {
+    // A storage permission failure may conceal a previously confirmed delete.
+    // Synthetic storage and SDK only: never touches a real account or browser.
+    const marker = 'nesmi:account-deletion-confirmed';
+    localStorage.setItem(marker, 'true');
+    const staleSession = { user: { id: 'deleted-old-identity' } };
+    const freshSession = { user: { id: 'fresh-after-storage-recovery' } };
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: staleSession }, error: null,
+    } as any);
+    let emitAuth!: (event: string, session: any) => void;
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementation(((listener: any) => {
+      emitAuth = listener;
+      return { data: { subscription: { unsubscribe: vi.fn() } } };
+    }) as any);
+    vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
+      data: { user: freshSession.user, session: freshSession }, error: null,
+    } as any);
+
+    const originalGet = Storage.prototype.getItem;
+    const blocked = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(
+      function (this: Storage, key: string) {
+        if (key === marker) throw new Error('synthetic storage read permission denied');
+        return originalGet.call(this, key);
+      }
+    );
+    let hook: Awaited<ReturnType<typeof mountAuth>> | undefined;
+    try {
+      hook = await mountAuth();
+      expect(hook.result.current.user).toBeNull();
+      expect(hook.result.current.session).toBeNull();
+      expect(hook.result.current.deletionCleanupWarning).toMatch(/account protection could not be read/i);
+      expect(supabase.auth.getSession).not.toHaveBeenCalled();
+      act(() => { emitAuth('SIGNED_IN', staleSession); });
+      expect(hook.result.current.user).toBeNull();
+
+      // Even a newly authenticated SDK response is not reported as signed in
+      // until receipt storage can be read back after removal.
+      await act(async () => {
+        const result = await hook!.result.current.signIn('fresh@example.invalid', 'synthetic-only');
+        expect(result.error?.message).toMatch(/deletion safeguard/i);
+      });
+      expect(hook.result.current.user).toBeNull();
+      expect(hook.result.current.session).toBeNull();
+      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+    } finally {
+      blocked.mockRestore();
+    }
+    try {
+      // After permission recovery, only a NEW explicit login re-arms React auth.
+      await act(async () => {
+        const result = await hook!.result.current.signIn('fresh@example.invalid', 'synthetic-only');
+        expect(result.error).toBeNull();
+      });
+      expect(hook!.result.current.user?.id).toBe('fresh-after-storage-recovery');
+      expect(hook!.result.current.deletionCleanupWarning).toBeNull();
+      expect(localStorage.getItem(marker)).toBeNull();
+      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+    } finally {
+      hook?.unmount();
+    }
+  });
+
   it('fails closed if a fresh verified session cannot clear the prior deletion receipt (no SDK or browser access)', async () => {
     // The SDK may have authenticated, but a stale device-level receipt must
     // never coexist with a user-facing successful login that fails on reload.
