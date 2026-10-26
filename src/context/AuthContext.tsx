@@ -126,6 +126,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.history.replaceState(null, '', window.location.pathname);
   };
 
+  // A new SDK session does not erase the previous deletion safeguard on its
+  // own. If local storage rejects removal, keep React auth fail-closed rather
+  // than reporting login success followed by a blocked account on reload.
+  const clearDeletionReceiptForNewSession = (): Error | null => {
+    if (!deletionConfirmedRef.current) return null;
+    try {
+      localStorage.removeItem(DELETION_RECEIPT_KEY);
+      return null;
+    } catch {
+      return new Error('Sign-in could not finish because this device could not clear the previous account deletion safeguard. Check browser storage permissions and try again.');
+    }
+  };
+
   const signUp = async (email: string, password: string) => {
     const requestRevision = authRevisionRef.current;
     const { data, error } = await supabase.auth.signUp({ email, password });
@@ -136,14 +149,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: new Error('Account state changed during sign-up. Check your email or sign in again.') };
     }
     if (!error && data?.session) {
+      const receiptError = clearDeletionReceiptForNewSession();
+      if (receiptError) return { error: receiptError };
       if (deletionConfirmedRef.current || postDeletionExplicitUserIdRef.current) {
         postDeletionExplicitUserIdRef.current = data.session.user.id;
       }
       authRevisionRef.current += 1;
       deletionConfirmedRef.current = false;
-      // Clear the receipt only after a new identity explicitly authenticated.
-      // A failed storage removal remains a follow-up device acceptance concern.
-      try { localStorage.removeItem(DELETION_RECEIPT_KEY); } catch { /* no broad clear */ }
+      // The previous deletion marker was cleared before React auth re-armed.
       setSession(data.session);
       setUser(data.session.user);
       setDeletionCleanupWarning(null);
@@ -158,14 +171,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: new Error('Account state changed during sign-in. Please sign in again.') };
     }
     if (!error && data?.session) {
+      const receiptError = clearDeletionReceiptForNewSession();
+      if (receiptError) return { error: receiptError };
       if (deletionConfirmedRef.current || postDeletionExplicitUserIdRef.current) {
         postDeletionExplicitUserIdRef.current = data.session.user.id;
       }
       authRevisionRef.current += 1;
       deletionConfirmedRef.current = false;
-      // Clear the receipt only after a new identity explicitly authenticated.
-      // A failed storage removal remains a follow-up device acceptance concern.
-      try { localStorage.removeItem(DELETION_RECEIPT_KEY); } catch { /* no broad clear */ }
+      // The previous deletion marker was cleared before React auth re-armed.
       setSession(data.session);
       setUser(data.session.user);
       setDeletionCleanupWarning(null);
