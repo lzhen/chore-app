@@ -95,7 +95,7 @@ test('current B123 transition worksheet retains strict bodyless-client release H
  */
 const vm = require('node:vm');
 const OBSERVED_V1_EDGE_SOURCE = "import 'jsr:@supabase/functions-js/edge-runtime.d.ts'\nimport { createClient } from 'npm:@supabase/supabase-js@2'\n\nconst corsHeaders = {\n  'Access-Control-Allow-Origin': '*',\n  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',\n  'Access-Control-Allow-Methods': 'POST, OPTIONS',\n}\n\nDeno.serve(async (request: Request) => {\n  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })\n  if (request.method !== 'POST') {\n    return new Response(JSON.stringify({ error: 'Method not allowed' }), {\n      status: 405,\n      headers: { ...corsHeaders, 'Content-Type': 'application/json' },\n    })\n  }\n\n  const authorization = request.headers.get('Authorization')\n  if (!authorization) {\n    return new Response(JSON.stringify({ error: 'Unauthorized' }), {\n      status: 401,\n      headers: { ...corsHeaders, 'Content-Type': 'application/json' },\n    })\n  }\n\n  const supabaseUrl = Deno.env.get('SUPABASE_URL')!\n  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!\n  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!\n  const userClient = createClient(supabaseUrl, anonKey, {\n    global: { headers: { Authorization: authorization } },\n    auth: { persistSession: false },\n  })\n\n  const { data: { user }, error: userError } = await userClient.auth.getUser()\n  if (userError || !user) {\n    return new Response(JSON.stringify({ error: 'Unauthorized' }), {\n      status: 401,\n      headers: { ...corsHeaders, 'Content-Type': 'application/json' },\n    })\n  }\n\n  const adminClient = createClient(supabaseUrl, serviceRoleKey, {\n    auth: { persistSession: false, autoRefreshToken: false },\n  })\n  const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id)\n  if (deleteError) {\n    console.error('Account deletion failed', deleteError)\n    return new Response(JSON.stringify({ error: 'Account deletion failed' }), {\n      status: 500,\n      headers: { ...corsHeaders, 'Content-Type': 'application/json' },\n    })\n  }\n\n  return new Response(JSON.stringify({ deleted: true }), {\n    status: 200,\n    headers: { ...corsHeaders, 'Content-Type': 'application/json' },\n  })\n})\n";
-function observedV1Harness(authUserId = 'synthetic-bearer-B', deletionError = null) {
+function observedV1Harness(authUserId = 'synthetic-bearer-B', deletionError = null, authError = null) {
   // Only remove Deno type declarations/imports and TS non-null assertions.
   // The actual handler branches, auth logic and admin call execute as observed.
   const runnable = OBSERVED_V1_EDGE_SOURCE
@@ -113,7 +113,7 @@ function observedV1Harness(authUserId = 'synthetic-bearer-B', deletionError = nu
   const createClient = (_url, _key, opts = {}) => (
     opts.global?.headers?.Authorization
       ? { auth: { getUser: async () => ({
-          data: { user: { id: authUserId } }, error: null,
+          data: { user: authUserId == null ? null : { id: authUserId } }, error: authError,
         }) } }
       : { auth: { admin: { deleteUser: async id => {
           deletedIds.push(id);
@@ -169,4 +169,32 @@ test('observed deployed v1 source: missing bearer, wrong method, admin failure f
   assert.equal(failure.status, 500);
   assert.notEqual((await failure.json()).deleted, true);
   assert.equal(b.deletedIds.length, 1); // admin was attempted; outcome not safely reconciled.
+});
+
+// Task136: source-executed guard for an expired bearer and preflight, with
+// intentionally synthetic users and no connection to a deployed service.
+test('observed deployed v1 source: expired bearer, absent auth user and CORS preflight never invoke admin delete', async () => {
+  const endpoint = 'https://synthetic.invalid/delete-account';
+  const expired = observedV1Harness('synthetic-bearer-B', null, { message: 'synthetic expired JWT' });
+  const expiredResponse = await expired.handler(new Request(endpoint, {
+    method: 'POST', headers: { Authorization: 'Bearer expired-synthetic' },
+  }));
+  assert.equal(expiredResponse.status, 401);
+  assert.equal((await expiredResponse.json()).error, 'Unauthorized');
+  assert.deepEqual(expired.deletedIds, []);
+
+  const missingUser = observedV1Harness(null);
+  const missingUserResponse = await missingUser.handler(new Request(endpoint, {
+    method: 'POST', headers: { Authorization: 'Bearer synthetic-no-user' },
+  }));
+  assert.equal(missingUserResponse.status, 401);
+  assert.deepEqual(missingUser.deletedIds, []);
+
+  const preflight = observedV1Harness();
+  const optionsResponse = await preflight.handler(new Request(endpoint, { method: 'OPTIONS' }));
+  assert.equal(optionsResponse.status, 200);
+  assert.equal(await optionsResponse.text(), 'ok');
+  assert.equal(optionsResponse.headers.get('Access-Control-Allow-Methods'), 'POST, OPTIONS');
+  assert.deepEqual(preflight.deletedIds, []);
+  // Tests only current v1 source branches. They cannot certify production auth or deletion safety.
 });
