@@ -85,16 +85,16 @@ function dbToMember(db: DbTeamMember): TeamMember {
     id: db.id,
     name: db.name,
     color: db.color,
-    avatarUrl: db.avatar_url || undefined,
-    email: db.email || undefined,
-    skills: db.skills || undefined,
-    workingHours: db.working_hours_start && db.working_hours_end ? {
+    avatarUrl: db.avatar_url ?? undefined,
+    email: db.email ?? undefined,
+    skills: db.skills ?? undefined,
+    workingHours: db.working_hours_start != null && db.working_hours_end != null ? {
       start: db.working_hours_start,
       end: db.working_hours_end,
-      days: db.working_days || [1, 2, 3, 4, 5],
+      days: db.working_days ?? [1, 2, 3, 4, 5],
     } : undefined,
-    points: db.points || 0,
-    badges: db.badges || [],
+    points: db.points ?? 0,
+    badges: db.badges ?? [],
     weeklyCapacityMinutes: db.weekly_capacity_minutes ?? undefined,
   };
 }
@@ -225,66 +225,49 @@ export async function fetchTeamMembers(): Promise<TeamMember[]> {
   return (data || []).map(dbToMember);
 }
 
+// Persist only columns already present in public.team_members.
+// Avatar uploads are intentionally excluded: FileReader data URLs are not
+// durable object-storage URLs and must not be silently written to avatar_url.
+const memberWritePayload = (member: Omit<TeamMember, 'id'>): Record<string, unknown> => ({
+  name: member.name,
+  color: member.color,
+  email: member.email ?? null,
+  skills: member.skills ?? null,
+  working_hours_start: member.workingHours?.start ?? null,
+  working_hours_end: member.workingHours?.end ?? null,
+  working_days: member.workingHours?.days ?? null,
+  points: member.points ?? 0,
+  badges: member.badges ?? [],
+  weekly_capacity_minutes: member.weeklyCapacityMinutes ?? null,
+});
+
 export async function createTeamMember(member: Omit<TeamMember, 'id'>): Promise<TeamMember | null> {
-  // Start with essential fields that definitely exist
-  const insertData: Record<string, unknown> = {
-    name: member.name,
-    color: member.color,
-  };
+  const { data, error } = await supabase
+    .from('team_members')
+    .insert(memberWritePayload(member))
+    .select()
+    .single();
 
-  // Add optional fields if they have values (these may or may not exist in the DB)
-  // Only known columns are sent to the database.
-  try {
-    const { data, error } = await supabase
-      .from('team_members')
-      .insert(insertData)
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error('Could not save team member. Please try again.');
-    }
-
-    return dbToMember(data);
-  } catch (err) {
-    throw err instanceof Error ? err : new Error('Could not save family member. Please try again.');
+  if (error || !data) {
+    throw new Error('Could not save team member. Please try again.');
   }
+  return dbToMember(data);
 }
 
-export async function updateTeamMember(member: TeamMember): Promise<TeamMember | null> {
-  // Only update fields that exist - start with essential ones
-  const updateData: Record<string, unknown> = {
-    name: member.name,
-    color: member.color,
-  };
+export async function updateTeamMember(member: TeamMember): Promise<TeamMember> {
+  const { data, error } = await supabase
+    .from('team_members')
+    .update(memberWritePayload(member))
+    .eq('id', member.id)
+    .select()
+    .single();
 
-  try {
-    const { data, error } = await supabase
-      .from('team_members')
-      .update(updateData)
-      .eq('id', member.id)
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error('Could not update team member. Please try again.');
-    }
-
-    // Return the updated member with local data merged (for fields not in DB)
-    return {
-      ...dbToMember(data),
-      avatarUrl: member.avatarUrl,
-      email: member.email,
-      skills: member.skills,
-      workingHours: member.workingHours,
-      points: member.points || 0,
-      badges: member.badges || [],
-      weeklyCapacityMinutes: member.weeklyCapacityMinutes,
-    };
-  } catch (err) {
-    console.error('Error updating team member:', err);
-    return null;
+  if (error || !data) {
+    // Propagate failure to AppContext and the editor. Never merge unsaved
+    // client-only values into the DB response and display them as saved.
+    throw new Error('Could not update team member. Please try again.');
   }
+  return dbToMember(data);
 }
 
 export async function deleteTeamMember(id: string): Promise<boolean> {
