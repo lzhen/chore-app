@@ -26,7 +26,12 @@ const AuthContext = createContext<AuthContextType | null>(null);
 const DELETION_RECEIPT_KEY = 'nesmi:account-deletion-confirmed';
 type DeletionReceiptState = 'confirmed' | 'absent' | 'unavailable';
 const readDeletionReceipt = (): DeletionReceiptState => {
-  try { return localStorage.getItem(DELETION_RECEIPT_KEY) === 'true' ? 'confirmed' : 'absent'; }
+  try {
+    const stored = localStorage.getItem(DELETION_RECEIPT_KEY);
+    // Only a genuinely missing marker permits automatic session restoration.
+    // A present but unrecognized value is uncertain, never proof of absence.
+    return stored === null ? 'absent' : stored === 'true' ? 'confirmed' : 'unavailable';
+  }
   catch {
     // A storage permission failure can hide an earlier deletion receipt.
     // Never auto-restore an SDK session when that safeguard cannot be read.
@@ -45,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initialDeletionReceiptState === 'confirmed'
       ? 'A previous account was deleted on this device. Old sign-in data will not be restored. Sign in with another account or contact support.'
       : initialDeletionReceiptState === 'unavailable'
-        ? 'Account protection could not be read on this device. Automatic sign-in is paused to avoid restoring a possibly deleted account. Check browser storage permissions and sign in again.'
+        ? 'Account protection could not be verified on this device. Automatic sign-in is paused to avoid restoring a possibly deleted account. Check browser storage permissions and sign in again.'
         : null
   );
   // Guard both the current provider and a newly mounted provider after reload.
