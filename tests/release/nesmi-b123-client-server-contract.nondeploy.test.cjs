@@ -58,3 +58,27 @@ test('nondeployed Edge requires the ID; B123 is therefore NOT compatible with th
   assert.doesNotMatch(invocationOptions(releaseSource), /\bbody\s*:/);
   // This assertion documents an outstanding HOLD, not permission to deploy.
 });
+
+test('current B123 transition worksheet retains strict bodyless-client release HOLD', () => {
+  const gatePath = path.join(repo, 'docs/release/nesmi-b122-to-claimed-edge-transition-gate-20261025.md');
+  const gate = fs.readFileSync(gatePath, 'utf8');
+  assert.ok(gate.includes(B123_SHA), 'transition worksheet must cite the immutable B123 source SHA');
+  const begin = gate.indexOf('### Current transition matrix (B123 is the installed-source anchor)');
+  const end = gate.indexOf('### Decision-free next verification and hard stop rules', begin);
+  assert.ok(begin !== -1 && end > begin, 'current B123 matrix must be present before historical B122 notes');
+  const rows = gate.slice(begin, end).split('\n').filter(line => line.startsWith('|'));
+  const findRow = fragment => rows.find(line => line.includes(fragment));
+  const unknown = findRow('unknown live deployed Edge');
+  const strict = findRow('existing PR #35 strict Edge');
+  const candidate = findRow('nondeployed claimed Deno candidate');
+  const legacy = findRow('Legacy B122');
+  assert.ok(unknown && strict && candidate && legacy, 'matrix must retain live, strict, candidate, and legacy cases');
+  assert.match(unknown, /\*\*STOP\*\*/);
+  assert.match(strict, /400/);
+  assert.match(strict, /\*\*HOLD/);
+  assert.match(candidate, /400/);
+  assert.match(candidate, /\*\*HOLD/);
+  assert.match(legacy, /\*\*HOLD/);
+  assert.match(gate.slice(begin, end), /HOLD \//, 'matrix must continue to reject unsafe transitions');
+  // This safeguards release-document integrity, not production behavior or approval.
+});
