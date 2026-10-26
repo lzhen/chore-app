@@ -94,6 +94,8 @@ describe('account deletion remount + Assistant portal release gate', () => {
     await user.click(screen.getByRole('button', { name: 'Delete permanently' }));
     expect(auth.deleteAccount).not.toHaveBeenCalled();
     expect(screen.getByRole('alert')).toHaveTextContent('No deletion request was sent');
+    // Safe identity-switch abort should not route a normal re-confirmation to support.
+    expect(screen.queryByRole('link', { name: 'Email support' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Delete my account' })).toBeEnabled();
     auth.deleteAccount.mockResolvedValue({ error: null, deletionConfirmed: true });
     await user.click(screen.getByRole('button', { name: 'Delete my account' }));
@@ -123,6 +125,7 @@ describe('account deletion remount + Assistant portal release gate', () => {
     expect(screen.getByText('Today content')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Account tab' }));
     expect(screen.getByRole('alert')).toHaveTextContent('may already have been attempted');
+    expect(screen.getByRole('link', { name: 'Email support' })).toHaveAttribute('href', 'mailto:care@empathie.ai');
     expect(screen.getByRole('button', { name: 'Delete my account' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Sign Out' })).toBeDisabled();
     expect(screen.getByRole('link', { name: 'View Privacy Policy' })).toBeInTheDocument();
@@ -158,6 +161,7 @@ describe('account deletion remount + Assistant portal release gate', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Account deleted, but this device could not fully clear');
     expect(alert).not.toHaveTextContent('Deletion could not be confirmed');
+    expect(screen.getByRole('link', { name: 'Email support' })).toHaveAttribute('href', 'mailto:care@empathie.ai');
     expect(screen.getByRole('button', { name: 'Deletion attempted' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Sign Out' })).toBeDisabled();
     expect(auth.deleteAccount).toHaveBeenCalledTimes(1);
@@ -175,6 +179,7 @@ describe('account deletion remount + Assistant portal release gate', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Deletion could not be confirmed');
     expect(alert).not.toHaveTextContent('Account deleted, but this device');
+    expect(screen.getByRole('link', { name: 'Email support' })).toHaveAttribute('href', 'mailto:care@empathie.ai');
     expect(auth.deleteAccount).toHaveBeenCalledTimes(1);
   });
 
@@ -235,6 +240,7 @@ describe('durable attempted-deletion lock (synthetic jsdom only)', () => {
       await user.click(screen.getByRole('button', { name: 'Delete permanently' }));
       expect(auth.deleteAccount).not.toHaveBeenCalled();
       expect(screen.getByRole('alert')).toHaveTextContent('cannot safely save the attempt');
+      expect(screen.getByRole('link', { name: 'Email support' })).toHaveAttribute('href', 'mailto:care@empathie.ai');
       expect(screen.getByRole('button', { name: 'Delete my account' })).toBeDisabled();
     } finally {
       rejectAttempts.mockRestore();
