@@ -16,6 +16,7 @@ on:
       - 'tests/release/nesmi-delete-edge-http-route.nondeploy.test.cjs'
       - 'docs/release/prototypes/nesmi-delete-claimed-deno-handler.nondeploy.ts'
       - 'tests/release/nesmi-delete-claimed-deno-handler.nondeploy.test.cjs'
+      - 'tests/release/nesmi-b123-client-server-contract.nondeploy.test.cjs'
       - '.github/workflows/nesmi-delete-claim-postgres-ci.yml'
 
 permissions:
@@ -58,5 +59,9 @@ jobs:
         run: node --test tests/release/nesmi-delete-edge-http-route.nondeploy.test.cjs
       - name: Execute nondeployed Deno.serve candidate and strict claim replay gate (synthetic only)
         run: node --test tests/release/nesmi-delete-claimed-deno-handler.nondeploy.test.cjs
+      - name: Fetch immutable B123 release-client source (no app build or backend access)
+        run: git fetch --no-tags --depth=1 origin 6eab3d3b20a32d07376c1bd938979219a3565a74
+      - name: Confirm current B123 bodyless-versus-Edge compatibility HOLD
+        run: node --test tests/release/nesmi-b123-client-server-contract.nondeploy.test.cjs
       - name: Check disposable PostgreSQL prototype (no user data)
         run: bash tests/release/nesmi-delete-claim-postgres-ci.sh
