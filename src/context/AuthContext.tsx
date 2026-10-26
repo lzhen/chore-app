@@ -267,7 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // AccountSettings immediately unmounts when App switches to AuthForm;
     // its local alert cannot be relied on to display this cleanup failure.
     setDeletionCleanupWarning(cleanupError
-      ? 'Account deleted, but this device could not fully clear its local sign-in data. Close and restart Nesmi; contact support if the session still appears.'
+      ? 'Account deleted, but this device could not fully clear its local sign-in data. Closing or restarting Nesmi may restore an old session. Contact support before using Nesmi on this device again.'
       : null);
     return { error: cleanupError, deletionConfirmed: true };
   };
