@@ -501,7 +501,8 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
       fireEvent.click(await screen.findByRole('button', { name: 'Delete fixture account' }));
       const warning = await screen.findByRole('alert');
       expect(warning).toHaveTextContent('Account deleted, but this device could not fully clear its local sign-in data.');
-      expect(warning).toHaveTextContent('Close and restart Nesmi');
+      expect(warning).toHaveTextContent('Closing or restarting Nesmi may restore an old session.');
+      expect(warning).toHaveTextContent('Contact support before using Nesmi on this device again.');
       expect(screen.getByRole('button', { name: 'Sign In' })).toBeInTheDocument();
       expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
     } finally {
@@ -624,6 +625,7 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
       expect(response?.deletionConfirmed).toBe(true);
       expect(response?.error?.message).toContain('local session protection could not be saved');
       expect(hook.result.current.deletionCleanupWarning).toMatch(/could not fully clear/i);
+      expect(hook.result.current.deletionCleanupWarning).toMatch(/restarting Nesmi may restore an old session/i);
       expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
       expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
     } finally {
