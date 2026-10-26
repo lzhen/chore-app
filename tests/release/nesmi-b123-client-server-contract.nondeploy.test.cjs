@@ -208,10 +208,10 @@ test('observed deployed v1 source: expired bearer, absent auth user and CORS pre
  */
 function offlineB123DeleteClient({ data = { deleted: true }, error = null, signOutReject = false } = {}) {
   const src = deletionBlock(releaseSource);
-  assert.match(src, /^const deleteAccount = async \\(\\) => \\{/);
-  assert.equal((src.match(/\\bas Error\\b/g) || []).length, 1, 'B123 transform must be explicitly reviewed if source changes');
+  assert.match(src, /^const deleteAccount = async \(\) => \{/);
+  assert.equal((src.match(/\bas Error\b/g) || []).length, 1, 'B123 transform must be explicitly reviewed if source changes');
   const executable = src
-    .replace(/^const deleteAccount = async \\(\\) => \\{/, 'globalThis.__deleteAccount = async () => {')
+    .replace(/^const deleteAccount = async \(\) => \{/, 'globalThis.__deleteAccount = async () => {')
     .replace('error as Error', 'error');
   const cache = new Map([
     ['chore-app-chores', 'synthetic-nesmi-chores'],
