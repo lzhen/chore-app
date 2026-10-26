@@ -1,0 +1,117 @@
+/**
+ * Offline Nesmi member persistence contract. In-memory fixtures only:
+ * no Supabase network calls, accounts or production writes.
+ */
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { supabase } from './supabase';
+import { createTeamMember, updateTeamMember } from './supabaseStorage';
+import type { TeamMember } from '../types';
+
+const row = {
+  id: 'synthetic-member',
+  name: 'Synthetic User',
+  color: '#99ccff',
+  avatar_url: 'https://assets.invalid/existing.png',
+  email: 'synthetic@example.invalid',
+  skills: ['planning'],
+  working_hours_start: '07:00',
+  working_hours_end: '16:00',
+  working_days: [],
+  points: 0,
+  badges: [],
+  weekly_capacity_minutes: 0,
+};
+const member: TeamMember = {
+  id: row.id,
+  name: row.name,
+  color: row.color,
+  avatarUrl: 'data:image/png;base64,synthetic',
+  email: row.email,
+  skills: row.skills,
+  workingHours: { start: '07:00', end: '16:00', days: [] },
+  points: 0,
+  badges: [],
+  weeklyCapacityMinutes: 0,
+};
+
+function fixture(result: { data: typeof row | null; error: { message: string } | null } = { data: row, error: null }) {
+  let payload: Record<string, unknown> | undefined;
+  const single = vi.fn().mockResolvedValue(result);
+  const select = vi.fn().mockReturnValue({ single });
+  const eq = vi.fn().mockReturnValue({ select });
+  const update = vi.fn().mockImplementation((value: Record<string, unknown>) => {
+    payload = value;
+    return { eq };
+  });
+  const insert = vi.fn().mockImplementation((value: Record<string, unknown>) => {
+    payload = value;
+    return { select };
+  });
+  const from = vi.fn().mockReturnValue({ update, insert });
+  // The common test setup mocks Supabase auth only; add an in-memory
+  // table adapter for this isolated suite.
+  Object.assign(supabase, { from });
+  return { getPayload: () => payload, from, eq, update, insert };
+}
+
+beforeEach(() => { vi.clearAllMocks(); });
+
+describe('member profile database persistence', () => {
+  it('updates every supported column and reads the authoritative DB row; never writes an avatar data URL', async () => {
+    const db = fixture();
+    const saved = await updateTeamMember(member);
+    expect(db.from).toHaveBeenCalledWith('team_members');
+    expect(db.eq).toHaveBeenCalledWith('id', member.id);
+    expect(db.getPayload()).toEqual({
+      name: member.name, color: member.color,
+      email: member.email, skills: ['planning'],
+      working_hours_start: '07:00', working_hours_end: '16:00',
+      working_days: [], points: 0, badges: [], weekly_capacity_minutes: 0,
+    });
+    expect(db.getPayload()).not.toHaveProperty('avatar_url');
+    expect(saved).toEqual({
+      ...member,
+      avatarUrl: row.avatar_url,
+    });
+    expect(saved.workingHours?.days).toEqual([]);
+    expect(saved.weeklyCapacityMinutes).toBe(0);
+  });
+
+  it('sends null for unset optional profile fields without manufacturing default working hours', async () => {
+    const db = fixture({
+      data: { ...row, email: null as unknown as string, skills: null as unknown as string[], working_hours_start: null as unknown as string,
+        working_hours_end: null as unknown as string, working_days: null as unknown as number[], weekly_capacity_minutes: null as unknown as number },
+      error: null,
+    });
+    const saved = await updateTeamMember({
+      id: row.id, name: row.name, color: row.color, points: 0, badges: [],
+    });
+    expect(db.getPayload()).toEqual({
+      name: row.name, color: row.color, email: null, skills: null,
+      working_hours_start: null, working_hours_end: null, working_days: null,
+      points: 0, badges: [], weekly_capacity_minutes: null,
+    });
+    expect(saved.workingHours).toBeUndefined();
+    expect(saved.weeklyCapacityMinutes).toBeUndefined();
+  });
+
+  it('throws on a rejected or empty database update rather than returning a false-success member', async () => {
+    fixture({ data: null, error: { message: 'synthetic permission rejection' } });
+    await expect(updateTeamMember(member)).rejects.toThrow('Could not update team member');
+    fixture({ data: null, error: null });
+    await expect(updateTeamMember(member)).rejects.toThrow('Could not update team member');
+  });
+
+  it('creates with the same supported persisted fields and never submits avatar data', async () => {
+    const db = fixture();
+    const { id: _id, ...withoutId } = member;
+    const created = await createTeamMember(withoutId);
+    expect(db.insert).toHaveBeenCalledTimes(1);
+    expect(db.getPayload()).toMatchObject({
+      email: row.email, points: 0, badges: [], weekly_capacity_minutes: 0,
+      working_days: [],
+    });
+    expect(db.getPayload()).not.toHaveProperty('avatar_url');
+    expect(created?.id).toBe(row.id);
+  });
+});
