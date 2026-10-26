@@ -160,10 +160,11 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
 
               {/* Name */}
               <div>
-                <label className="block text-sm font-medium text-content-primary mb-2">
+                <label htmlFor="member-profile-name" className="block text-sm font-medium text-content-primary mb-2">
                   Name
                 </label>
                 <input
+                  id="member-profile-name"
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -174,10 +175,11 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
 
               {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-content-primary mb-2">
+                <label htmlFor="member-profile-email" className="block text-sm font-medium text-content-primary mb-2">
                   Email
                 </label>
                 <input
+                  id="member-profile-email"
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
