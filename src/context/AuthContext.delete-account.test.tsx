@@ -91,6 +91,50 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
     }
   });
 
+  it('blocks a mounted tab on a malformed cross-tab receipt, then permits deliberate new login', async () => {
+    const staleSession = { user: { id: 'synthetic-previous-user' } };
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: staleSession }, error: null,
+    } as any);
+    let emitAuth!: (event: string, session: any) => void;
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementation(((listener: any) => {
+      emitAuth = listener;
+      return { data: { subscription: { unsubscribe: vi.fn() } } };
+    }) as any);
+    const hook = await mountAuth();
+    try {
+      expect(hook.result.current.user?.id).toBe('synthetic-previous-user');
+      localStorage.setItem('nesmi:account-deletion-confirmed', 'malformed-receipt');
+      await act(async () => {
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: 'nesmi:account-deletion-confirmed',
+          newValue: 'malformed-receipt',
+          storageArea: localStorage,
+        }));
+      });
+      expect(hook.result.current.user).toBeNull();
+      expect(hook.result.current.session).toBeNull();
+      expect(hook.result.current.deletionCleanupWarning).toMatch(/could not be verified/i);
+      await act(async () => { emitAuth('SIGNED_IN', staleSession); });
+      expect(hook.result.current.user).toBeNull();
+      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+
+      const freshSession = { user: { id: 'synthetic-new-explicit-user' } };
+      vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
+        data: { user: freshSession.user, session: freshSession }, error: null,
+      } as any);
+      await act(async () => {
+        const result = await hook.result.current.signIn('fresh@example.invalid', 'synthetic-only');
+        expect(result.error).toBeNull();
+      });
+      expect(hook.result.current.user?.id).toBe('synthetic-new-explicit-user');
+      expect(localStorage.getItem('nesmi:account-deletion-confirmed')).toBeNull();
+      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+    } finally {
+      hook.unmount();
+    }
+  });
+
   it('rejects a pending startup session read after a different tab confirms deletion', async () => {
     // Real network/persistence is NOT exercised here. This isolates the React
     // startup getSession race with a synthetic same-origin storage event.
