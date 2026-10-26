@@ -57,6 +57,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // A new explicitly successful sign-in can re-arm authentication.
   const deletionConfirmedRef = useRef(initialDeletionReceipt);
   const authRevisionRef = useRef(0);
+  // A live SDK auth event is newer than an in-flight startup getSession snapshot.
+  // Keep delayed initial reads from replacing a freshly signed-in/out identity.
+  const startupAuthEventRef = useRef(false);
   // An explicit login after verified deletion must not be overwritten by
   // late events from the deleted identity. Pre-deletion events stay normal.
   const postDeletionExplicitUserIdRef = useRef<string | null>(null);
@@ -78,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       const initialRevision = authRevisionRef.current;
       supabase.auth.getSession().then(({ data: { session } }) => {
-        if (!deletionConfirmedRef.current && authRevisionRef.current === initialRevision) {
+        if (!deletionConfirmedRef.current && !startupAuthEventRef.current && authRevisionRef.current === initialRevision) {
           setSession(session);
           setUser(session?.user ?? null);
         }
@@ -96,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Ignore delayed old-account auth events after a new explicit login.
         if (postDeletionExplicitUserIdRef.current && session?.user?.id &&
             session.user.id !== postDeletionExplicitUserIdRef.current) return;
+        startupAuthEventRef.current = true;
         setSession(session);
         setUser(session?.user ?? null);
       }
