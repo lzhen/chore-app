@@ -1,0 +1,40 @@
+name: Nesmi B123 member profile draft regression
+on:
+  push:
+    branches: [fix/nesmi-b123-member-profile-save-20261026]
+    paths:
+      - 'src/utils/supabaseStorage.ts'
+      - 'src/utils/supabaseStorage.members.test.ts'
+      - 'src/components/MemberProfileModal.tsx'
+      - 'src/components/MemberProfileModal.test.tsx'
+      - 'src/context/AppContext.tsx'
+      - '.github/workflows/nesmi-member-profile-gate.yml'
+  pull_request:
+    branches: [fix/chorely-auth-viewport-20260927-icon-family-20261026]
+    paths:
+      - 'src/utils/supabaseStorage.ts'
+      - 'src/utils/supabaseStorage.members.test.ts'
+      - 'src/components/MemberProfileModal.tsx'
+      - 'src/components/MemberProfileModal.test.tsx'
+      - 'src/context/AppContext.tsx'
+      - '.github/workflows/nesmi-member-profile-gate.yml'
+permissions:
+  contents: read
+jobs:
+  member-profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install locked dependencies without hook scripts
+        run: npm ci
+        env:
+          HUSKY: '0'
+      - name: Verify exact-branch TypeScript
+        run: npm run typecheck
+      - name: Run offline persistence and editor RTL regressions
+        run: npx vitest run src/utils/supabaseStorage.members.test.ts src/components/MemberProfileModal.test.tsx
