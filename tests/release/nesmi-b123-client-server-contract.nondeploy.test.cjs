@@ -198,3 +198,94 @@ test('observed deployed v1 source: expired bearer, absent auth user and CORS pre
   assert.deepEqual(preflight.deletedIds, []);
   // Tests only current v1 source branches. They cannot certify production auth or deletion safety.
 });
+
+
+/*
+ * Task138 — Execute the actual immutable TestFlight B123 AuthContext deletion
+ * function with synthetic SDK and storage. Existing draft-provider RTL covers
+ * proposed code, but that is not the shipped B123 source. There is no network,
+ * real token, browser profile or account deletion in this test.
+ */
+function offlineB123DeleteClient({ data = { deleted: true }, error = null, signOutReject = false } = {}) {
+  const src = deletionBlock(releaseSource);
+  assert.match(src, /^const deleteAccount = async \\(\\) => \\{/);
+  assert.equal((src.match(/\\bas Error\\b/g) || []).length, 1, 'B123 transform must be explicitly reviewed if source changes');
+  const executable = src
+    .replace(/^const deleteAccount = async \\(\\) => \\{/, 'globalThis.__deleteAccount = async () => {')
+    .replace('error as Error', 'error');
+  const cache = new Map([
+    ['chore-app-chores', 'synthetic-nesmi-chores'],
+    ['chore-app-members', 'synthetic-nesmi-members'],
+    ['qingbu.state.v1', 'synthetic-movelight-records'],
+    ['movelight.redesign.v1.state', 'synthetic-movelight-other'],
+    ['unrelated:keep', 'synthetic-other-app'],
+  ]);
+  const invokes = [], removed = [], signouts = [], sessions = [], users = [];
+  const sandbox = {
+    Error,
+    supabase: {
+      functions: { invoke: async (name, options) => {
+        invokes.push({ name, method: options.method, hasBody: 'body' in options });
+        return { data, error };
+      } },
+      auth: { signOut: async options => {
+        signouts.push(options.scope);
+        if (signOutReject) throw new Error('synthetic local signout failed');
+        return { error: null };
+      } },
+    },
+    localStorage: { removeItem: key => { removed.push(key); cache.delete(key); } },
+    setSession: value => sessions.push(value),
+    setUser: value => users.push(value),
+  };
+  vm.runInNewContext(executable, sandbox, {
+    filename: 'immutable-b123-deleteAccount.nondeploy.tsx', timeout: 1000,
+  });
+  assert.equal(typeof sandbox.__deleteAccount, 'function');
+  return { execute: () => sandbox.__deleteAccount(), cache, invokes, removed, signouts, sessions, users };
+}
+
+test('immutable B123 executed client cleanup: sibling-app keys survive server ACK', async () => {
+  const h = offlineB123DeleteClient();
+  const result = await h.execute();
+  assert.equal(result.error, null);
+  assert.deepEqual(h.invokes, [{ name: 'delete-account', method: 'POST', hasBody: false }]);
+  assert.deepEqual(h.removed, ['chore-app-chores', 'chore-app-members']);
+  assert.equal(h.cache.has('chore-app-chores'), false);
+  assert.equal(h.cache.has('chore-app-members'), false);
+  assert.equal(h.cache.get('qingbu.state.v1'), 'synthetic-movelight-records');
+  assert.equal(h.cache.get('movelight.redesign.v1.state'), 'synthetic-movelight-other');
+  assert.equal(h.cache.get('unrelated:keep'), 'synthetic-other-app');
+  assert.deepEqual(h.signouts, ['local']);
+  assert.deepEqual(h.sessions, [null]);
+  assert.deepEqual(h.users, [null]);
+});
+
+test('immutable B123 missing ACK or SDK error preserves all synthetic local state', async () => {
+  for (const outcome of [
+    { data: { deleted: false }, error: null },
+    { data: null, error: new Error('synthetic ambiguous invocation error') },
+  ]) {
+    const h = offlineB123DeleteClient(outcome);
+    const result = await h.execute();
+    assert.ok(result.error);
+    assert.deepEqual(h.removed, []);
+    assert.deepEqual(h.signouts, []);
+    assert.deepEqual(h.sessions, []);
+    assert.deepEqual(h.users, []);
+    assert.equal(h.cache.get('chore-app-chores'), 'synthetic-nesmi-chores');
+    assert.equal(h.cache.get('qingbu.state.v1'), 'synthetic-movelight-records');
+  }
+});
+
+test('immutable B123 post-ACK local signout rejection leaves React identity uncleared (HOLD)', async () => {
+  const h = offlineB123DeleteClient({ signOutReject: true });
+  await assert.rejects(h.execute(), /synthetic local signout failed/);
+  assert.deepEqual(h.removed, ['chore-app-chores', 'chore-app-members']);
+  assert.deepEqual(h.signouts, ['local']);
+  assert.deepEqual(h.sessions, []);
+  assert.deepEqual(h.users, []);
+  assert.equal(h.cache.get('qingbu.state.v1'), 'synthetic-movelight-records');
+  // This is an immutable B123 failure reproducer, not a production incident.
+  // Draft PR #35 has a separate post-ACK cleanup warning path; RELEASE HOLD.
+});
