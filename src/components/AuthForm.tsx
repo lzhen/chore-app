@@ -104,6 +104,7 @@ export function AuthForm() {
           {deletionCleanupWarning && (
             <div className="mb-4 rounded-fluent-sm border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-500" role="alert">
               {deletionCleanupWarning}
+              <a href="mailto:care@empathie.ai" className="mt-2 inline-block font-medium underline underline-offset-2 hover:text-red-400">Email support</a>
             </div>
           )}
 
