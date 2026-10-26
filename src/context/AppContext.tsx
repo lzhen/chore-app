@@ -249,10 +249,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateMember = async (member: TeamMember) => {
+    // Only a confirmed DB response may become the visible member state.
+    // Storage failures propagate to the caller so the modal stays open.
     const updated = await dbUpdateTeamMember(member);
-    if (updated) {
-      dispatch({ type: 'UPDATE_MEMBER', payload: updated });
-    }
+    dispatch({ type: 'UPDATE_MEMBER', payload: updated });
   };
 
   const removeMember = async (id: string) => {
