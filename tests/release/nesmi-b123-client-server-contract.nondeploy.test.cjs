@@ -82,3 +82,89 @@ test('current B123 transition worksheet retains strict bodyless-client release H
   assert.match(strict, /do not deploy one-sided/, 'strict Edge must remain blocked for bodyless B123');
   // This safeguards release-document integrity, not production behavior or approval.
 });
+
+/*
+ * Task135 (2026-10-25): immutable, read-only snapshot of the deployed Supabase
+ * Edge v1 source, retrieved via the connected Supabase read API. This source
+ * contains code only, no env values or user data; test runs OFFLINE in vm.
+ * Snapshot metadata: project rosofbnimiothwxsabyr; function delete-account;
+ * version 1; verify_jwt=true; ezbr_sha256=589f4d5f888678251c976ee287c4b450623eaa088a56c22d9136249daf6d5e5e.
+ * Source-executed synthetic QA, NOT evidence of live HTTP or real deletion.
+ * The installed B123 client remains bodyless; this legacy handler is not
+ * hardened and MUST NOT be mistaken for a safe release contract.
+ */
+const vm = require('node:vm');
+const OBSERVED_V1_EDGE_SOURCE = "import 'jsr:@supabase/functions-js/edge-runtime.d.ts'\nimport { createClient } from 'npm:@supabase/supabase-js@2'\n\nconst corsHeaders = {\n  'Access-Control-Allow-Origin': '*',\n  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',\n  'Access-Control-Allow-Methods': 'POST, OPTIONS',\n}\n\nDeno.serve(async (request: Request) => {\n  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })\n  if (request.method !== 'POST') {\n    return new Response(JSON.stringify({ error: 'Method not allowed' }), {\n      status: 405,\n      headers: { ...corsHeaders, 'Content-Type': 'application/json' },\n    })\n  }\n\n  const authorization = request.headers.get('Authorization')\n  if (!authorization) {\n    return new Response(JSON.stringify({ error: 'Unauthorized' }), {\n      status: 401,\n      headers: { ...corsHeaders, 'Content-Type': 'application/json' },\n    })\n  }\n\n  const supabaseUrl = Deno.env.get('SUPABASE_URL')!\n  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!\n  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!\n  const userClient = createClient(supabaseUrl, anonKey, {\n    global: { headers: { Authorization: authorization } },\n    auth: { persistSession: false },\n  })\n\n  const { data: { user }, error: userError } = await userClient.auth.getUser()\n  if (userError || !user) {\n    return new Response(JSON.stringify({ error: 'Unauthorized' }), {\n      status: 401,\n      headers: { ...corsHeaders, 'Content-Type': 'application/json' },\n    })\n  }\n\n  const adminClient = createClient(supabaseUrl, serviceRoleKey, {\n    auth: { persistSession: false, autoRefreshToken: false },\n  })\n  const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id)\n  if (deleteError) {\n    console.error('Account deletion failed', deleteError)\n    return new Response(JSON.stringify({ error: 'Account deletion failed' }), {\n      status: 500,\n      headers: { ...corsHeaders, 'Content-Type': 'application/json' },\n    })\n  }\n\n  return new Response(JSON.stringify({ deleted: true }), {\n    status: 200,\n    headers: { ...corsHeaders, 'Content-Type': 'application/json' },\n  })\n})\n";
+function observedV1Harness(authUserId = 'synthetic-bearer-B', deletionError = null) {
+  // Only remove Deno type declarations/imports and TS non-null assertions.
+  // The actual handler branches, auth logic and admin call execute as observed.
+  const runnable = OBSERVED_V1_EDGE_SOURCE
+    .replace(/^import .*$/gm, '')
+    .replace(/request: Request/g, 'request')
+    .replace(/(Deno\\.env\\.get\\('[^']+'\\))!/g, '$1');
+  const deletedIds = [];
+  let handler = null;
+  const fakeDeno = {
+    serve: fn => { handler = fn; },
+    env: { get: key => 'synthetic-' + key },
+  };
+  const createClient = (_url, _key, opts = {}) => (
+    opts.global?.headers?.Authorization
+      ? { auth: { getUser: async () => ({
+          data: { user: { id: authUserId } }, error: null,
+        }) } }
+      : { auth: { admin: { deleteUser: async id => {
+          deletedIds.push(id);
+          return { error: deletionError };
+        } } } }
+  );
+  vm.runInNewContext(runnable, {
+    Deno: fakeDeno, createClient, Request, Response,
+    console: { error() {} },
+  }, { timeout: 1000, filename: 'deployed-edge-v1-snapshot.nondeploy.ts' });
+  assert.equal(typeof handler, 'function');
+  return { handler, deletedIds };
+}
+
+test('observed deployed v1 source: installed B123 bodyless POST gets legacy ACK on synthetic success', async () => {
+  assert.doesNotMatch(invocationOptions(releaseSource), /\\bbody\\s*:/);
+  const { handler, deletedIds } = observedV1Harness();
+  const response = await handler(new Request('https://synthetic.invalid/delete-account', {
+    method: 'POST', headers: { Authorization: 'Bearer synthetic' },
+  }));
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { deleted: true });
+  assert.deepEqual(deletedIds, ['synthetic-bearer-B']);
+  // The response is only a mocked legacy ACK, not evidence of safe deletion.
+});
+
+test('observed deployed v1 source: bearer switch is not bound to UI-confirmed identity (release HOLD)', async () => {
+  const userOriginallyConfirmedInUI = 'synthetic-confirmed-A';
+  const { handler, deletedIds } = observedV1Harness('synthetic-bearer-B');
+  const response = await handler(new Request('https://synthetic.invalid/delete-account', {
+    method: 'POST', headers: { Authorization: 'Bearer switched-session' },
+    body: JSON.stringify({ expectedUserId: userOriginallyConfirmedInUI }),
+  }));
+  assert.equal(response.status, 200);
+  assert.deepEqual(deletedIds, ['synthetic-bearer-B']);
+  assert.notEqual(deletedIds[0], userOriginallyConfirmedInUI);
+  // Even an ID-bearing future client is not protected by v1 source.
+});
+
+test('observed deployed v1 source: missing bearer, wrong method, admin failure fail without success ACK', async () => {
+  const a = observedV1Harness();
+  const withoutBearer = await a.handler(new Request('https://synthetic.invalid/delete-account', { method: 'POST' }));
+  assert.equal(withoutBearer.status, 401);
+  const wrongMethod = await a.handler(new Request('https://synthetic.invalid/delete-account', {
+    method: 'GET', headers: { Authorization: 'Bearer synthetic' },
+  }));
+  assert.equal(wrongMethod.status, 405);
+  assert.equal(a.deletedIds.length, 0);
+  const b = observedV1Harness('synthetic-bearer-B', { message: 'synthetic admin error' });
+  const failure = await b.handler(new Request('https://synthetic.invalid/delete-account', {
+    method: 'POST', headers: { Authorization: 'Bearer synthetic' },
+  }));
+  assert.equal(failure.status, 500);
+  assert.notEqual((await failure.json()).deleted, true);
+  assert.equal(b.deletedIds.length, 1); // admin was attempted; outcome not safely reconciled.
+});
