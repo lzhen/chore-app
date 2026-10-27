@@ -200,3 +200,33 @@ test('real SDK against jsdom localStorage keeps sibling app data across a simula
     dom.window.close();
   }
 });
+
+test('real SDK verifies an explicitly supplied bearer JWT with no stored auth session', async () => {
+  // This catches a release-critical mismatch between Edge bearer headers and
+  // auth.getUser(): without an explicit jwt, the SDK reads its *local session*
+  // instead. This real-SDK fixture never reaches a live Supabase service.
+  const base = 'https://nesmi-bearer-contract.invalid';
+  const token = 'synthetic-edge-bearer-only';
+  const seen = [];
+  const interceptedFetch = async (input, init = {}) => {
+    const url = typeof input === 'string' ? input : input.url;
+    assert.equal(url, base + '/auth/v1/user', 'Only synthetic Auth user lookup is permitted');
+    const headers = new Headers(init.headers);
+    assert.equal(headers.get('Authorization'), 'Bearer ' + token,
+      'Auth server must receive the original caller bearer, not an anon API key');
+    seen.push(url);
+    return new Response(JSON.stringify({
+      id: 'synthetic-A', aud: 'authenticated', role: 'authenticated',
+      email: 'synthetic@example.invalid', app_metadata: {}, user_metadata: {},
+      created_at: '2026-01-01T00:00:00Z',
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  const client = createClient(base, 'fixture-anon-public-key', {
+    auth: { persistSession: false, detectSessionInUrl: false, autoRefreshToken: false },
+    global: { fetch: interceptedFetch },
+  });
+  const { data, error } = await client.auth.getUser(token);
+  assert.equal(error, null);
+  assert.equal(data.user?.id, 'synthetic-A');
+  assert.deepEqual(seen, [base + '/auth/v1/user']);
+});
