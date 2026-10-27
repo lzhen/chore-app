@@ -1,3 +1,27 @@
+# CURRENT Nesmi deletion rollout checkpoint — Task168 · 2026-10-27 06:25 PDT (INTERNAL / HOLD)
+
+> **This checkpoint supersedes the rollout *recommendations* below where they still describe overwriting `delete-account` with a strict handler. Historical sections remain for traceability; none is an authorization to deploy.** This is a release decision/acceptance gate, not proof of an actual App Review selection, deployed migration, live HTTP invocation, user deletion or physical iPhone QA.
+
+## Verified inputs and one canonical release path
+
+- **Latest company execution evidence:** Library `Empathie_LaunchSprint_Nesmi_Task167_Versioned_Delete_Route_2026-10-27.md` and [Draft PR #35](https://github.com/lzhen/chore-app/pull/35), exact starting head [`ed74c19`](https://github.com/lzhen/chore-app/commit/ed74c19e1e80c221c56e79567006a1d32c978cde), branch `fix/nesmi-b122-account-delete-ui-guard-20261023` (open, draft, unmerged).
+- **Apple:** first-party TestFlight email dated **2026-10-25 17:39 PDT** confirms Nesmi **1.0 (123)** is *installable*, source [`6eab3d3`](https://github.com/lzhen/chore-app/commit/6eab3d3b20a32d07376c1bd938979219a3565a74). This does **not** identify the build currently attached to an App Store Connect review submission or establish App Review approval. Scoped connected Gmail did not return newer direct Nesmi Apple review evidence; the authenticated browser-tab reader was unavailable in this run. **ASC selected review build: UNKNOWN**, not unchanged.
+- **Live backend:** read-only Supabase Edge function listing on **2026-10-27** still shows **only `delete-account` ACTIVE v1**, `verify_jwt=true`, digest `589f4d5f888678251c976ee287c4b450623eaa088a56c22d9136249daf6d5e5e`. It does **not** show `delete-account-v2`. This is function inventory, **not live HTTP testing**; the previously read v1 source accepts a bodyless POST but has neither the UI-intended-ID binding nor a durable claim.
+- **Source contract:** the installed B123 client calls `delete-account` with **no JSON body**. PR #35 restores legacy `supabase/functions/delete-account/index.ts` to the identical B123 source blob `5d1568b5eee504b6e094532b95fbad49dd62b37d`, and adds unshipped `supabase/functions/delete-account-v2/index.ts` (blob `f720922adb27fcddf66684bd9010a8d2a9537305`). The PR35 client now calls **v2** with `{ expectedUserId }` and has **no v1 fallback**. The durable claim RPC is an **unapplied/rollback-only prototype** and has no approved retention policy.
+
+| Exact pair / sequence | Evidence-grounded behavior | Hard gate |
+| --- | --- | --- |
+| **Installed B123 → active legacy v1** | Bodyless request is source-shape compatible with v1; successful v1 returns `{deleted:true}`. Legacy security/replay limitations remain. No live deletion tested. | **Keep legacy endpoint untouched pending explicit cohort/retirement policy.** Not a hardened-release pass. |
+| **Installed B123 → strict v2** | Bodyless request would fail before any delete with HTTP 400 if rerouted. | **Do not redirect/overwrite v1 with v2.** |
+| **Unshipped PR35 client → current production** | Client invokes v2, which is absent; account deletion cannot succeed through the new client. | **Do not archive/upload/publish that client yet.** |
+| **Unshipped client → proposed v2 + claim RPC** | Claimed identity checks and replay gates have **only synthetic/rollback CI evidence**. RPC, privacy/retention decision, real HTTPS/SDK and deployment readiness are not demonstrated. | **No deployment or real deletion before owner-approved staged verification.** |
+
+**Only release path (ordered, with stop rules):** first retrieve authenticated **ASC selected review build + reviewer status** and inventory any still-installed B123/older bodyless clients; do not substitute TestFlight availability. Separately resolve the **founder-owned legacy-cohort policy and durable-claim retention/reconciliation decision**. Then, only in an explicitly authorized disposable non-production environment, validate the actual v2 RPC/grants, exact user-ID binding, pending/uncertain claims, HTTP status mapping, no destructive retries and two-account data isolation. A passing source test or CI archive cannot replace this. After approval of any sensitive deployment, verify v2 *server first* while **preserving** v1 compatibility, then verify the matching new client on a physical iPhone, App Review details and authorized submission. Legacy v1 retirement requires an **independent later decision**; do not infer that upgrading the app eliminates installed clients.
+
+**Do not** blanket-deploy Supabase functions, apply claim DDL, merge protected branches, upload/submit a new build, remove v1, delete test or customer identities, create paid staging infrastructure, make external promises or mark review/Store live based on this document. Existing [CI proof at Task167 head](https://github.com/lzhen/chore-app/actions/runs/40507358458) is source/isolated-only and is **not** attributed to this documentation commit. Unrelated Care/DLS/MoveLight expansion is de-scoped. No **new** founder-exclusive decision was discovered; existing approvals remain outstanding.
+
+---
+
 # Nesmi — B122/B123 ↔ claimed Edge transition gate (INTERNAL / NON-DEPLOYED)
 
 ## Task134 — authoritative production Edge source inventory (2026-10-25 23:07 PDT; READ-ONLY)
