@@ -75,6 +75,18 @@ function selfTest() {
     assert.throws(() => configFrom({ ...base, ...patch }), /Refusing/);
   }
   console.log('PASS: 9/9 non-production preflight cases (no network, no credentials)');
+  // UPDATE ... RETURNING can be empty under SELECT RLS even if an UPDATE ran.
+  // Verify the owner-side assertion catches that dangerous false green.
+  assert.doesNotThrow(() => assertUnaffectedOwnerRow([], [{ name: 'owner-marker' }], 'owner-marker'));
+  assert.throws(() => assertUnaffectedOwnerRow([], [{ name: 'unauthorized-write' }], 'owner-marker'), /cross-account mutation changed/);
+  console.log('PASS: 2/2 owner-side RLS regression assertions (no network, no credentials)');
+}
+
+function assertUnaffectedOwnerRow(rowsVisibleToB, rowsVisibleToA, expectedName) {
+  assert.equal(rowsVisibleToB?.length ?? 0, 0, 'B must not see updated A rows');
+  assert.equal(rowsVisibleToA?.length, 1, 'A must still be able to read its row after B tries to mutate it');
+  assert.equal(rowsVisibleToA[0]?.name, expectedName,
+    'RLS violation: cross-account mutation changed persisted A data despite empty UPDATE RETURNING');
 }
 
 function safeError(stage, result) {
@@ -116,7 +128,11 @@ async function runDisposableSmoke(config) {
     if (bMutation.error && !['42501', '403'].includes(String(bMutation.error.code))) {
       safeError('B negative update', bMutation);
     }
-    assert.equal(bMutation.data?.length ?? 0, 0, 'B must not update A row');
+    // A zero-row UPDATE RETURNING alone is NOT proof of isolation: SELECT
+    // visibility could hide an unauthorized write. Re-read with owner A.
+    const ownerAfterB = safeError('A confirm B could not mutate row',
+      await a.from('team_members').select('id, name').eq('id', rowId));
+    assertUnaffectedOwnerRow(bMutation.data, ownerAfterB, marker);
 
     safeError('A update own row', await a.from('team_members').update({ name: updated }).eq('id', rowId).select('id').single());
     const freshA = client();
