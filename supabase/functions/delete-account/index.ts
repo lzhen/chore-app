@@ -132,10 +132,14 @@ Deno.serve(async (request: Request) => {
   // automatically retry a claim. Confirm the SDK receipt AND durable finalize
   // before returning success.
   const deleteResult = await adminClient.auth.admin.deleteUser(user.id).catch(() => null)
+  // A structurally valid SDK receipt is not sufficient when it explicitly
+  // identifies a different account. Older SDK adapters may omit the id field;
+  // preserve that existing shape, but never ACK a conflicting identity.
   const confirmed = deleteResult?.error === null &&
     deleteResult?.data?.user != null &&
     typeof deleteResult.data.user === 'object' &&
-    !Array.isArray(deleteResult.data.user)
+    !Array.isArray(deleteResult.data.user) &&
+    (!('id' in deleteResult.data.user) || deleteResult.data.user.id === user.id)
   if (!confirmed) {
     await finalize('uncertain') // Best effort; claim remains reserved on failure.
     return failUncertain()
