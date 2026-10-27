@@ -405,9 +405,12 @@ export async function deleteCompletion(id: string): Promise<boolean> {
   const { data, error } = await supabase
     .from('chore_completions')
     .delete()
-    .eq('id', id).select('id');
+    .eq('id', id)
+    .select('id');
 
-  if (error || !data?.length) {
+  // A zero-row, wrong-ID, or multirow receipt must never be interpreted as
+  // deleting the requested completion. This can happen without HTTP errors.
+  if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== id) {
     throw new Error('Could not delete completion. Please try again.');
   }
 
