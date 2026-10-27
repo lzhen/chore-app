@@ -6,6 +6,11 @@ on:
   pull_request:
     paths:
       - 'docs/release/prototypes/nesmi_delete_claim_nondeploy.sql'
+      # Require source-executed claim/compatibility checks even for a code-only PR change.
+      - 'supabase/functions/delete-account/index.ts'
+      - 'src/context/AuthContext.tsx'
+      - 'src/components/AccountSettings.tsx'
+      - 'docs/release/nesmi-b122-to-claimed-edge-transition-gate-20261025.md'
       - 'tests/release/nesmi-delete-claim-postgres-ci.sh'
       - 'docs/release/prototypes/nesmi-delete-edge-orchestration.nondeploy.cjs'
       - 'tests/release/nesmi-delete-edge-orchestration.contract.test.cjs'
