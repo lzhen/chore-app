@@ -36,6 +36,7 @@ function compileCurrentEdge() {
 function offlineEdge({
   authenticatedUser = 'synthetic-A', adminError = null,
   adminData = { user: {} }, adminReject = false, adminThrow = false,
+  adminDelay = null,
   claimError = null, claimData, claimReject = false,
   finalizeData = true, finalizeError = null, finalizeReject = false,
 } = {}) {
@@ -83,7 +84,8 @@ function offlineEdge({
           calls.push('admin-delete:' + id);
           if (adminThrow) throw new Error('synthetic synchronous SDK exception after claim');
           if (adminReject) return Promise.reject(new Error('synthetic async transport exception'));
-          return Promise.resolve({ data: adminData, error: adminError });
+          // Keep the admin outcome pending to execute a true in-flight replay regression.
+          return Promise.resolve(adminDelay).then(() => ({ data: adminData, error: adminError }));
         } } },
       };
       throw Error('Unexpected synthetic client key');
@@ -217,6 +219,33 @@ test('actual draft Edge requires synthetic durable claim and blocks repeat admin
   assert.match((await two.json()).error, /do not retry/);
   assert.equal(h.calls.filter(x => x === 'admin-delete:synthetic-A').length, 1);
   // Synthetic RPC only; not evidence of a deployed SQL function or true concurrency.
+});
+
+test('actual draft Edge blocks a concurrent replay while first admin deletion is still in flight', async () => {
+  // Deliberately pause the first admin receipt after claim acquisition. This is
+  // source-executed offline QA only, not a live Supabase/Edge concurrency proof.
+  let unblockAdmin;
+  const pendingAdmin = new Promise(resolve => { unblockAdmin = resolve; });
+  const h = offlineEdge({ adminDelay: pendingAdmin });
+  const first = h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
+  try {
+    for (let i = 0; i < 30 && !h.calls.includes('admin-delete:synthetic-A'); i++) {
+      await Promise.resolve();
+    }
+    assert.ok(h.calls.includes('admin-delete:synthetic-A'), 'first request must reach held admin call');
+    assert.equal(h.calls.includes('finalize:confirmed'), false, 'first request is still in flight');
+    const replay = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
+    assert.equal(replay.status, 409, 'durable-claim stand-in must reject concurrent replay');
+    assert.match((await replay.json()).error, /do not retry/);
+    assert.equal(h.calls.filter(x => x === 'admin-delete:synthetic-A').length, 1);
+  } finally {
+    unblockAdmin();
+  }
+  const completed = await first;
+  assert.equal(completed.status, 200);
+  assert.deepEqual(await completed.json(), { deleted: true });
+  assert.equal(h.calls.filter(x => x === 'finalize:confirmed').length, 1);
+  assert.equal(h.calls.filter(x => x === 'admin-delete:synthetic-A').length, 1);
 });
 
 test('missing, ambiguous or malformed claim never starts the admin deletion', async () => {
