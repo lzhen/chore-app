@@ -4,8 +4,11 @@ name: Nesmi account-deletion UI regression
 # production credentials, use third-party paid services, or submit to Apple.
 on:
   pull_request:
+    # Include the immutable B123 release branch now targeted by Draft PR #35.
+    # Retain the B122 predecessor while historical draft comparisons remain open.
     branches:
       - fix/chorely-auth-viewport-20260927-native-followup-20261016
+      - fix/chorely-auth-viewport-20260927-icon-family-20261026
     paths:
       - 'src/components/AccountSettings.tsx'
       - 'src/utils/accountDeletionAttempt.ts'
