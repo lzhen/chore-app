@@ -35,7 +35,7 @@ function compileCurrentEdge() {
 
 function offlineEdge({
   authenticatedUser = 'synthetic-A', adminError = null,
-  adminData = { user: {} }, adminReject = false, adminThrow = false,
+  adminData = { user: { id: 'synthetic-A' } }, adminReject = false, adminThrow = false,
   adminDelay = null,
   claimError = null, claimData, claimReject = false,
   finalizeData = true, finalizeError = null, finalizeReject = false,
@@ -159,6 +159,8 @@ test('actual draft Edge never sends deleted:true on missing/malformed admin rece
     { adminData: {} },
     { adminData: { user: null } },
     { adminData: { user: [] } },
+    { adminData: { user: {} } }, // Ambiguous receipt: no account identity
+    { adminData: { user: { id: '' } } },
     { adminReject: true },
   ]) {
     const h = offlineEdge(options);
@@ -207,7 +209,8 @@ test('actual draft Edge never acknowledges a conflicting admin receipt identity'
   const response = await matching.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { deleted: true });
-  // An id-less object is separately exercised by the ordinary SDK-shaped success test.
+  // The default successful fixture carries the exact synthetic account ID.
+  // The id-less receipt is now rejected above as uncertain (no false ACK).
 });
 
 test('actual draft Edge requires synthetic durable claim and blocks repeat admin call', async () => {
