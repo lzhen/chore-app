@@ -35,7 +35,7 @@ function compileCurrentEdge() {
 
 function offlineEdge({
   authenticatedUser = 'synthetic-A', adminError = null,
-  adminData = { user: {} }, adminReject = false,
+  adminData = { user: {} }, adminReject = false, adminThrow = false,
   claimError = null, claimData, claimReject = false,
   finalizeData = true, finalizeError = null, finalizeReject = false,
 } = {}) {
@@ -79,10 +79,11 @@ function offlineEdge({
           if (finalizeReject) throw Error('synthetic ambiguous finalize RPC');
           return { error: finalizeError, data: finalizeData };
         },
-        auth: { admin: { deleteUser: async id => {
+        auth: { admin: { deleteUser: id => {
           calls.push('admin-delete:' + id);
-          if (adminReject) throw new Error('synthetic transport exception after admin attempt');
-          return { data: adminData, error: adminError };
+          if (adminThrow) throw new Error('synthetic synchronous SDK exception after claim');
+          if (adminReject) return Promise.reject(new Error('synthetic async transport exception'));
+          return Promise.resolve({ data: adminData, error: adminError });
         } } },
       };
       throw Error('Unexpected synthetic client key');
@@ -167,6 +168,21 @@ test('actual draft Edge never sends deleted:true on missing/malformed admin rece
     assert.deepEqual(h.calls, ['bearer-auth', 'claim:synthetic-A', 'admin-delete:synthetic-A', 'finalize:uncertain']);
   }
   // The RPC remains nondeployed and legacy B123 compatibility remains HOLD.
+});
+
+test('actual draft Edge handles a synchronous admin SDK throw without success or retry', async () => {
+  const h = offlineEdge({ adminThrow: true });
+  const response = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), {
+    error: 'Deletion outcome uncertain. Contact support before retrying.',
+  });
+  assert.deepEqual(h.calls, [
+    'bearer-auth', 'claim:synthetic-A', 'admin-delete:synthetic-A', 'finalize:uncertain',
+  ]);
+  const replay = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
+  assert.equal(replay.status, 409);
+  assert.equal(h.calls.filter(c => c === 'admin-delete:synthetic-A').length, 1);
 });
 
 test('actual draft Edge never acknowledges a conflicting admin receipt identity', async () => {
