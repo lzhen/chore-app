@@ -33,9 +33,16 @@ function compileCurrentEdge() {
     .replace(/(Deno\.env\.get\('[A-Z_]+'\))!/g, '$1');
 }
 
-function offlineEdge({ authenticatedUser = 'synthetic-A', adminError = null, adminData = { user: {} }, adminReject = false } = {}) {
+function offlineEdge({
+  authenticatedUser = 'synthetic-A', adminError = null,
+  adminData = { user: {} }, adminReject = false,
+  claimError = null, claimData, claimReject = false,
+  finalizeData = true, finalizeError = null, finalizeReject = false,
+} = {}) {
   let handler = null;
   const calls = [];
+  const claimed = new Set();
+  const claimId = '00000000-0000-4000-8000-000000000003';
   const sandbox = {
     Response,
     console: { error: () => calls.push('error-log') },
@@ -56,6 +63,22 @@ function offlineEdge({ authenticatedUser = 'synthetic-A', adminError = null, adm
         } },
       };
       if (key === 'synthetic-service') return {
+        rpc: async (name, args) => {
+          if (name === 'nesmi_delete_claim_draft_acquire') {
+            calls.push('claim:' + args.p_account_id);
+            if (claimReject) throw Error('synthetic ambiguous claim RPC');
+            if (claimError) return { error: claimError, data: null };
+            if (claimData !== undefined) return { error: null, data: claimData };
+            if (claimed.has(args.p_account_id)) return { error: null, data: [] };
+            claimed.add(args.p_account_id);
+            return { error: null, data: [{ claim_id: claimId }] };
+          }
+          assert.equal(name, 'nesmi_delete_claim_draft_finalize');
+          assert.equal(args.p_claim_id, claimId);
+          calls.push('finalize:' + args.p_state);
+          if (finalizeReject) throw Error('synthetic ambiguous finalize RPC');
+          return { error: finalizeError, data: finalizeData };
+        },
         auth: { admin: { deleteUser: async id => {
           calls.push('admin-delete:' + id);
           if (adminReject) throw new Error('synthetic transport exception after admin attempt');
@@ -115,7 +138,7 @@ test('actual draft Edge valid upgraded-client request reaches exactly one synthe
   const response = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { deleted: true });
-  assert.deepEqual(h.calls, ['bearer-auth', 'admin-delete:synthetic-A']);
+  assert.deepEqual(h.calls, ['bearer-auth', 'claim:synthetic-A', 'admin-delete:synthetic-A', 'finalize:confirmed']);
 });
 
 test('actual draft Edge synthetic admin error fails response but cannot prove deletion outcome', async () => {
@@ -123,9 +146,8 @@ test('actual draft Edge synthetic admin error fails response but cannot prove de
   const response = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
   assert.equal(response.status, 503);
   assert.deepEqual(await response.json(), { error: 'Deletion outcome uncertain. Contact support before retrying.' });
-  assert.deepEqual(h.calls, ['bearer-auth', 'admin-delete:synthetic-A']);
+  assert.deepEqual(h.calls, ['bearer-auth', 'claim:synthetic-A', 'admin-delete:synthetic-A', 'finalize:uncertain']);
 });
-
 
 
 test('actual draft Edge never sends deleted:true on missing/malformed admin receipt or transport exception', async () => {
@@ -142,19 +164,51 @@ test('actual draft Edge never sends deleted:true on missing/malformed admin rece
     assert.deepEqual(await response.json(), {
       error: 'Deletion outcome uncertain. Contact support before retrying.',
     });
-    assert.deepEqual(h.calls, ['bearer-auth', 'admin-delete:synthetic-A']);
+    assert.deepEqual(h.calls, ['bearer-auth', 'claim:synthetic-A', 'admin-delete:synthetic-A', 'finalize:uncertain']);
   }
-  // This does not solve the still-unimplemented durable claim or legacy client gate.
+  // The RPC remains nondeployed and legacy B123 compatibility remains HOLD.
 });
 
-test('EXPECTED UNSAFE: actual draft Edge has no durable claim, so repeated synthetic requests reach admin twice', async () => {
+test('actual draft Edge requires synthetic durable claim and blocks repeat admin call', async () => {
   const h = offlineEdge();
   const one = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
   const two = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
   assert.equal(one.status, 200);
-  assert.equal(two.status, 200);
-  assert.equal(h.calls.filter(x => x === 'admin-delete:synthetic-A').length, 2);
-  // This is a negative regression reproducer, NOT proof that production can delete twice.
+  assert.equal(two.status, 409);
+  assert.match((await two.json()).error, /do not retry/);
+  assert.equal(h.calls.filter(x => x === 'admin-delete:synthetic-A').length, 1);
+  // Synthetic RPC only; not evidence of a deployed SQL function or true concurrency.
+});
+
+test('missing, ambiguous or malformed claim never starts the admin deletion', async () => {
+  for (const options of [
+    { claimError: { message: 'synthetic RPC error' } },
+    { claimReject: true },
+    { claimData: null },
+    { claimData: [{ claim_id: 'not-a-uuid' }] },
+    { claimData: [{ claim_id: '00000000-0000-4000-8000-000000000003' }, { claim_id: '00000000-0000-4000-8000-000000000004' }] },
+  ]) {
+    const h = offlineEdge(options);
+    const response = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
+    assert.equal(response.status, 503);
+    assert.equal(h.calls.some(c => c.startsWith('admin-delete:')), false);
+  }
+});
+
+test('missing durable finalize ACK never reports deleted true; claim stays locked', async () => {
+  for (const options of [
+    { finalizeData: false },
+    { finalizeReject: true },
+    { finalizeError: { message: 'synthetic finalize error' } },
+  ]) {
+    const h = offlineEdge(options);
+    const response = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
+    assert.equal(response.status, 503);
+    assert.notEqual((await response.json()).deleted, true);
+    const replay = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
+    assert.equal(replay.status, 409);
+    assert.equal(h.calls.filter(x => x === 'admin-delete:synthetic-A').length, 1);
+  }
 });
 
 test('proposed nondeployed adapter deliberately differs from existing Edge legacy response', async () => {
