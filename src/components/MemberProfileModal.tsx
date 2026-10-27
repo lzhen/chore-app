@@ -96,8 +96,11 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="fluent-title text-xl font-semibold text-content-primary">Member Profile</h2>
           <button
+            type="button"
+            aria-label="Close member profile"
             onClick={onClose}
-            className="text-content-secondary hover:text-content-primary hover:bg-subtle-background-hover rounded-fluent-sm transition-all duration-fast p-1.5"
+            disabled={saving}
+            className="text-content-secondary hover:text-content-primary hover:bg-subtle-background-hover rounded-fluent-sm transition-all duration-fast p-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
