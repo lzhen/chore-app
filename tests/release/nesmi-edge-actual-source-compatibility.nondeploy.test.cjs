@@ -33,7 +33,7 @@ function compileCurrentEdge() {
     .replace(/(Deno\.env\.get\('[A-Z_]+'\))!/g, '$1');
 }
 
-function offlineEdge({ authenticatedUser = 'synthetic-A', adminError = null } = {}) {
+function offlineEdge({ authenticatedUser = 'synthetic-A', adminError = null, adminData = { user: {} }, adminReject = false } = {}) {
   let handler = null;
   const calls = [];
   const sandbox = {
@@ -58,7 +58,8 @@ function offlineEdge({ authenticatedUser = 'synthetic-A', adminError = null } = 
       if (key === 'synthetic-service') return {
         auth: { admin: { deleteUser: async id => {
           calls.push('admin-delete:' + id);
-          return { error: adminError };
+          if (adminReject) throw new Error('synthetic transport exception after admin attempt');
+          return { data: adminData, error: adminError };
         } } },
       };
       throw Error('Unexpected synthetic client key');
@@ -120,9 +121,30 @@ test('actual draft Edge valid upgraded-client request reaches exactly one synthe
 test('actual draft Edge synthetic admin error fails response but cannot prove deletion outcome', async () => {
   const h = offlineEdge({ adminError: { message: 'synthetic-error' } });
   const response = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
-  assert.equal(response.status, 500);
-  assert.deepEqual(await response.json(), { error: 'Account deletion failed' });
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { error: 'Deletion outcome uncertain. Contact support before retrying.' });
   assert.deepEqual(h.calls, ['bearer-auth', 'admin-delete:synthetic-A', 'error-log']);
+});
+
+
+
+test('actual draft Edge never sends deleted:true on missing/malformed admin receipt or transport exception', async () => {
+  for (const options of [
+    { adminData: null },
+    { adminData: {} },
+    { adminData: { user: null } },
+    { adminData: { user: [] } },
+    { adminReject: true },
+  ]) {
+    const h = offlineEdge(options);
+    const response = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), {
+      error: 'Deletion outcome uncertain. Contact support before retrying.',
+    });
+    assert.deepEqual(h.calls, ['bearer-auth', 'admin-delete:synthetic-A']);
+  }
+  // This does not solve the still-unimplemented durable claim or legacy client gate.
 });
 
 test('EXPECTED UNSAFE: actual draft Edge has no durable claim, so repeated synthetic requests reach admin twice', async () => {

@@ -353,7 +353,7 @@ test('repository Edge ACK contract only confirms authenticated successful delete
     if (key === 'synthetic-service') return {
       auth: { admin: { deleteUser: async id => {
         deletedIds.push(id);
-        return { error: adminError };
+        return { data: adminError ? null : { user: {} }, error: adminError };
       } } },
     };
     throw Error('Unexpected synthetic key');
@@ -421,8 +421,8 @@ test('repository Edge ACK contract only confirms authenticated successful delete
   assert.deepEqual(deletedIds, [], 'No malformed or wrong-account attempt may delete');
   adminError = new Error('synthetic admin failure');
   const failedAdmin = await handler(request('POST', true));
-  assert.equal(failedAdmin.status, 500);
-  assert.deepEqual(JSON.parse(await failedAdmin.text()), { error: 'Account deletion failed' });
+  assert.equal(failedAdmin.status, 503);
+  assert.deepEqual(JSON.parse(await failedAdmin.text()), { error: 'Deletion outcome uncertain. Contact support before retrying.' });
 
   adminError = null;
   const confirmed = await handler(request('POST', true));

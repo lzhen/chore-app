@@ -74,12 +74,18 @@ Deno.serve(async (request: Request) => {
   const adminClient = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
-  const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id)
+  // A transport failure can follow an irreversible backend deletion. Never
+  // acknowledge success from an absent/malformed admin SDK receipt.
+  const deleteResult = await adminClient.auth.admin.deleteUser(user.id).catch(() => null)
+  const confirmed = deleteResult?.error === null &&
+    deleteResult?.data?.user != null &&
+    typeof deleteResult.data.user === 'object' &&
+    !Array.isArray(deleteResult.data.user)
 
-  if (deleteError) {
-    console.error('Account deletion failed', deleteError)
-    return new Response(JSON.stringify({ error: 'Account deletion failed' }), {
-      status: 500,
+  if (!confirmed) {
+    // STOP: without a durable server claim, the outcome cannot be retried safely.
+    return new Response(JSON.stringify({ error: 'Deletion outcome uncertain. Contact support before retrying.' }), {
+      status: 503,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
