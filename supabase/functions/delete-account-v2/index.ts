@@ -52,18 +52,41 @@ Deno.serve(async (request: Request) => {
     })
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  const userClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: authorization } },
-    auth: { persistSession: false },
-  })
+  // Fail closed before privileged client initialization if the runtime is
+  // misconfigured. This is distinct from an uncertain result after a claim.
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (!supabaseUrl || !anonKey || !serviceRoleKey) {
+    return new Response(JSON.stringify({
+      error: 'Account deletion is temporarily unavailable. No deletion was attempted.',
+    }), {
+      status: 503,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
 
-  const { data: { user }, error: userError } = await userClient.auth.getUser()
-  if (userError || !user) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
+  // Authentication transport/SDK failures must never become an unhandled
+  // Edge exception or allow execution to reach a service-role operation.
+  let user
+  try {
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authorization } },
+      auth: { persistSession: false },
+    })
+    const result = await userClient.auth.getUser()
+    if (result?.error || !result?.data?.user || typeof result.data.user.id !== 'string') {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    user = result.data.user
+  } catch {
+    return new Response(JSON.stringify({
+      error: 'Account verification is temporarily unavailable. No deletion was attempted.',
+    }), {
+      status: 503,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
