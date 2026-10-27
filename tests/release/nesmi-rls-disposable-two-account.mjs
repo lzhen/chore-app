@@ -9,14 +9,19 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
-const PRODUCTION_PROJECT_REF = 'rosofbnimiothwxsabyr';
+// These are active company projects (observed read-only 2026-10-27), NOT disposable.
+// Add any newly discovered real project refs before running this opt-in harness.
+const KNOWN_NONDISPOSABLE_PROJECT_REFS = new Set([
+  'rosofbnimiothwxsabyr', // Nesmi/Empathie active project
+  'vxlwnvwijnzimjvgpeug', // DLS Magician active project
+]);
 const OPT_IN = 'I_CONFIRM_NONPRODUCTION_DISPOSABLE_USERS_AND_DATA';
 const REF = /^[a-z0-9]{12,30}$/;
 
 function configFrom(env) {
   const ref = env.NESMI_TEST_PROJECT_REF;
-  if (!ref || !REF.test(ref) || ref === PRODUCTION_PROJECT_REF) {
-    throw new Error('Refusing: missing/invalid project ref or known production project');
+  if (!ref || !REF.test(ref) || KNOWN_NONDISPOSABLE_PROJECT_REFS.has(ref)) {
+    throw new Error('Refusing: missing/invalid project ref or known company project (not disposable)');
   }
   const projectUrl = `https://${ref}.supabase.co`;
   if (env.NESMI_TEST_SUPABASE_URL !== projectUrl) {
@@ -63,7 +68,10 @@ function selfTest() {
   };
   assert.equal(configFrom(base).projectUrl, base.NESMI_TEST_SUPABASE_URL);
   for (const patch of [
-    { NESMI_TEST_PROJECT_REF: PRODUCTION_PROJECT_REF, NESMI_TEST_SUPABASE_URL: `https://${PRODUCTION_PROJECT_REF}.supabase.co` },
+    ...[...KNOWN_NONDISPOSABLE_PROJECT_REFS].map(ref => ({
+      NESMI_TEST_PROJECT_REF: ref,
+      NESMI_TEST_SUPABASE_URL: `https://${ref}.supabase.co`,
+    })),
     { NESMI_TEST_EXPLICIT_OPT_IN: '' },
     { NESMI_TEST_SUPABASE_URL: 'https://evil.example.com' },
     { NESMI_TEST_ANON_KEY: 'sb_secret_not_allowed' },
@@ -74,7 +82,7 @@ function selfTest() {
   ]) {
     assert.throws(() => configFrom({ ...base, ...patch }), /Refusing/);
   }
-  console.log('PASS: 9/9 non-production preflight cases (no network, no credentials)');
+  console.log('PASS: 10/10 non-production preflight cases (no network, no credentials)');
   // UPDATE ... RETURNING can be empty under SELECT RLS even if an UPDATE ran.
   // Verify the owner-side assertion catches that dangerous false green.
   assert.doesNotThrow(() => assertUnaffectedOwnerRow([], [{ name: 'owner-marker' }], 'owner-marker'));
