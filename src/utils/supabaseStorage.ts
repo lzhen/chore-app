@@ -186,9 +186,12 @@ export async function updateChore(chore: Chore): Promise<boolean> {
       category_id: chore.categoryId || null,
       estimated_minutes: chore.estimatedMinutes ?? null,
     })
-    .eq('id', chore.id).select('id');
+    .eq('id', chore.id)
+    .select('id');
 
-  if (error || !data?.length) {
+  // A successful HTTP response can still acknowledge zero rows when the
+  // target was removed or hidden by RLS. Accept only the exact chore ID.
+  if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== chore.id) {
     throw new Error('Could not update chore. Please try again.');
   }
 
@@ -199,9 +202,11 @@ export async function deleteChore(id: string): Promise<boolean> {
   const { data, error } = await supabase
     .from('chores')
     .delete()
-    .eq('id', id).select('id');
+    .eq('id', id)
+    .select('id');
 
-  if (error || !data?.length) {
+  // Never hide a chore locally unless this exact row was deleted on server.
+  if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== id) {
     throw new Error('Could not delete chore. Please try again.');
   }
 
