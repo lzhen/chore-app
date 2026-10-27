@@ -113,7 +113,7 @@ Deno.serve(async (request: Request) => {
   }
   if (acquired.data.length !== 1 ||
       typeof acquired.data[0]?.claim_id !== 'string' ||
-      !/^[a-f\\d]{8}-[a-f\\d]{4}-[a-f\\d]{4}-[a-f\\d]{4}-[a-f\\d]{12}$/i
+      !/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i
         .test(acquired.data[0].claim_id)) return failUncertain()
 
   const claimId = acquired.data[0].claim_id
