@@ -364,7 +364,7 @@ test('repository Edge ACK contract only confirms authenticated successful delete
       },
       auth: { admin: { deleteUser: async id => {
         deletedIds.push(id);
-        return { data: adminError ? null : { user: {} }, error: adminError };
+        return { data: adminError ? null : { user: { id } }, error: adminError };
       } } },
     };
     throw Error('Unexpected synthetic key');
@@ -560,7 +560,7 @@ test('draft claimed Edge allows at most one concurrent synthetic admin call befo
         assert.equal(id,syntheticId);
         adminCalls++;
         await holdAdmin; // First delete still unresolved when replay arrives.
-        return {data:{user:{}},error:null}; // Synthetic SDK receipt only.
+        return {data:{user:{id}},error:null}; // Exact-identity synthetic SDK receipt.
       }}},
     };
     throw Error('Unexpected synthetic key');
