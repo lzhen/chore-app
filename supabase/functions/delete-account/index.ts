@@ -139,14 +139,14 @@ Deno.serve(async (request: Request) => {
   } catch {
     deleteResult = null
   }
-  // A structurally valid SDK receipt is not sufficient when it explicitly
-  // identifies a different account. Older SDK adapters may omit the id field;
-  // preserve that existing shape, but never ACK a conflicting identity.
+  // Fail closed if an admin SDK reports success without an exact identity
+  // receipt. An id-less object is ambiguous after an irreversible call; it
+  // requires support reconciliation, never a success ACK or automatic retry.
   const confirmed = deleteResult?.error === null &&
     deleteResult?.data?.user != null &&
     typeof deleteResult.data.user === 'object' &&
     !Array.isArray(deleteResult.data.user) &&
-    (!('id' in deleteResult.data.user) || deleteResult.data.user.id === user.id)
+    deleteResult.data.user.id === user.id
   if (!confirmed) {
     await finalize('uncertain') // Best effort; claim remains reserved on failure.
     return failUncertain()
