@@ -1,3 +1,15 @@
+## Task169 — B123 canonical PR base alignment (2026-10-27, PDT; RELEASE HOLD)
+
+**Completed internal metadata alignment, not a release:** [Draft PR #35](https://github.com/lzhen/chore-app/pull/35) now targets `fix/chorely-auth-viewport-20260927-icon-family-20261026`, source SHA `6eab3d3b20a32d07376c1bd938979219a3565a74` (latest Apple-confirmed TestFlight B123 source). Previously its PR base was older B122 `fix/chorely-auth-viewport-20260927-native-followup-20261016` at `d0610712e1dfedbe970d6d8c4ae54213d9a2dddc`. GitHub comparison showed the draft branch **one commit behind** B123; the missing B123 commit adjusts the approved native icon scale SHA in an iOS asset validation script. This difference is outside deletion logic but still matters for exact-build provenance.
+
+**GitHub verification:** After the reversible PR base/title update, readback showed base `6eab3d3...`, head unchanged from Task168 at `a13681d...` before this documentation commit, **Draft/Open/Unmerged** and recalculated `mergeable=true`. "Mergeable" is not equivalent to CI passing, approval, physical-device acceptance, or permission to merge. The historical `b122` in the **head branch name and this worksheet path** is not the current release base. Do not revert the base to old B122 merely to match naming.
+
+**Release gate is unchanged:** [Apple's B123 TestFlight email](https://mail.google.com/mail/u/?authuser=rainbow0229%40gmail.com#all/1a175a5dbd92a101) establishes installability on 2026-10-25 17:39 PDT, **not** ASC current selected review build, reviewer feedback, or Store publication. Authenticated browser-tab reader was unavailable for this unattended session; **ASC selected build/status UNKNOWN**. Read-only Supabase inventory still shows only `delete-account` **ACTIVE v1**; no `delete-account-v2` deployment. The PR35 client uses **unavailable v2** and remains **NO-GO**. Existing synthetic Node/React/PG CI is not a real backend/device test; even after this documentation-triggered workflow, it will not establish that external release gate.
+
+**Only release path:** collect authenticated ASC read-only proof and authorized isolated disposable-account v2/claim HTTP + SDK evidence; decide legacy-client/privacy claim retention before sensitive deployment; verify exact iPhone build; seek separate approval for protected merge, server migration, or Apple submission. No production write, account deletion, build upload, external contact, or new cost. See [Task169 audit comment](https://github.com/lzhen/chore-app/pull/35#issuecomment-6445529751). No new founder-only blocker identified.
+
+---
+
 # CURRENT Nesmi deletion rollout checkpoint — Task168 · 2026-10-27 06:25 PDT (INTERNAL / HOLD)
 
 > **This checkpoint supersedes the rollout *recommendations* below where they still describe overwriting `delete-account` with a strict handler. Historical sections remain for traceability; none is an authorization to deploy.** This is a release decision/acceptance gate, not proof of an actual App Review selection, deployed migration, live HTTP invocation, user deletion or physical iPhone QA.
