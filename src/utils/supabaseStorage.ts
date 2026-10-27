@@ -271,12 +271,16 @@ export async function updateTeamMember(member: TeamMember): Promise<TeamMember> 
 }
 
 export async function deleteTeamMember(id: string): Promise<boolean> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('team_members')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .select('id');
 
-  if (error) {
+  // PostgREST can return no error while RLS filters out the target row.
+  // Only remove the member from local state when the database confirms the
+  // exact requested ID was deleted; otherwise surface an actionable failure.
+  if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== id) {
     throw new Error('Could not delete team member. Please try again.');
   }
 
