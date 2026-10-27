@@ -23,6 +23,7 @@ function compileCurrentEdge() {
     'let payload: unknown',
     '(payload as { expectedUserId?: unknown })',
     'adminClient.auth.admin.deleteUser(user.id)',
+    'userClient.auth.getUser(bearerToken)',
   ]) assert.ok(edgeSource.includes(marker), 'Source contract changed: ' + marker);
   assert.equal((edgeSource.match(/Deno\.env\.get\('[A-Z_]+'\)!/g) || []).length, 0);
   assert.match(edgeSource, /if \(!supabaseUrl \|\| !anonKey \|\| !serviceRoleKey\)/);
@@ -62,7 +63,8 @@ function offlineEdge({
       if (key === 'synthetic-anon') {
         if (anonClientThrows) throw Error('synthetic user client construction failure');
         return {
-          auth: { getUser: async () => {
+          auth: { getUser: async (token) => {
+            assert.equal(token, 'fake-token', 'server must verify the explicit caller JWT');
             calls.push('bearer-auth');
             if (authThrows) throw Error('synthetic identity transport failure');
             return { data: { user: authenticatedUser ? { id: authenticatedUser } : null }, error: null };
@@ -113,6 +115,15 @@ function makeRequest(body, { auth = 'Bearer fake-token', method = 'POST', rawBod
     ...(rawBody !== undefined ? { body: rawBody } : body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
 }
+
+test('actual draft v2 rejects malformed bearer authorization before SDK or deletion', async () => {
+  for (const auth of [null, '', 'Basic fake-token', 'Bearer', 'Bearer fake-token extra', 'fake-token']) {
+    const h = offlineEdge();
+    const response = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }, { auth }));
+    assert.equal(response.status, 401);
+    assert.deepEqual(h.calls, [], 'malformed authorization must not reach SDK, claim or delete');
+  }
+});
 
 test('actual draft Edge rejects installed B122-style bodyless request before admin delete', async () => {
   const h = offlineEdge();
