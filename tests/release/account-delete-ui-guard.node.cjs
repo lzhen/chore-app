@@ -532,7 +532,7 @@ test('KNOWN UNSAFE: concurrent valid Edge requests both reach admin deletion bef
         assert.equal(id,syntheticId);
         adminCalls++;
         await holdAdmin; // Both requests must have reached this point pre-ACK.
-        return {error:null}; // Simulated result only, not live Supabase.
+        return {data:{user:{}},error:null}; // Simulated SDK success receipt, not live Supabase.
       }}},
     };
     throw Error('Unexpected synthetic key');
