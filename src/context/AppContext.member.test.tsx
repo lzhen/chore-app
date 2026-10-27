@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { TeamMember } from '../types';
+import type { Chore, ChoreCompletion, TeamMember } from '../types';
 import { AppProvider, useApp } from './AppContext';
 import { useAuth } from './AuthContext';
 import {
@@ -15,6 +15,7 @@ import {
   fetchCompletions,
   fetchAvailability,
   updateTeamMember,
+  createCompletion,
 } from '../utils/supabaseStorage';
 
 vi.mock('./AuthContext', () => ({ useAuth: vi.fn() }));
@@ -25,6 +26,7 @@ vi.mock('../utils/supabaseStorage', () => ({
   fetchCompletions: vi.fn(),
   fetchAvailability: vi.fn(),
   updateTeamMember: vi.fn(),
+  createCompletion: vi.fn(),
 }));
 
 const original: TeamMember = {
@@ -39,6 +41,23 @@ const requested: TeamMember = {
   ...original,
   name: 'Unsaved browser edit',
   points: 7,
+};
+
+const syntheticChore: Chore = {
+  id: 'synthetic-chore',
+  title: 'Synthetic household task',
+  date: '2026-10-26',
+  assigneeId: original.id,
+  recurrence: 'none',
+  priority: 'medium',
+};
+
+const syntheticCompletion: ChoreCompletion = {
+  id: 'synthetic-completion',
+  choreId: syntheticChore.id,
+  instanceDate: '2026-10-26',
+  completedBy: original.id,
+  completedAt: '2026-10-26T12:00:00.000Z',
 };
 
 function MemberStateProbe() {
@@ -60,6 +79,30 @@ function MemberStateProbe() {
         Save synthetic member
       </button>
       <output aria-label="save result">{feedback}</output>
+    </>
+  );
+}
+
+function CompletionStateProbe() {
+  const { state, completeChore } = useApp();
+  const [feedback, setFeedback] = useState('idle');
+  return (
+    <>
+      <pre data-testid="member-state">{JSON.stringify(state.teamMembers[0] ?? null)}</pre>
+      <pre data-testid="completion-state">{JSON.stringify(state.completions)}</pre>
+      <button
+        type="button"
+        onClick={() => {
+          void completeChore(syntheticChore.id, syntheticCompletion.instanceDate, original.id)
+            .then(() => setFeedback('completed'))
+            .catch((error: unknown) => {
+              setFeedback(error instanceof Error ? error.message : 'completion rejected');
+            });
+        }}
+      >
+        Complete synthetic chore
+      </button>
+      <output aria-label="completion result">{feedback}</output>
     </>
   );
 }
@@ -118,5 +161,55 @@ describe('AppContext member update dispatch boundary', () => {
     expect(screen.getByTestId('member-state').textContent).toContain('Original in DB');
     expect(screen.getByTestId('member-state').textContent).toContain('"points":0');
     expect(screen.getByTestId('member-state').textContent).not.toContain('Unsaved browser edit');
+  });
+});
+
+async function mountCompletionProvider() {
+  vi.mocked(fetchChores).mockResolvedValue([syntheticChore]);
+  vi.mocked(createCompletion).mockResolvedValue(syntheticCompletion);
+  render(<AppProvider><CompletionStateProbe /></AppProvider>);
+  await waitFor(() =>
+    expect(screen.getByTestId('member-state').textContent).toContain('Original in DB'),
+  );
+}
+
+describe('chore completion keeps points/badges persistence best-effort', () => {
+  it('keeps the DB-confirmed completion when the separate member points write rejects', async () => {
+    vi.mocked(updateTeamMember).mockRejectedValue(new Error('Synthetic points update rejected'));
+    await mountCompletionProvider();
+
+    fireEvent.click(screen.getByRole('button', { name: /complete synthetic chore/i }));
+    await waitFor(() => expect(screen.getByLabelText('completion result')).toHaveTextContent('completed'));
+
+    expect(createCompletion).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      choreId: syntheticChore.id,
+      instanceDate: syntheticCompletion.instanceDate,
+      completedBy: original.id,
+    }));
+    expect(updateTeamMember).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(updateTeamMember).mock.calls[0][0].points).toBeGreaterThan(0);
+    expect(screen.getByTestId('completion-state').textContent).toContain(syntheticCompletion.id);
+    expect(screen.getByTestId('member-state').textContent).toContain('"points":0');
+    expect(screen.getByTestId('member-state').textContent).toContain('"badges":[]');
+  });
+
+  it('shows only the persisted member response after a successful completion reward update', async () => {
+    vi.mocked(updateTeamMember).mockResolvedValue({
+      ...original,
+      name: 'Canonical reward response',
+      points: 3,
+      badges: ['server-confirmed-badge'],
+    });
+    await mountCompletionProvider();
+
+    fireEvent.click(screen.getByRole('button', { name: /complete synthetic chore/i }));
+    await waitFor(() => expect(screen.getByLabelText('completion result')).toHaveTextContent('completed'));
+
+    expect(createCompletion).toHaveBeenCalledTimes(1);
+    expect(updateTeamMember).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('completion-state').textContent).toContain(syntheticCompletion.id);
+    expect(screen.getByTestId('member-state').textContent).toContain('Canonical reward response');
+    expect(screen.getByTestId('member-state').textContent).toContain('"points":3');
+    expect(screen.getByTestId('member-state').textContent).toContain('server-confirmed-badge');
   });
 });
