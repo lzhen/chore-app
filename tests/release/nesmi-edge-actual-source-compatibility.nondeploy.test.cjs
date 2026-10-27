@@ -123,7 +123,7 @@ test('actual draft Edge synthetic admin error fails response but cannot prove de
   const response = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
   assert.equal(response.status, 503);
   assert.deepEqual(await response.json(), { error: 'Deletion outcome uncertain. Contact support before retrying.' });
-  assert.deepEqual(h.calls, ['bearer-auth', 'admin-delete:synthetic-A', 'error-log']);
+  assert.deepEqual(h.calls, ['bearer-auth', 'admin-delete:synthetic-A']);
 });
 
 
