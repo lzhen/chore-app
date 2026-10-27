@@ -323,16 +323,20 @@ export async function createCategory(category: Omit<Category, 'id'>): Promise<Ca
 }
 
 export async function updateCategory(category: Category): Promise<boolean> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('categories')
     .update({
       name: category.name,
       color: category.color,
       icon: category.icon || null,
     })
-    .eq('id', category.id);
+    .eq('id', category.id)
+    .select('id');
 
-  if (error) {
+  // A zero-row response without a PostgREST error is possible when an RLS
+  // policy hides the target or the row no longer exists. Never show the
+  // optimistic category as saved unless the exact row was acknowledged.
+  if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== category.id) {
     throw new Error('Could not update category. Please try again.');
   }
 
@@ -340,12 +344,15 @@ export async function updateCategory(category: Category): Promise<boolean> {
 }
 
 export async function deleteCategory(id: string): Promise<boolean> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('categories')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .select('id');
 
-  if (error) {
+  // Keep the category visible if the server did not explicitly confirm
+  // removing this one row. An empty RLS-filtered DELETE is not success.
+  if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== id) {
     throw new Error('Could not delete category. Please try again.');
   }
 
