@@ -71,25 +71,79 @@ Deno.serve(async (request: Request) => {
     })
   }
 
-  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
+  // DRAFT ONLY: requires a separately approved service-role RPC migration.
+  // This branch is NOT the deployed Edge source. The installed B123 client still
+  // sends a bodyless request, which intentionally fails before reaching here.
+  // Never deploy this handler without a backward-compatible rollout decision.
+  const failUncertain = () => new Response(JSON.stringify({
+    error: 'Deletion outcome uncertain. Contact support before retrying.',
+  }), {
+    status: 503,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
-  // A transport failure can follow an irreversible backend deletion. Never
-  // acknowledge success from an absent/malformed admin SDK receipt.
+
+  let adminClient
+  try {
+    adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
+  } catch {
+    return failUncertain()
+  }
+
+  // Only a durable PK-backed reservation can protect concurrent Edge workers.
+  // The RPC is a NONDEPLOYED prototype in docs/release/prototypes; an error or
+  // unknown outcome must never fall back to unclaimed admin deletion.
+  let acquired
+  try {
+    acquired = await adminClient.rpc('nesmi_delete_claim_draft_acquire', {
+      p_account_id: user.id,
+    })
+  } catch {
+    return failUncertain()
+  }
+  if (acquired?.error || !Array.isArray(acquired?.data)) return failUncertain()
+  if (acquired.data.length === 0) {
+    return new Response(JSON.stringify({
+      error: 'A deletion attempt already exists. Contact support; do not retry.',
+    }), {
+      status: 409,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+  if (acquired.data.length !== 1 ||
+      typeof acquired.data[0]?.claim_id !== 'string' ||
+      !/^[a-f\\d]{8}-[a-f\\d]{4}-[a-f\\d]{4}-[a-f\\d]{4}-[a-f\\d]{12}$/i
+        .test(acquired.data[0].claim_id)) return failUncertain()
+
+  const claimId = acquired.data[0].claim_id
+  const finalize = async state => {
+    try {
+      const receipt = await adminClient.rpc('nesmi_delete_claim_draft_finalize', {
+        p_account_id: user.id, p_claim_id: claimId, p_state: state,
+      })
+      return receipt?.error == null && receipt?.data === true
+    } catch {
+      return false
+    }
+  }
+
+  // A timeout can occur after the irreversible deletion. Never release or
+  // automatically retry a claim. Confirm the SDK receipt AND durable finalize
+  // before returning success.
   const deleteResult = await adminClient.auth.admin.deleteUser(user.id).catch(() => null)
   const confirmed = deleteResult?.error === null &&
     deleteResult?.data?.user != null &&
     typeof deleteResult.data.user === 'object' &&
     !Array.isArray(deleteResult.data.user)
-
   if (!confirmed) {
-    // STOP: without a durable server claim, the outcome cannot be retried safely.
-    return new Response(JSON.stringify({ error: 'Deletion outcome uncertain. Contact support before retrying.' }), {
-      status: 503,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    await finalize('uncertain') // Best effort; claim remains reserved on failure.
+    return failUncertain()
   }
-
+  if (!(await finalize('confirmed'))) {
+    await finalize('uncertain')
+    return failUncertain()
+  }
   return new Response(JSON.stringify({ deleted: true }), {
     status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
