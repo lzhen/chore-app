@@ -87,7 +87,12 @@ function selfTest() {
   // Verify the owner-side assertion catches that dangerous false green.
   assert.doesNotThrow(() => assertUnaffectedOwnerRow([], [{ name: 'owner-marker' }], 'owner-marker'));
   assert.throws(() => assertUnaffectedOwnerRow([], [{ name: 'unauthorized-write' }], 'owner-marker'), /cross-account mutation changed/);
-  console.log('PASS: 2/2 owner-side RLS regression assertions (no network, no credentials)');
+  console.log('PASS: 2/2 owner-side RLS update assertions (no network, no credentials)');
+  // A filtered DELETE can also return zero rows even when a permissive policy
+  // deleted the owner record. Only a fresh owner-side read proves retention.
+  assert.doesNotThrow(() => assertUnaffectedOwnerRow([], [{ name: 'owner-marker' }], 'owner-marker'));
+  assert.throws(() => assertUnaffectedOwnerRow([], [], 'owner-marker'), /A must still be able to read/);
+  console.log('PASS: 2/2 owner-side RLS delete assertions (no network, no credentials)');
 }
 
 function assertUnaffectedOwnerRow(rowsVisibleToB, rowsVisibleToA, expectedName) {
@@ -141,6 +146,17 @@ async function runDisposableSmoke(config) {
     const ownerAfterB = safeError('A confirm B could not mutate row',
       await a.from('team_members').select('id, name').eq('id', rowId));
     assertUnaffectedOwnerRow(bMutation.data, ownerAfterB, marker);
+
+    // A zero-row DELETE RETURNING is not sufficient to establish that B did
+    // not delete a row hidden by B's SELECT policy. Require owner A to still
+    // observe the exact synthetic record before A's authorized update.
+    const bDelete = await b.from('team_members').delete().eq('id', rowId).select('id');
+    if (bDelete.error && !['42501', '403'].includes(String(bDelete.error.code))) {
+      safeError('B negative delete', bDelete);
+    }
+    const ownerAfterBDelete = safeError('A confirm B could not delete row',
+      await a.from('team_members').select('id, name').eq('id', rowId));
+    assertUnaffectedOwnerRow(bDelete.data, ownerAfterBDelete, marker);
 
     safeError('A update own row', await a.from('team_members').update({ name: updated }).eq('id', rowId).select('id').single());
     const freshA = client();
