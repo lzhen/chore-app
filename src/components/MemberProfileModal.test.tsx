@@ -70,6 +70,32 @@ describe('member profile save feedback', () => {
     expect(input).toHaveValue('Unsaved name');
   });
 
+  it('does not allow an in-flight save to be dismissed before an error can be shown', async () => {
+    let rejectSave!: (error: Error) => void;
+    updateMember.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => {
+      rejectSave = reject;
+    }));
+
+    const { form, onClose } = renderEditor();
+    const nameInput = screen.getByRole('textbox', { name: /name/i });
+    fireEvent.change(nameInput, { target: { value: 'Pending unsaved name' } });
+    fireEvent.submit(form);
+
+    const closeButton = screen.getByRole('button', { name: 'Close member profile' });
+    expect(updateMember).toHaveBeenCalledTimes(1);
+    expect(closeButton).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /saving/i })).toBeDisabled();
+    fireEvent.click(closeButton);
+    expect(onClose).not.toHaveBeenCalled();
+
+    rejectSave(new Error('Synthetic delayed database rejection'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Synthetic delayed database rejection');
+    expect(nameInput).toHaveValue('Pending unsaved name');
+    expect(closeButton).toBeEnabled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('keeps the previous persisted avatar read-only while writing other supported fields', async () => {
     const { form, onClose } = renderEditor({ ...member, avatarUrl: 'https://assets.invalid/old.png' });
     expect(screen.queryByRole('button', { name: /upload photo/i })).not.toBeInTheDocument();
