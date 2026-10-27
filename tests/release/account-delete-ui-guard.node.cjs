@@ -526,16 +526,18 @@ test('KNOWN UNSAFE: two synthetic tabs both reserve under deterministic interlea
     'sequential attempts are blocked, but this does not fix simultaneous tabs');
 });
 
-test('KNOWN UNSAFE: concurrent valid Edge requests both reach admin deletion before either ACK', async () => {
-  // Deterministic OFFLINE negative gate against the actual Edge source.
-  // Passing means the unshipped handler lacks a server-side once-only claim;
-  // it does NOT prove two real Supabase deletions or any production impact.
+test('draft claimed Edge allows at most one concurrent synthetic admin call before ACK', async () => {
+  // Deterministic OFFLINE claim gate against actual unshipped Edge source.
+  // The stub models an atomic DB claim; the disposable PostgreSQL workflow
+  // tests a real unique constraint separately. Neither tests Supabase production.
   const source = readFileSync(resolve(__dirname, '../../supabase/functions/delete-account/index.ts'), 'utf8');
   const compiled = ts.transpileModule(source, {compilerOptions:{
     target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,
   }}).outputText;
   let handler;
   let adminCalls = 0;
+  const claimIds = new Set();
+  const claimId = '00000000-0000-4000-8000-000000000003';
   let releaseAdmin;
   const holdAdmin = new Promise(resolveRelease => {releaseAdmin = resolveRelease;});
   const syntheticId = 'synthetic-concurrent-account';
@@ -544,11 +546,21 @@ test('KNOWN UNSAFE: concurrent valid Edge requests both reach admin deletion bef
       auth:{getUser:async()=>({data:{user:{id:syntheticId}},error:null})},
     };
     if (key === 'synthetic-service') return {
+      rpc: async (name,args) => {
+        if (name === 'nesmi_delete_claim_draft_acquire') {
+          if (claimIds.has(args.p_account_id)) return {data:[],error:null};
+          claimIds.add(args.p_account_id);
+          return {data:[{claim_id:claimId}],error:null};
+        }
+        assert.equal(name,'nesmi_delete_claim_draft_finalize');
+        assert.equal(args.p_claim_id,claimId);
+        return {data:true,error:null};
+      },
       auth:{admin:{deleteUser:async id=>{
         assert.equal(id,syntheticId);
         adminCalls++;
-        await holdAdmin; // Both requests must have reached this point pre-ACK.
-        return {data:{user:{}},error:null}; // Simulated SDK success receipt, not live Supabase.
+        await holdAdmin; // First delete still unresolved when replay arrives.
+        return {data:{user:{}},error:null}; // Synthetic SDK receipt only.
       }}},
     };
     throw Error('Unexpected synthetic key');
@@ -582,10 +594,10 @@ test('KNOWN UNSAFE: concurrent valid Edge requests both reach admin deletion bef
   const preAcknowledgementCalls = adminCalls;
   releaseAdmin();
   const responses = await inFlight;
-  assert.equal(preAcknowledgementCalls,2,
-    'KNOWN UNSAFE: both concurrent requests can reach the irreversible admin call');
-  assert.deepEqual(responses.map(r=>r.status),[200,200],
-    'Synthetic admin success must not be mistaken for production idempotency');
+  assert.equal(preAcknowledgementCalls,1,
+    'Draft claimed handler must prevent a second synthetic irreversible admin call');
+  assert.deepEqual(responses.map(r=>r.status).sort(),[200,409],
+    'One request confirms after durable ACK; the other must stay blocked');
 });
 
 /*
