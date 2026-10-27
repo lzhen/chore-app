@@ -24,7 +24,11 @@ Deno.serve(async (request: Request) => {
   }
 
   const authorization = request.headers.get('Authorization')
-  if (!authorization) {
+  // The Edge runtime is stateless: a global Authorization header alone does
+  // not supply a persisted SDK session to auth.getUser(). Extract the exact
+  // caller bearer and pass it to the Auth server explicitly.
+  const bearerMatch = /^Bearer\\s+(\\S+)$/i.exec(authorization?.trim() ?? '')
+  if (!bearerMatch) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -52,6 +56,8 @@ Deno.serve(async (request: Request) => {
     })
   }
 
+  const bearerToken = bearerMatch[1]
+
   // Fail closed before privileged client initialization if the runtime is
   // misconfigured. This is distinct from an uncertain result after a claim.
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -74,7 +80,7 @@ Deno.serve(async (request: Request) => {
       global: { headers: { Authorization: authorization } },
       auth: { persistSession: false },
     })
-    const result = await userClient.auth.getUser()
+    const result = await userClient.auth.getUser(bearerToken)
     if (result?.error || !result?.data?.user || typeof result.data.user.id !== 'string') {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
