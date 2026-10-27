@@ -24,7 +24,8 @@ function compileCurrentEdge() {
     '(payload as { expectedUserId?: unknown })',
     'adminClient.auth.admin.deleteUser(user.id)',
   ]) assert.ok(edgeSource.includes(marker), 'Source contract changed: ' + marker);
-  assert.equal((edgeSource.match(/Deno\.env\.get\('[A-Z_]+'\)!/g) || []).length, 3);
+  assert.equal((edgeSource.match(/Deno\.env\.get\('[A-Z_]+'\)!/g) || []).length, 0);
+  assert.match(edgeSource, /if \(!supabaseUrl \|\| !anonKey \|\| !serviceRoleKey\)/);
   return edgeSource
     .replace(/^import .*\r?\n/gm, '')
     .replace('Deno.serve(async (request: Request) =>', 'Deno.serve(async (request) =>')
@@ -34,7 +35,8 @@ function compileCurrentEdge() {
 }
 
 function offlineEdge({
-  authenticatedUser = 'synthetic-A', adminError = null,
+  authenticatedUser = 'synthetic-A', authThrows = false, anonClientThrows = false,
+  missingEnv = null, adminError = null,
   adminData = { user: { id: 'synthetic-A' } }, adminReject = false, adminThrow = false,
   adminDelay = null,
   claimError = null, claimData, claimReject = false,
@@ -49,7 +51,7 @@ function offlineEdge({
     console: { error: () => calls.push('error-log') },
     fetch: () => { throw Error('NETWORK_FORBIDDEN_IN_SOURCE_TEST'); },
     Deno: {
-      env: { get: key => ({
+      env: { get: key => key === missingEnv ? null : ({
         SUPABASE_URL: 'https://synthetic.invalid',
         SUPABASE_ANON_KEY: 'synthetic-anon',
         SUPABASE_SERVICE_ROLE_KEY: 'synthetic-service',
@@ -57,12 +59,16 @@ function offlineEdge({
       serve: cb => { handler = cb; },
     },
     createClient: (_url, key) => {
-      if (key === 'synthetic-anon') return {
-        auth: { getUser: async () => {
-          calls.push('bearer-auth');
-          return { data: { user: authenticatedUser ? { id: authenticatedUser } : null }, error: null };
-        } },
-      };
+      if (key === 'synthetic-anon') {
+        if (anonClientThrows) throw Error('synthetic user client construction failure');
+        return {
+          auth: { getUser: async () => {
+            calls.push('bearer-auth');
+            if (authThrows) throw Error('synthetic identity transport failure');
+            return { data: { user: authenticatedUser ? { id: authenticatedUser } : null }, error: null };
+          } },
+        };
+      }
       if (key === 'synthetic-service') return {
         rpc: async (name, args) => {
           if (name === 'nesmi_delete_claim_draft_acquire') {
@@ -133,6 +139,26 @@ test('actual draft Edge rejects invalid or empty JSON without admin call', async
     const response = await h.handler(req);
     assert.equal(response.status, 400);
     assert.deepEqual(h.calls, []);
+  }
+});
+
+test('actual draft v2 rejects missing runtime configuration before any SDK or destructive call', async () => {
+  for (const missingEnv of ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY']) {
+    const h = offlineEdge({ missingEnv });
+    const response = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
+    assert.equal(response.status, 503);
+    assert.match((await response.json()).error, /No deletion was attempted/);
+    assert.deepEqual(h.calls, [], 'misconfigured runtime must not reach bearer or service-role SDK');
+  }
+});
+
+test('actual draft v2 handles user SDK construction and getUser transport exceptions before claim', async () => {
+  for (const options of [{ anonClientThrows: true }, { authThrows: true }]) {
+    const h = offlineEdge(options);
+    const response = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
+    assert.equal(response.status, 503);
+    assert.match((await response.json()).error, /No deletion was attempted/);
+    assert.equal(h.calls.some(x => x.startsWith('claim:') || x.startsWith('admin-delete:')), false);
   }
 });
 
