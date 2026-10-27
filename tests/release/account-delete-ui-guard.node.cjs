@@ -344,6 +344,8 @@ test('repository Edge ACK contract only confirms authenticated successful delete
   let authUserId = 'synthetic-user';
   let adminError = null;
   const deletedIds = [];
+  const acquiredFor = new Set();
+  const claimId = '00000000-0000-4000-8000-000000000003';
   const stubClient = (_url, key) => {
     if (key === 'synthetic-anon') return {
       auth: { getUser: async () => authOk
@@ -351,6 +353,15 @@ test('repository Edge ACK contract only confirms authenticated successful delete
         : { data: { user: null }, error: new Error('synthetic unauthorized') } },
     };
     if (key === 'synthetic-service') return {
+      rpc: async (name, args) => {
+        if (name === 'nesmi_delete_claim_draft_acquire') {
+          if (acquiredFor.has(args.p_account_id)) return { data: [], error: null };
+          acquiredFor.add(args.p_account_id);
+          return { data: [{ claim_id: claimId }], error: null };
+        }
+        assert.equal(name, 'nesmi_delete_claim_draft_finalize');
+        return { data: true, error: null };
+      },
       auth: { admin: { deleteUser: async id => {
         deletedIds.push(id);
         return { data: adminError ? null : { user: {} }, error: adminError };
@@ -424,11 +435,16 @@ test('repository Edge ACK contract only confirms authenticated successful delete
   assert.equal(failedAdmin.status, 503);
   assert.deepEqual(JSON.parse(await failedAdmin.text()), { error: 'Deletion outcome uncertain. Contact support before retrying.' });
 
+  // An uncertain deletion must retain its durable claim and block blind retry.
   adminError = null;
-  const confirmed = await handler(request('POST', true));
+  const blockedReplay = await handler(request('POST', true));
+  assert.equal(blockedReplay.status, 409);
+  // A distinct synthetic user can independently acquire and complete.
+  authUserId = 'synthetic-user-B';
+  const confirmed = await handler(request('POST', true, { expectedUserId: 'synthetic-user-B' }));
   assert.equal(confirmed.status, 200);
   assert.deepEqual(JSON.parse(await confirmed.text()), { deleted: true });
-  assert.deepEqual(deletedIds, ['synthetic-user', 'synthetic-user']);
+  assert.deepEqual(deletedIds, ['synthetic-user', 'synthetic-user-B']);
 });
 
 test('ambiguous deletion retains a per-account attempt lock after full remount', async () => {
