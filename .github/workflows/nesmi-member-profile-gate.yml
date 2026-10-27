@@ -6,6 +6,7 @@ on:
       - 'src/utils/supabaseStorage.ts'
       - 'src/utils/supabaseStorage.members.test.ts'
       - 'src/utils/supabaseStorage.categories.test.ts'
+      - 'src/utils/supabaseStorage.chores.test.ts'
       - 'src/components/MemberProfileModal.tsx'
       - 'src/components/MemberProfileModal.test.tsx'
       - 'src/context/AppContext.tsx'
@@ -18,6 +19,7 @@ on:
       - 'src/utils/supabaseStorage.ts'
       - 'src/utils/supabaseStorage.members.test.ts'
       - 'src/utils/supabaseStorage.categories.test.ts'
+      - 'src/utils/supabaseStorage.chores.test.ts'
       - 'src/components/MemberProfileModal.tsx'
       - 'src/components/MemberProfileModal.test.tsx'
       - 'src/context/AppContext.tsx'
@@ -45,4 +47,4 @@ jobs:
       - name: Verify disposable two-account RLS harness guards (offline only)
         run: node tests/release/nesmi-rls-disposable-two-account.mjs --self-test
       - name: Run offline persistence and editor RTL regressions
-        run: npx vitest run src/utils/supabaseStorage.members.test.ts src/utils/supabaseStorage.categories.test.ts src/components/MemberProfileModal.test.tsx src/context/AppContext.member.test.tsx
+        run: npx vitest run src/utils/supabaseStorage.members.test.ts src/utils/supabaseStorage.categories.test.ts src/utils/supabaseStorage.chores.test.ts src/components/MemberProfileModal.test.tsx src/context/AppContext.member.test.tsx
