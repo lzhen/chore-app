@@ -4,7 +4,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { supabase } from './supabase';
-import { createTeamMember, updateTeamMember } from './supabaseStorage';
+import { createTeamMember, updateTeamMember, deleteTeamMember } from './supabaseStorage';
 import type { TeamMember } from '../types';
 
 const row = {
@@ -113,5 +113,37 @@ describe('member profile database persistence', () => {
     });
     expect(db.getPayload()).not.toHaveProperty('avatar_url');
     expect(created?.id).toBe(row.id);
+  });
+});
+
+
+function deletionFixture(result: { data: { id: string }[] | null; error: { message: string } | null }) {
+  const select = vi.fn().mockResolvedValue(result);
+  const eq = vi.fn().mockReturnValue({ select });
+  const deleteRow = vi.fn().mockReturnValue({ eq });
+  const from = vi.fn().mockReturnValue({ delete: deleteRow });
+  Object.assign(supabase, { from });
+  return { from, deleteRow, eq, select };
+}
+
+describe('team member removal acknowledgement', () => {
+  it('confirms the exact deleted row before reporting success', async () => {
+    const db = deletionFixture({ data: [{ id: member.id }], error: null });
+    await expect(deleteTeamMember(member.id)).resolves.toBe(true);
+    expect(db.from).toHaveBeenCalledWith('team_members');
+    expect(db.deleteRow).toHaveBeenCalledOnce();
+    expect(db.eq).toHaveBeenCalledWith('id', member.id);
+    expect(db.select).toHaveBeenCalledWith('id');
+  });
+
+  it.each([
+    ['RLS-hidden zero-row delete', { data: [], error: null }],
+    ['null database response', { data: null, error: null }],
+    ['unexpected deleted identity', { data: [{ id: 'other-member' }], error: null }],
+    ['multiple deleted identities', { data: [{ id: member.id }, { id: 'other-member' }], error: null }],
+    ['database error', { data: null, error: { message: 'synthetic rejection' } }],
+  ])('rejects %s rather than falsely removing a member locally', async (_case, response) => {
+    deletionFixture(response);
+    await expect(deleteTeamMember(member.id)).rejects.toThrow('Could not delete team member');
   });
 });
