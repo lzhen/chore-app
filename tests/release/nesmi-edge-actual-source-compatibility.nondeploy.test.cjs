@@ -169,6 +169,29 @@ test('actual draft Edge never sends deleted:true on missing/malformed admin rece
   // The RPC remains nondeployed and legacy B123 compatibility remains HOLD.
 });
 
+test('actual draft Edge never acknowledges a conflicting admin receipt identity', async () => {
+  for (const receiptId of ['synthetic-B', null, 42]) {
+    const h = offlineEdge({ adminData: { user: { id: receiptId } } });
+    const response = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
+    assert.equal(response.status, 503, 'conflicting or malformed receipt must be uncertain');
+    assert.deepEqual(await response.json(), {
+      error: 'Deletion outcome uncertain. Contact support before retrying.',
+    });
+    assert.deepEqual(h.calls, [
+      'bearer-auth', 'claim:synthetic-A', 'admin-delete:synthetic-A', 'finalize:uncertain',
+    ]);
+    const replay = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
+    assert.equal(replay.status, 409);
+    assert.equal(h.calls.filter(x => x === 'admin-delete:synthetic-A').length, 1);
+  }
+
+  const matching = offlineEdge({ adminData: { user: { id: 'synthetic-A' } } });
+  const response = await matching.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { deleted: true });
+  // An id-less object is separately exercised by the ordinary SDK-shaped success test.
+});
+
 test('actual draft Edge requires synthetic durable claim and blocks repeat admin call', async () => {
   const h = offlineEdge();
   const one = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
