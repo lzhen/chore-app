@@ -85,6 +85,17 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('account deletion remount + Assistant portal release gate', () => {
+  it('discloses linked household record loss in both deletion steps before any request', async () => {
+    const user = userEvent.setup();
+    render(<DeletionTabHost />);
+    expect(screen.getByText(/Deleting your account also removes your Nesmi household records/))
+      .toHaveTextContent('members, chores, completion history, categories, and availability');
+    await user.click(screen.getByRole('button', { name: 'Delete my account' }));
+    expect(screen.getByText('Are you sure you want to permanently delete your account and its household records?'))
+      .toBeInTheDocument();
+    expect(auth.deleteAccount).not.toHaveBeenCalled();
+  });
+
   it('requires fresh confirmation if signed-in account changes mid-dialog', async () => {
     const user = userEvent.setup();
     const view = render(<DeletionTabHost />);
