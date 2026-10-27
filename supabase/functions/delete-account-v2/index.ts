@@ -27,7 +27,7 @@ Deno.serve(async (request: Request) => {
   // The Edge runtime is stateless: a global Authorization header alone does
   // not supply a persisted SDK session to auth.getUser(). Extract the exact
   // caller bearer and pass it to the Auth server explicitly.
-  const bearerMatch = /^Bearer\\s+(\\S+)$/i.exec(authorization?.trim() ?? '')
+  const bearerMatch = /^Bearer\s+(\S+)$/i.exec(authorization?.trim() ?? '')
   if (!bearerMatch) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
