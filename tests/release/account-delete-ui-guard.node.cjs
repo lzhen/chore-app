@@ -330,9 +330,9 @@ test('parent lock arriving during confirmation disables another delete', async (
 // no live function invocation, real identity, credentials, network or deletion.
 // This is PD-01 only; it cannot prove what App Store or production devices run.
 test('repository Edge ACK contract only confirms authenticated successful deletes and matches the client guard', async () => {
-  const edgeSource = readFileSync(resolve(__dirname, '../../supabase/functions/delete-account/index.ts'), 'utf8');
+  const edgeSource = readFileSync(resolve(__dirname, '../../supabase/functions/delete-account-v2/index.ts'), 'utf8');
   const clientSource = readFileSync(resolve(__dirname, '../../src/context/AuthContext.tsx'), 'utf8');
-  assert.match(clientSource, /functions\.invoke\(['"]delete-account['"],\s*\{\s*method:\s*['"]POST['"]/);
+  assert.match(clientSource, /functions\.invoke\(['"]delete-account-v2['"],\s*\{\s*method:\s*['"]POST['"]/);
   assert.match(clientSource, /data\?\.deleted\s*!==\s*true/);
   assert.match(clientSource, /body:\s*\{\s*expectedUserId\s*\}/);
 
@@ -530,7 +530,7 @@ test('draft claimed Edge allows at most one concurrent synthetic admin call befo
   // Deterministic OFFLINE claim gate against actual unshipped Edge source.
   // The stub models an atomic DB claim; the disposable PostgreSQL workflow
   // tests a real unique constraint separately. Neither tests Supabase production.
-  const source = readFileSync(resolve(__dirname, '../../supabase/functions/delete-account/index.ts'), 'utf8');
+  const source = readFileSync(resolve(__dirname, '../../supabase/functions/delete-account-v2/index.ts'), 'utf8');
   const compiled = ts.transpileModule(source, {compilerOptions:{
     target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,
   }}).outputText;
