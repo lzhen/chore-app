@@ -131,7 +131,14 @@ Deno.serve(async (request: Request) => {
   // A timeout can occur after the irreversible deletion. Never release or
   // automatically retry a claim. Confirm the SDK receipt AND durable finalize
   // before returning success.
-  const deleteResult = await adminClient.auth.admin.deleteUser(user.id).catch(() => null)
+  // Some SDK failures throw synchronously before a Promise exists; treat both
+  // immediate throws and rejected Promises as uncertain after acquiring a claim.
+  let deleteResult
+  try {
+    deleteResult = await adminClient.auth.admin.deleteUser(user.id)
+  } catch {
+    deleteResult = null
+  }
   // A structurally valid SDK receipt is not sufficient when it explicitly
   // identifies a different account. Older SDK adapters may omit the id field;
   // preserve that existing shape, but never ACK a conflicting identity.
