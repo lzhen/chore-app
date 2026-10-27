@@ -28,7 +28,7 @@ const deletionBlock = source => {
 };
 const invocationOptions = source => {
   const match = deletionBlock(source).match(
-    /supabase\.functions\.invoke\('delete-account',\s*\{([\s\S]*?)\}\s*\)/
+    /supabase\.functions\.invoke\('delete-account(?:-v2)?',\s*\{([\s\S]*?)\}\s*\)/
   );
   assert.ok(match, 'Missing deletion Edge invocation');
   return match[1];
@@ -50,6 +50,18 @@ test('unmerged draft client binds exact confirmed ID and uses a scoped local cle
   assert.doesNotMatch(deletionBlock(proposedClient), /localStorage\.clear\s*\(/);
 });
 
+test('versioned v2 draft preserves the immutable B123 legacy Edge and never falls back', () => {
+  const legacy = fs.readFileSync(path.join(repo, 'supabase/functions/delete-account/index.ts'), 'utf8');
+  const installed = execFileSync('git', ['show', B123_SHA + ':supabase/functions/delete-account/index.ts'],
+    { cwd: repo, encoding: 'utf8', timeout: 10000 });
+  assert.equal(legacy, installed, 'B123 legacy endpoint must remain unchanged on this draft');
+  const v2 = fs.readFileSync(path.join(repo, 'supabase/functions/delete-account-v2/index.ts'), 'utf8');
+  assert.match(v2, /nesmi_delete_claim_draft_acquire/);
+  assert.match(v2, /expectedUserId/);
+  assert.match(deletionBlock(proposedClient), /invoke\('delete-account-v2'/);
+  assert.doesNotMatch(deletionBlock(proposedClient), /invoke\('delete-account',/);
+  // No claim of live approval, deployment or safe legacy-user migration.
+});
 test('nondeployed Edge requires the ID; B123 is therefore NOT compatible with that candidate', () => {
   assert.match(proposedEdge, /INTERNAL REVIEW-ONLY Deno Edge candidate/);
   assert.match(proposedEdge, /await request\.json\(\)/);

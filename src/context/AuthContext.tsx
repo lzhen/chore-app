@@ -219,7 +219,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // The Account view sends the ID captured at the start of confirmation.
     // Edge rejects any mismatch against the current authenticated bearer.
     const expectedUserId = confirmedAccountId ?? user?.id ?? '';
-    const { data, error } = await supabase.functions.invoke('delete-account', {
+    const { data, error } = await supabase.functions.invoke('delete-account-v2', {
       method: 'POST',
       body: { expectedUserId },
     });

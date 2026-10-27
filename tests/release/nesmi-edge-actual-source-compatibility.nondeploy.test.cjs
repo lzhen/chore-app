@@ -11,7 +11,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const edgePath = path.join(__dirname, '../../supabase/functions/delete-account/index.ts');
+const edgePath = path.join(__dirname, '../../supabase/functions/delete-account-v2/index.ts');
 const edgeSource = fs.readFileSync(edgePath, 'utf8');
 
 // Compile only the three audited TS constructs found in this source.

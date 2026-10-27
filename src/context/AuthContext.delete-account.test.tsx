@@ -244,7 +244,7 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
         expect(response.deletionConfirmed).toBe(false);
         expect(response.error).toBeInstanceOf(Error);
       });
-      expect(supabase.functions.invoke).toHaveBeenCalledWith('delete-account', {
+      expect(supabase.functions.invoke).toHaveBeenCalledWith('delete-account-v2', {
         method: 'POST', body: { expectedUserId: 'synthetic-account-A' },
       });
       expect(supabase.auth.signOut).not.toHaveBeenCalled();
@@ -268,7 +268,7 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
       await act(async () => { response = await hook.result.current.deleteAccount(); });
       expect(response?.error).toBeNull();
       expect(supabase.functions.invoke).toHaveBeenCalledTimes(1);
-      expect(supabase.functions.invoke).toHaveBeenCalledWith('delete-account', {
+      expect(supabase.functions.invoke).toHaveBeenCalledWith('delete-account-v2', {
         method: 'POST', body: { expectedUserId: 'synthetic-intended-account' },
       });
       expect(localStorage.getItem(NESMI_CHORES)).toBeNull();
