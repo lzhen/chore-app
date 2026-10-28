@@ -26,7 +26,7 @@ trap cleanup EXIT
 psql -X -v ON_ERROR_STOP=1 -q <<'SQL'
 CREATE ROLE anon NOLOGIN;
 CREATE ROLE authenticated NOLOGIN;
-# Model Supabase's JWT service role in disposable PG, not postgres superuser.
+-- Model Supabase's JWT service role in disposable PG, not postgres superuser.
 CREATE ROLE service_role NOLOGIN BYPASSRLS;
 SQL
 
