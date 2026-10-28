@@ -505,7 +505,7 @@ export async function createAvailability(availability: Omit<MemberAvailability, 
   return dbToAvailability(data);
 }
 
-export async function updateAvailability(availability: MemberAvailability): Promise<boolean> {
+export async function updateAvailability(availability: MemberAvailability): Promise<MemberAvailability> {
   const { data, error } = await supabase
     .from('member_availability')
     .update({
@@ -515,7 +515,7 @@ export async function updateAvailability(availability: MemberAvailability): Prom
       reason: availability.reason || null,
     })
     .eq('id', availability.id)
-    .select('id');
+    .select('*');
 
   // A successful HTTP response can affect zero rows (e.g. after deletion or
   // because of RLS). Never confirm a saved absence interval without an exact
@@ -524,7 +524,8 @@ export async function updateAvailability(availability: MemberAvailability): Prom
     throw new Error('Could not update availability. Please try again.');
   }
 
-  return true;
+  // Only the persisted database row should become visible in scheduling UI.
+  return dbToAvailability(data[0]);
 }
 
 export async function deleteAvailability(id: string): Promise<boolean> {
