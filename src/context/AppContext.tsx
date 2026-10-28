@@ -456,10 +456,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateAvailabilityFn = async (availability: MemberAvailability) => {
-    const success = await dbUpdateAvailability(availability);
-    if (success) {
-      dispatch({ type: 'UPDATE_AVAILABILITY', payload: availability });
-    }
+    // The UI must not display dates/reasons that the database did not confirm.
+    const saved = await dbUpdateAvailability(availability);
+    dispatch({ type: 'UPDATE_AVAILABILITY', payload: saved });
   };
 
   const deleteAvailabilityFn = async (id: string) => {
