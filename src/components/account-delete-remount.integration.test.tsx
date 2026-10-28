@@ -108,6 +108,44 @@ describe('Nesmi Account sign-out recovery', () => {
     expect(screen.getByRole('button', { name: 'Sign Out' })).toBeEnabled();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+  it('never starts irreversible deletion while sign-out is pending and recovers on sign-out failure', async () => {
+    const user = userEvent.setup();
+    const pending = deferred<void>();
+    auth.signOut.mockReturnValueOnce(pending.promise);
+    render(<DeletionTabHost />);
+
+    await user.click(screen.getByRole('button', { name: 'Delete my account' }));
+    expect(screen.getByRole('button', { name: 'Delete permanently' })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Sign Out' }));
+    expect(screen.getByRole('button', { name: 'Signing out…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Delete permanently' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Delete permanently' }));
+    expect(auth.deleteAccount).not.toHaveBeenCalled();
+    expect(localStorage.getItem(accountDeletionAttemptKey('synthetic-account-A'))).toBeNull();
+
+    await act(async () => {
+      pending.reject(new Error('synthetic sign-out failure'));
+      await pending.promise.catch(() => {});
+    });
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not sign out');
+    expect(screen.getByRole('button', { name: 'Delete permanently' })).toBeEnabled();
+    expect(auth.deleteAccount).not.toHaveBeenCalled();
+  });
+
+  it('keeps deletion unavailable after sign-out succeeds but before auth navigation unmounts Account', async () => {
+    const user = userEvent.setup();
+    auth.signOut.mockResolvedValueOnce(undefined);
+    render(<DeletionTabHost />);
+
+    await user.click(screen.getByRole('button', { name: 'Sign Out' }));
+    expect(await screen.findByRole('button', { name: 'Signed out' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Delete my account' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Delete my account' }));
+    expect(screen.queryByRole('button', { name: 'Delete permanently' })).not.toBeInTheDocument();
+    expect(localStorage.getItem(accountDeletionAttemptKey('synthetic-account-A'))).toBeNull();
+    expect(auth.deleteAccount).not.toHaveBeenCalled();
+  });
+
 });
 
 describe('account deletion remount + Assistant portal release gate', () => {
