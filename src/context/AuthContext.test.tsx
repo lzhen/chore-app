@@ -22,6 +22,15 @@ describe('AuthContext', () => {
     expect(result.current.session).toBeNull();
   });
 
+
+  it('exits loading safely when initial session hydration fails', async () => {
+    vi.mocked(supabase.auth.getSession).mockRejectedValueOnce(new Error('synthetic initial session failure'));
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.user).toBeNull();
+    expect(result.current.session).toBeNull();
+  });
+
   it('throws error when used outside AuthProvider', () => {
     expect(() => {
       renderHook(() => useAuth());
