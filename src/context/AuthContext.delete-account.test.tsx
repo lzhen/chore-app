@@ -48,6 +48,24 @@ beforeEach(() => {
   vi.mocked(supabase.auth.signOut).mockResolvedValue({ error: null } as any);
 });
 
+describe('Nesmi explicit sign-out outcome', () => {
+  it('does not silently accept a resolved Supabase SDK error', async () => {
+    vi.mocked(supabase.auth.signOut).mockResolvedValueOnce({
+      error: new Error('synthetic session revocation error'),
+    } as any);
+    const hook = await mountAuth();
+    try {
+      await expect(hook.result.current.signOut()).rejects.toThrow('Could not sign out');
+      expect(supabase.auth.signOut).toHaveBeenCalledTimes(1);
+      // A failed sign-out is not proof of an invalidated authenticated session.
+      expect(localStorage.getItem(NESMI_CHORES)).toBe('nesmi-chores-fixture');
+      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+    } finally {
+      hook.unmount();
+    }
+  });
+});
+
 describe('Nesmi account deletion confirmation and same-origin data isolation', () => {
   it('revokes an already-mounted tab when a cross-tab deletion receipt arrives, preserving sibling data', async () => {
     const oldSession = { user: { id: 'synthetic-deleted-user' } };
