@@ -277,9 +277,11 @@ export async function updateTeamMember(member: TeamMember): Promise<TeamMember> 
     .select()
     .single();
 
-  if (error || !data) {
-    // Propagate failure to AppContext and the editor. Never merge unsaved
-    // client-only values into the DB response and display them as saved.
+  // A PostgREST single-row receipt is not enough if the returned identity
+  // or required profile fields are missing. Never replace the visible member
+  // with a different record, nor render an incomplete acknowledgement as saved.
+  if (error || !data || data.id !== member.id ||
+      typeof data.name !== 'string' || typeof data.color !== 'string') {
     throw new Error('Could not update team member. Please try again.');
   }
   return dbToMember(data);
