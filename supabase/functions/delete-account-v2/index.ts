@@ -77,7 +77,8 @@ Deno.serve(async (request: Request) => {
   let user
   try {
     const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authorization } },
+      // Use the bearer already validated above; Request.headers.get is nullable.
+      global: { headers: { Authorization: `Bearer ${bearerToken}` } },
       auth: { persistSession: false },
     })
     const result = await userClient.auth.getUser(bearerToken)
