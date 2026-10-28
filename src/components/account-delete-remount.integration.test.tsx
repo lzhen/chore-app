@@ -105,7 +105,8 @@ describe('Nesmi Account sign-out recovery', () => {
     expect(screen.getByRole('button', { name: 'Signing out…' })).toBeDisabled();
     expect(auth.signOut).toHaveBeenCalledTimes(1);
     await act(async () => { pending.resolve(); await pending.promise; });
-    expect(screen.getByRole('button', { name: 'Sign Out' })).toBeEnabled();
+    // Success is sticky until a real SIGNED_OUT event removes this view.
+    expect(screen.getByRole('button', { name: 'Signed out' })).toBeDisabled();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
   it('never starts irreversible deletion while sign-out is pending and recovers on sign-out failure', async () => {
