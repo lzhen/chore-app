@@ -2,7 +2,7 @@
  * Nesmi draft release-gate: explicitly opted-in two-disposable-account RLS smoke.
  * NEVER pointed at production or run from CI with credentials. No account provisioning.
  * Uses only a publishable/anon key and two separate test-user password sessions.
- * The sole write is a synthetic team_members row created/cleaned by test account A.
+ * Writes only synthetic team_members + linked chores, created/cleaned by test account A.
  * Run `node tests/release/nesmi-rls-disposable-two-account.mjs --self-test`
  * for credential-free, network-free guard verification.
  */
@@ -93,6 +93,10 @@ function selfTest() {
   assert.doesNotThrow(() => assertUnaffectedOwnerRow([], [{ name: 'owner-marker' }], 'owner-marker'));
   assert.throws(() => assertUnaffectedOwnerRow([], [], 'owner-marker'), /A must still be able to read/);
   console.log('PASS: 2/2 owner-side RLS delete assertions (no network, no credentials)');
+  assert.doesNotThrow(() => assertUnaffectedOwnerChore([], [{ id: 'synthetic-chore', title: 'original' }], 'synthetic-chore', 'original'));
+  assert.throws(() => assertUnaffectedOwnerChore([], [{ id: 'synthetic-chore', title: 'unauthorized-write' }], 'synthetic-chore', 'original'), /cross-account chore mutation/);
+  assert.throws(() => assertUnaffectedOwnerChore([], [{ id: 'other-chore', title: 'original' }], 'synthetic-chore', 'original'), /expected chore/);
+  console.log('PASS: 3/3 chore owner-side isolation assertions (no network, no credentials)');
 }
 
 function assertUnaffectedOwnerRow(rowsVisibleToB, rowsVisibleToA, expectedName) {
@@ -100,6 +104,14 @@ function assertUnaffectedOwnerRow(rowsVisibleToB, rowsVisibleToA, expectedName) 
   assert.equal(rowsVisibleToA?.length, 1, 'A must still be able to read its row after B tries to mutate it');
   assert.equal(rowsVisibleToA[0]?.name, expectedName,
     'RLS violation: cross-account mutation changed persisted A data despite empty UPDATE RETURNING');
+}
+
+function assertUnaffectedOwnerChore(rowsVisibleToB, rowsVisibleToA, choreId, expectedTitle) {
+  assert.equal(rowsVisibleToB?.length ?? 0, 0, 'B must not see A chore rows');
+  assert.equal(rowsVisibleToA?.length, 1, 'A must still be able to read its chore after B tries to mutate it');
+  assert.equal(rowsVisibleToA[0]?.id, choreId, 'A must still see the expected chore');
+  assert.equal(rowsVisibleToA[0]?.title, expectedTitle,
+    'RLS violation: cross-account chore mutation changed persisted A data despite empty UPDATE RETURNING');
 }
 
 function safeError(stage, result) {
@@ -123,6 +135,8 @@ async function runDisposableSmoke(config) {
   const marker = `NESMI-RLS-DISPOSABLE-${randomUUID()}`;
   const updated = `${marker}-saved`;
   let rowId;
+  let choreId;
+  let choreInsertAttempted = false;
   let testError;
   try {
     const created = safeError('create A synthetic row', await a.from('team_members')
@@ -163,10 +177,62 @@ async function runDisposableSmoke(config) {
     safeError('fresh A login', await freshA.auth.signInWithPassword({ email: config.aEmail, password: config.aPassword }));
     const reloaded = safeError('fresh A reload', await freshA.from('team_members').select('name').eq('id', rowId).single());
     assert.equal(reloaded.name, updated, 'A persistence must survive fresh session');
-    console.log('PASS: disposable A/B RLS read/write isolation and fresh-session persistence');
+    // Main task flow is a separate tenant boundary from team_members. Exercise
+    // the real chores table with owner A's linked member. Only on disposable DB.
+    const choreTitle = `${marker}-chore`;
+    const updatedChoreTitle = `${choreTitle}-saved`;
+    choreId = randomUUID();
+    choreInsertAttempted = true;
+    const choreCreated = safeError('A create synthetic chore', await a.from('chores')
+      .insert({ id: choreId, title: choreTitle, date: '2026-10-28', assignee_id: rowId,
+        recurrence: 'none', priority: 'medium' }).select('id, title').single());
+    assert.equal(choreCreated?.id, choreId, 'A must receive the expected synthetic chore ID');
+    assert.equal(choreCreated?.title, choreTitle);
+
+    const bChoreRead = safeError('B cross-account chore read',
+      await b.from('chores').select('id').eq('id', choreId));
+    assert.deepEqual(bChoreRead, [], 'B must not read A chore');
+
+    const bChoreUpdate = await b.from('chores').update({ title: 'unauthorized-write' })
+      .eq('id', choreId).select('id');
+    if (bChoreUpdate.error && !['42501', '403'].includes(String(bChoreUpdate.error.code))) {
+      safeError('B negative chore update', bChoreUpdate);
+    }
+    const ownerChoreAfterB = safeError('A confirm B could not change chore',
+      await a.from('chores').select('id, title').eq('id', choreId));
+    assertUnaffectedOwnerChore(bChoreUpdate.data, ownerChoreAfterB, choreId, choreTitle);
+
+    const bChoreDelete = await b.from('chores').delete().eq('id', choreId).select('id');
+    if (bChoreDelete.error && !['42501', '403'].includes(String(bChoreDelete.error.code))) {
+      safeError('B negative chore delete', bChoreDelete);
+    }
+    const ownerChoreAfterBDelete = safeError('A confirm B could not delete chore',
+      await a.from('chores').select('id, title').eq('id', choreId));
+    assertUnaffectedOwnerChore(bChoreDelete.data, ownerChoreAfterBDelete, choreId, choreTitle);
+
+    const choreUpdated = safeError('A update synthetic chore', await a.from('chores')
+      .update({ title: updatedChoreTitle }).eq('id', choreId).select('id, title').single());
+    assert.equal(choreUpdated?.id, choreId);
+    const freshChore = safeError('fresh A chore reload',
+      await freshA.from('chores').select('id, title').eq('id', choreId).single());
+    assert.equal(freshChore.id, choreId);
+    assert.equal(freshChore.title, updatedChoreTitle, 'Chore update must survive fresh A session');
+    console.log('PASS: disposable A/B team_members and chores RLS isolation + fresh-session persistence');
   } catch (e) {
     testError = e;
   } finally {
+    // Remove dependent synthetic chore first. Never touch an unrelated row;
+    // use the generated UUID and owner A's authenticated test session only.
+    if (choreInsertAttempted) {
+      try {
+        const removedChore = safeError('synthetic chore cleanup', await a.from('chores')
+          .delete().eq('id', choreId).select('id'));
+        assert.equal(removedChore.length, 1, 'Cleanup must delete exactly one test-owned chore');
+        assert.equal(removedChore[0]?.id, choreId, 'Cleanup must confirm the exact chore ID');
+      } catch {
+        testError = testError || new Error('Synthetic chore cleanup could not be verified in disposable project');
+      }
+    }
     if (rowId) {
       try {
         const removed = safeError('synthetic cleanup', await a.from('team_members')
