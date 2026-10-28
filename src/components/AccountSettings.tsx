@@ -18,6 +18,8 @@ export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt
   const { user, signOut, deleteAccount } = useAuth();
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
   const deleteInFlight = useRef(false);
   // Never silently switch the account targeted by a two-step confirmation.
   const confirmedAccountIdRef = useRef<string | null>(null);
@@ -28,6 +30,20 @@ export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt
   const attemptLocked = deletionAttempted || deletionLocked || wasAccountDeletionAttempted(user?.id);
 
   if (!isOpen) return null;
+
+  const handleSignOut = async () => {
+    if (deleteInFlight.current || attemptLocked || signingOut) return;
+    setSignOutError(null);
+    setSigningOut(true);
+    try {
+      await signOut();
+    } catch {
+      // SDK errors and network rejections must not look like successful logout.
+      setSignOutError('Could not sign out. Check your connection and try again.');
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   // A missing acknowledgement can mean deletion already happened. Never
   // offer a second irreversible attempt without server-side reconciliation.
@@ -113,12 +129,14 @@ export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt
         </div>
 
         <button
-          onClick={() => { if (!deleteInFlight.current && !attemptLocked) void signOut(); }}
-          disabled={deleting || attemptLocked}
+          type="button"
+          onClick={() => { void handleSignOut(); }}
+          disabled={deleting || attemptLocked || signingOut}
           className="chore-button secondary mt-6"
         >
-          Sign Out
+          {signingOut ? 'Signing out…' : 'Sign Out'}
         </button>
+        {signOutError && <p className="mt-2 text-sm text-red-500" role="alert">{signOutError}</p>}
 
         <div className="mt-6 border-t border-border pt-5">
           <h3 className="font-medium text-red-500">Delete account</h3>
