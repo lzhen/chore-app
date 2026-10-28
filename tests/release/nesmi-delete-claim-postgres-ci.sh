@@ -26,9 +26,7 @@ trap cleanup EXIT
 psql -X -v ON_ERROR_STOP=1 -q <<'SQL'
 CREATE ROLE anon NOLOGIN;
 CREATE ROLE authenticated NOLOGIN;
-# In real Supabase the service_role JWT assumes a BYPASSRLS role. Reproduce
-# that privilege in ephemeral CI rather than silently running every RPC as
-# the postgres superuser (which could conceal a broken service-role grant).
+# Model Supabase's JWT service role in disposable PG, not postgres superuser.
 CREATE ROLE service_role NOLOGIN BYPASSRLS;
 SQL
 
@@ -59,9 +57,8 @@ privileges="$(psql -X -qAt -c "
    )")"
 [[ "$privileges" == "t" ]] || { echo "Claim privilege or retention contract failed" >&2; exit 1; }
 
-# Exercise the actual SQL functions through SET ROLE rather than only
-# inspecting privileges while connected as the postgres superuser.
-# The service-role scenario uses synthetic UUIDs and the disposable CI DB.
+# Verify executed RPC rights under simulated Supabase API roles, rather than
+# only inspecting privilege metadata from the postgres superuser.
 service_account='00000000-0000-4000-8000-00000000c333'
 service_receipts="$(psql -X -v ON_ERROR_STOP=1 -qAt <<SQL
 BEGIN;
@@ -75,58 +72,12 @@ SELECT count(*) FROM public.nesmi_delete_claim_draft_acquire('$service_account')
 COMMIT;
 SQL
 )"
-[[ "$service_receipts" == 
-# solely a synchronization signal for the test driver, NOT application locking.
-account="00000000-0000-4000-8000-00000000a111"
-(
-  PGAPPNAME=nesmi_claim_winner psql -X -v ON_ERROR_STOP=1 -qAt -c "
-    BEGIN;
-    SELECT claim_id FROM public.nesmi_delete_claim_draft_acquire('$account');
-    SELECT pg_advisory_xact_lock(934001);
-    SELECT pg_sleep(5);
-    COMMIT;" >"$temp/winner.log" 2>&1
-) &
-winner_pid=$!
-
-ready=false
-for _ in $(seq 1 70); do
-  active="$(psql -X -qAt -c "
-    SELECT EXISTS (SELECT 1 FROM pg_locks
-      WHERE locktype='advisory' AND objid=934001 AND granted)")"
-  if [[ "$active" == "t" ]]; then ready=true; break; fi
-  sleep 0.1
-done
-[[ "$ready" == "true" ]] || { cat "$temp/winner.log" >&2; echo "Winner never claimed" >&2; exit 1; }
-
-# Transaction B must wait on the unique index conflict until A commits,
-# then it must receive ZERO claims; neither worker may win twice.
-(
-  PGAPPNAME=nesmi_claim_loser psql -X -v ON_ERROR_STOP=1 -qAt     -c "SELECT count(*) FROM public.nesmi_delete_claim_draft_acquire('$account')"     > "$temp/loser.log" 2>&1
-) &
-loser_pid=$!
-blocked=false
-for _ in $(seq 1 35); do
-  state="$(psql -X -qAt -c "
-    SELECT EXISTS (SELECT 1 FROM pg_stat_activity
-      WHERE application_name='nesmi_claim_loser' AND wait_event_type='Lock')")"
-  if [[ "$state" == "t" ]]; then blocked=true; break; fi
-  sleep 0.1
-done
-[[ "$blocked" == "true" ]] || { echo "No observed cross-connection conflict wait" >&2; exit 1; }
-wait "$winner_pid"
-wait "$loser_pid"
-[[ "$(cat "$temp/loser.log")" == "0" ]] || {
-  echo "Losing concurrent request acquired a duplicate claim" >&2; exit 1;
-}
-[[ "$(psql -X -qAt -c "SELECT count(*) FROM public.nesmi_account_deletion_claim_draft WHERE account_id='$account'")" == "1" ]]   || { echo "Claim uniqueness failed" >&2; exit 1; }
-echo "PASS: rollback-only SQL, role grants/RLS, and two-connection atomic claim (synthetic CI only)"
-1\\nt\\n0' ]] || {
+[[ "$service_receipts" == $'1\nt\n0' ]] || {
   echo "Service-role acquire/finalize/replay receipts unexpected: $service_receipts" >&2
   exit 1
 }
 
-# Both public API roles must fail at execution time, not just in a grant
-# metadata query. A denied call must never create any claim.
+# Public API roles must fail when actually executing the privileged RPC.
 denied_account='00000000-0000-4000-8000-00000000d444'
 for role in anon authenticated; do
   if psql -X -v ON_ERROR_STOP=1 -qAt >"$temp/$role-rpc.log" 2>&1 <<SQL
@@ -147,7 +98,7 @@ done
 [[ "$(psql -X -qAt -c "SELECT count(*) FROM public.nesmi_account_deletion_claim_draft WHERE account_id='$denied_account'")" == "0" ]] || {
   echo "An unprivileged role changed a protected deletion claim" >&2; exit 1
 }
-echo "PASS: actual role-switched service RPC, replay and denied anon/authenticated RPCs (ephemeral CI)"
+echo "PASS: service-role RPC and anon/authenticated denial (ephemeral PostgreSQL only)"
 
 # Transaction A holds an uncommitted unique-row claim. Its advisory lock is
 # solely a synchronization signal for the test driver, NOT application locking.
