@@ -4,7 +4,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { supabase } from './supabase';
-import { deleteAvailability, updateAvailability } from './supabaseStorage';
+import { createAvailability, deleteAvailability, updateAvailability } from './supabaseStorage';
 import type { MemberAvailability } from '../types';
 
 const record: MemberAvailability = {
@@ -81,5 +81,64 @@ describe('availability deletion receipt', () => {
   ] satisfies Array<[string, Receipt]>)('rejects a false deletion with %s', async (_name, receipt) => {
     deleteFixture(receipt);
     await expect(deleteAvailability(record.id)).rejects.toThrow('Could not delete availability');
+  });
+});
+
+
+describe('availability creation acknowledgement', () => {
+  const payload: Omit<MemberAvailability, 'id'> = {
+    memberId: record.memberId,
+    startDate: record.startDate,
+    endDate: record.endDate,
+    reason: record.reason,
+  };
+  const saved = {
+    id: record.id,
+    member_id: record.memberId,
+    start_date: record.startDate,
+    end_date: record.endDate,
+    reason: record.reason,
+  };
+
+  function insertFixture(response: { data: unknown; error: { message: string } | null }) {
+    const single = vi.fn().mockResolvedValue(response);
+    const select = vi.fn().mockReturnValue({ single });
+    const insert = vi.fn().mockReturnValue({ select });
+    const from = vi.fn().mockReturnValue({ insert });
+    Object.assign(supabase, { from });
+    return { from, insert, select, single };
+  }
+
+  it('accepts a persisted interval only with its nonempty server ID', async () => {
+    const db = insertFixture({ data: saved, error: null });
+    await expect(createAvailability(payload)).resolves.toEqual(record);
+    expect(db.from).toHaveBeenCalledWith('member_availability');
+    expect(db.insert).toHaveBeenCalledWith({
+      member_id: record.memberId,
+      start_date: record.startDate,
+      end_date: record.endDate,
+      reason: record.reason,
+    });
+    expect(db.select).toHaveBeenCalledOnce();
+    expect(db.single).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ['null receipt', null],
+    ['missing ID', { ...saved, id: undefined }],
+    ['empty ID', { ...saved, id: '' }],
+    ['whitespace-only ID', { ...saved, id: '  ' }],
+  ])('rejects %s and warns against blind retries', async (_case, data) => {
+    insertFixture({ data, error: null });
+    await expect(createAvailability(payload)).rejects.toThrow(
+      'Availability save could not be confirmed. Refresh to check before trying again.',
+    );
+  });
+
+  it('rejects explicit database error even if a saved row is returned', async () => {
+    insertFixture({ data: saved, error: { message: 'synthetic failure' } });
+    await expect(createAvailability(payload)).rejects.toThrow(
+      'Availability save could not be confirmed. Refresh to check before trying again.',
+    );
   });
 });
