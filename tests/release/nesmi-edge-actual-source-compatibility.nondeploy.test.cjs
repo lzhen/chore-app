@@ -39,7 +39,7 @@ function compileCurrentEdge() {
 
 function offlineEdge({
   authenticatedUser = 'synthetic-A', authThrows = false, anonClientThrows = false,
-  missingEnv = null, adminError = null,
+  missingEnv = null, adminClientThrows = false, adminError = null,
   adminData = { user: { id: 'synthetic-A' } }, adminReject = false, adminThrow = false,
   adminDelay = null,
   claimError = null, claimData, claimReject = false,
@@ -72,6 +72,10 @@ function offlineEdge({
             return { data: { user: authenticatedUser ? { id: authenticatedUser } : null }, error: null };
           } },
         };
+      }
+      if (key === 'synthetic-service' && adminClientThrows) {
+        calls.push('service-client-constructor');
+        throw Error('synthetic service SDK initialization failure before claim');
       }
       if (key === 'synthetic-service') return {
         rpc: async (name, args) => {
@@ -173,6 +177,15 @@ test('actual draft v2 handles user SDK construction and getUser transport except
     assert.match((await response.json()).error, /No deletion was attempted/);
     assert.equal(h.calls.some(x => x.startsWith('claim:') || x.startsWith('admin-delete:')), false);
   }
+});
+
+test('actual draft v2 reports known no-op when privileged SDK initialization fails before claim', async () => {
+  const h = offlineEdge({ adminClientThrows: true });
+  const response = await h.handler(makeRequest({ expectedUserId: 'synthetic-A' }));
+  assert.equal(response.status, 503);
+  assert.match((await response.json()).error, /No deletion was attempted/);
+  assert.deepEqual(h.calls, ['bearer-auth', 'service-client-constructor']);
+  assert.equal(h.calls.some(x => x.startsWith('claim:') || x.startsWith('admin-delete:')), false);
 });
 
 test('actual draft Edge valid upgraded-client request reaches exactly one synthetic admin call', async () => {
