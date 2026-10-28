@@ -122,7 +122,14 @@ Deno.serve(async (request: Request) => {
       auth: { persistSession: false, autoRefreshToken: false },
     })
   } catch {
-    return failUncertain()
+    // Service-role SDK construction failed BEFORE any claim RPC or admin delete.
+    // Report a known no-op rather than implying a potentially completed deletion.
+    return new Response(JSON.stringify({
+      error: 'Account deletion is temporarily unavailable. No deletion was attempted.',
+    }), {
+      status: 503,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 
   // Only a durable PK-backed reservation can protect concurrent Edge workers.
