@@ -14,6 +14,8 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  // Provider-owned so leaving and returning to Account cannot reset a pending logout.
+  signOutStatus: 'idle' | 'pending' | 'succeeded';
   deleteAccount: (confirmedAccountId?: string) => Promise<{ error: Error | null; deletionConfirmed: boolean }>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
 }
@@ -57,6 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // A new explicitly successful sign-in can re-arm authentication.
   const deletionConfirmedRef = useRef(initialDeletionReceipt);
   const authRevisionRef = useRef(0);
+  const [signOutStatus, setSignOutStatus] = useState<'idle' | 'pending' | 'succeeded'>('idle');
+  const signOutStatusRef = useRef<'idle' | 'pending' | 'succeeded'>('idle');
   // A live SDK auth event is newer than an in-flight startup getSession snapshot.
   // Keep delayed initial reads from replacing a freshly signed-in/out identity.
   const startupAuthEventRef = useRef(false);
@@ -180,6 +184,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         postDeletionExplicitUserIdRef.current = data.session.user.id;
       }
       authRevisionRef.current += 1;
+      signOutStatusRef.current = 'idle';
+      setSignOutStatus('idle');
       deletionConfirmedRef.current = false;
       // The previous deletion marker was cleared before React auth re-armed.
       setSession(data.session);
@@ -202,6 +208,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         postDeletionExplicitUserIdRef.current = data.session.user.id;
       }
       authRevisionRef.current += 1;
+      signOutStatusRef.current = 'idle';
+      setSignOutStatus('idle');
       deletionConfirmedRef.current = false;
       // The previous deletion marker was cleared before React auth re-armed.
       setSession(data.session);
@@ -212,10 +220,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    // Supabase returns auth errors as { error } rather than rejecting its promise.
-    // Never tell the Account UI sign-out succeeded while the SDK retains a session.
-    const { error } = await supabase.auth.signOut();
-    if (error) throw new Error('Could not sign out. Please try again.');
+    // A provider-owned synchronous lock survives Account tab unmount/remount.
+    // Never start a second auth side effect while the original logout is pending.
+    if (signOutStatusRef.current !== 'idle') {
+      throw new Error('Sign-out is already pending or completed.');
+    }
+    signOutStatusRef.current = 'pending';
+    setSignOutStatus('pending');
+    try {
+      // Supabase may resolve with { error } instead of rejecting.
+      const { error } = await supabase.auth.signOut();
+      if (error) throw new Error('Could not sign out. Please try again.');
+      signOutStatusRef.current = 'succeeded';
+      setSignOutStatus('succeeded');
+    } catch (error) {
+      // A confirmed failure releases the lock so the user may retry.
+      signOutStatusRef.current = 'idle';
+      setSignOutStatus('idle');
+      throw error;
+    }
   };
 
   const deleteAccount = async (confirmedAccountId?: string) => {
@@ -291,7 +314,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, deletionCleanupWarning, isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset, signUp, signIn, signOut, deleteAccount, resetPassword }}>
+    <AuthContext.Provider value={{ user, session, loading, signOutStatus, deletionCleanupWarning, isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset, signUp, signIn, signOut, deleteAccount, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );
