@@ -102,6 +102,21 @@ describe('member profile database persistence', () => {
     await expect(updateTeamMember(member)).rejects.toThrow('Could not update team member');
   });
 
+  it.each([
+    ['wrong member ID', { ...row, id: 'synthetic-other-member' }],
+    ['missing member ID', { ...row, id: undefined }],
+    ['missing required name', { ...row, name: undefined }],
+    ['missing required color', { ...row, color: undefined }],
+  ])('rejects %s rather than claiming an unverified profile update succeeded', async (_case, data) => {
+    fixture({ data: data as typeof row, error: null });
+    await expect(updateTeamMember(member)).rejects.toThrow('Could not update team member');
+  });
+
+  it('rejects an update error even when an otherwise valid member row was returned', async () => {
+    fixture({ data: row, error: { message: 'synthetic conflicting response' } });
+    await expect(updateTeamMember(member)).rejects.toThrow('Could not update team member');
+  });
+
   it('creates with the same supported persisted fields and never submits avatar data', async () => {
     const db = fixture();
     const { id: _id, ...withoutId } = member;
