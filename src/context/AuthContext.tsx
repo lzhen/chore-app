@@ -34,22 +34,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsEmailVerification(true);
     }
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    let mounted = true;
+    let receivedAuthEvent = false;
 
-    // Listen for auth changes
+    // An auth event (especially SIGNED_OUT / SIGNED_IN) may arrive before
+    // this initial async read settles. Never restore its stale identity over
+    // a newer event or update state after unmounting.
+    void supabase.auth.getSession()
+      .then(({ data, error }) => {
+        if (!mounted || receivedAuthEvent) return;
+        const initialSession = error ? null : (data?.session ?? null);
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!mounted || receivedAuthEvent) return;
+        // Failed session hydration must not trap the user on a loading screen
+        // or revive a previously authenticated household.
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+      });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        if (!mounted) return;
+        receivedAuthEvent = true;
         setSession(session);
         setUser(session?.user ?? null);
+        setLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const clearEmailVerification = () => {

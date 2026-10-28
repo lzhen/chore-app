@@ -220,11 +220,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateChore = async (chore: Chore) => {
-    const success = await dbUpdateChore(chore);
-    if (!success) throw new Error('Your changes could not be saved. Please try again.');
-    if (success) {
-      dispatch({ type: 'UPDATE_CHORE', payload: chore });
-    }
+    // Preserve server truth: do not display unsaved form values as persisted.
+    const saved = await dbUpdateChore(chore);
+    dispatch({ type: 'UPDATE_CHORE', payload: saved });
   };
 
   const deleteChore = async (id: string) => {
@@ -249,10 +247,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateMember = async (member: TeamMember) => {
+    // Only a confirmed DB response may become the visible member state.
+    // Storage failures propagate to the caller so the modal stays open.
     const updated = await dbUpdateTeamMember(member);
-    if (updated) {
-      dispatch({ type: 'UPDATE_MEMBER', payload: updated });
-    }
+    dispatch({ type: 'UPDATE_MEMBER', payload: updated });
   };
 
   const removeMember = async (id: string) => {
@@ -274,10 +272,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateCategoryFn = async (category: Category) => {
-    const success = await dbUpdateCategory(category);
-    if (success) {
-      dispatch({ type: 'UPDATE_CATEGORY', payload: category });
-    }
+    // Render only the category name/color/icon confirmed by the database.
+    const saved = await dbUpdateCategory(category);
+    dispatch({ type: 'UPDATE_CATEGORY', payload: saved });
   };
 
   const deleteCategoryFn = async (id: string) => {
@@ -458,10 +455,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateAvailabilityFn = async (availability: MemberAvailability) => {
-    const success = await dbUpdateAvailability(availability);
-    if (success) {
-      dispatch({ type: 'UPDATE_AVAILABILITY', payload: availability });
-    }
+    // The UI must not display dates/reasons that the database did not confirm.
+    const saved = await dbUpdateAvailability(availability);
+    dispatch({ type: 'UPDATE_AVAILABILITY', payload: saved });
   };
 
   const deleteAvailabilityFn = async (id: string) => {

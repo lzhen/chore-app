@@ -1,0 +1,50 @@
+name: Nesmi isolated PostgreSQL tenant-isolation gate
+
+# Draft-only CI runs the checked-in owner-isolation migration on a brand-new
+# GitHub Actions PostgreSQL container. Never contacts Supabase or real users.
+on:
+  push:
+    branches: [fix/nesmi-b123-member-profile-save-20261026]
+    paths:
+      - 'tests/release/nesmi-rls-migration-isolated-postgres.ci.sql'
+      - 'supabase/migrations/20260826234000_owner_isolation.sql'
+      - '.github/workflows/nesmi-rls-real-postgres-ci.yml'
+  pull_request:
+    branches: [fix/chorely-auth-viewport-20260927-icon-family-20261026]
+    paths:
+      - 'tests/release/nesmi-rls-migration-isolated-postgres.ci.sql'
+      - 'supabase/migrations/20260826234000_owner_isolation.sql'
+      - '.github/workflows/nesmi-rls-real-postgres-ci.yml'
+permissions:
+  contents: read
+jobs:
+  isolated-tenant-rls:
+    name: Real PostgreSQL RLS (ephemeral synthetic DB only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: nesmi_synthetic_ci_only
+          POSTGRES_DB: nesmi_isolation_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d nesmi_isolation_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 8
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGDATABASE: nesmi_isolation_ci
+      PGPASSWORD: nesmi_synthetic_ci_only
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run actual checked-in migration against isolated A/B SQL sessions
+        run: |
+          command -v psql
+          psql -v ON_ERROR_STOP=1 -f tests/release/nesmi-rls-migration-isolated-postgres.ci.sql
