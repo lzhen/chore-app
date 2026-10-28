@@ -104,7 +104,7 @@ describe('chore completion create receipt', () => {
   it('rejects a PostgREST error even if data is present', async () => {
     createFixture({ data: saved, error: { message: 'synthetic denied' } });
     await expect(createCompletion(payload)).rejects.toThrow(
-      'Could not save completion. Please check your connection before trying again.',
+      'Completion save could not be confirmed. Refresh to check before trying again.',
     );
   });
 });
