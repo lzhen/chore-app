@@ -329,8 +329,10 @@ export async function createCategory(category: Omit<Category, 'id'>): Promise<Ca
     .select()
     .single();
 
-  if (error) {
-    throw new Error('Could not save category. Please try again.');
+  // A category INSERT can commit even if its PostgREST receipt is absent.
+  // Do not add an ID-less category or suggest an immediate duplicate retry.
+  if (error || !data || typeof data.id !== 'string' || data.id.trim().length === 0) {
+    throw new Error('Category save could not be confirmed. Refresh to check before trying again.');
   }
 
   return dbToCategory(data);
