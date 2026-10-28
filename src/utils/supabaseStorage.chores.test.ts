@@ -31,9 +31,26 @@ function fixture(response: Receipt) {
 beforeEach(() => { vi.clearAllMocks(); });
 
 describe('core chore mutation acknowledgement', () => {
-  it('accepts only the exact chore update and preserves the requested fields', async () => {
-    const db = fixture({ data: [{ id: chore.id }], error: null });
-    await expect(updateChore(chore)).resolves.toBe(true);
+  it('returns the exact updated database row instead of optimistic browser fields', async () => {
+    const persisted = {
+      id: chore.id,
+      title: 'Server-normalized title',
+      description: null,
+      date: chore.date,
+      due_time: null,
+      end_time: null,
+      assignee_id: null,
+      recurrence: 'none',
+      priority: 'medium',
+      category_id: null,
+      estimated_minutes: 10,
+    };
+    const db = fixture({ data: [persisted], error: null });
+    await expect(updateChore(chore)).resolves.toMatchObject({
+      id: chore.id,
+      title: 'Server-normalized title',
+      estimatedMinutes: 10,
+    });
     expect(db.from).toHaveBeenCalledWith('chores');
     expect(db.update).toHaveBeenCalledWith({
       title: 'Clean the desk',
@@ -48,7 +65,7 @@ describe('core chore mutation acknowledgement', () => {
       estimated_minutes: 15,
     });
     expect(db.eq).toHaveBeenCalledWith('id', chore.id);
-    expect(db.select).toHaveBeenCalledWith('id');
+    expect(db.select).toHaveBeenCalledWith('*');
   });
 
   it.each([
@@ -59,7 +76,7 @@ describe('core chore mutation acknowledgement', () => {
     ['explicit PostgREST error', { data: null, error: { message: 'synthetic denied' } }],
   ] satisfies Array<[string, Receipt]>)('rejects chore update with %s', async (_reason, response) => {
     fixture(response);
-    await expect(updateChore(chore)).rejects.toThrow('Could not update chore');
+    await expect(updateChore(chore)).rejects.toThrow('Could not confirm updated chore');
   });
 
   it('accepts only the exact chore deletion', async () => {
