@@ -37,8 +37,17 @@ beforeEach(() => { vi.clearAllMocks(); });
 
 describe('availability update receipt', () => {
   it('requires the one exact persisted availability ID', async () => {
-    const db = updateFixture({ data: [{ id: record.id }], error: null });
-    await expect(updateAvailability(record)).resolves.toBe(true);
+    const saved = {
+      id: record.id,
+      member_id: record.memberId,
+      start_date: '2026-11-03',
+      end_date: record.endDate,
+      reason: 'server-confirmed',
+    };
+    const db = updateFixture({ data: [saved], error: null });
+    await expect(updateAvailability(record)).resolves.toEqual({
+      ...record, startDate: '2026-11-03', reason: 'server-confirmed',
+    });
     expect(db.from).toHaveBeenCalledWith('member_availability');
     expect(db.update).toHaveBeenCalledWith({
       member_id: record.memberId,
@@ -47,7 +56,7 @@ describe('availability update receipt', () => {
       reason: record.reason,
     });
     expect(db.eq).toHaveBeenCalledWith('id', record.id);
-    expect(db.select).toHaveBeenCalledWith('id');
+    expect(db.select).toHaveBeenCalledWith('*');
   });
 
   it.each([
