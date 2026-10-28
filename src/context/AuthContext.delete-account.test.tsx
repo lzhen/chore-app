@@ -64,6 +64,47 @@ describe('Nesmi explicit sign-out outcome', () => {
       hook.unmount();
     }
   });
+  it('keeps a provider-level pending lock while the Account view could remount, then stays locked on success', async () => {
+    let release!: (value: any) => void;
+    const pending = new Promise<any>(resolve => { release = resolve; });
+    vi.mocked(supabase.auth.signOut).mockReturnValueOnce(pending as any);
+    const hook = await mountAuth();
+    try {
+      let first!: Promise<void>;
+      act(() => { first = hook.result.current.signOut(); });
+      expect(hook.result.current.signOutStatus).toBe('pending');
+      await act(async () => {
+        await expect(hook.result.current.signOut()).rejects.toThrow('already pending or completed');
+      });
+      expect(supabase.auth.signOut).toHaveBeenCalledTimes(1);
+      await act(async () => { release({ error: null }); await first; });
+      expect(hook.result.current.signOutStatus).toBe('succeeded');
+      await act(async () => {
+        await expect(hook.result.current.signOut()).rejects.toThrow('already pending or completed');
+      });
+      expect(supabase.auth.signOut).toHaveBeenCalledTimes(1);
+    } finally {
+      hook.unmount();
+    }
+  });
+
+  it('releases the provider lock on a confirmed SDK error so sign-out can be retried', async () => {
+    vi.mocked(supabase.auth.signOut)
+      .mockResolvedValueOnce({ error: new Error('synthetic SDK failure') } as any)
+      .mockResolvedValueOnce({ error: null } as any);
+    const hook = await mountAuth();
+    try {
+      await act(async () => {
+        await expect(hook.result.current.signOut()).rejects.toThrow('Could not sign out');
+      });
+      expect(hook.result.current.signOutStatus).toBe('idle');
+      await act(async () => { await hook.result.current.signOut(); });
+      expect(hook.result.current.signOutStatus).toBe('succeeded');
+      expect(supabase.auth.signOut).toHaveBeenCalledTimes(2);
+    } finally {
+      hook.unmount();
+    }
+  });
 });
 
 describe('Nesmi account deletion confirmation and same-origin data isolation', () => {
