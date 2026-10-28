@@ -150,7 +150,7 @@ Deno.serve(async (request: Request) => {
         .test(acquired.data[0].claim_id)) return failUncertain()
 
   const claimId = acquired.data[0].claim_id
-  const finalize = async state => {
+  const finalize = async (state: 'confirmed' | 'uncertain') => {
     try {
       const receipt = await adminClient.rpc('nesmi_delete_claim_draft_finalize', {
         p_account_id: user.id, p_claim_id: claimId, p_state: state,
