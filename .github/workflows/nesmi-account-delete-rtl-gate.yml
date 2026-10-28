@@ -65,4 +65,4 @@ jobs:
         with:
           deno-version: v2.x
       - name: Typecheck draft v2 Edge handler (no deploy)
-        run: deno check supabase/functions/delete-account-v2/index.ts
+        run: deno check --node-modules-dir=auto supabase/functions/delete-account-v2/index.ts
