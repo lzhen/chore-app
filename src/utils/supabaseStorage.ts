@@ -401,7 +401,13 @@ export async function createCompletion(completion: Omit<ChoreCompletion, 'id'>):
     .single();
 
   if (error) {
-    throw new Error('Could not save completion. Please try again.');
+    throw new Error('Could not save completion. Please check your connection before trying again.');
+  }
+  // An INSERT may have reached Postgres even without a readable receipt.
+  // Do not announce completion or award points without a persisted row ID,
+  // and discourage blind retries that could record the same chore twice.
+  if (!data || typeof data.id !== 'string' || data.id.trim().length === 0) {
+    throw new Error('Completion save could not be confirmed. Refresh to check before trying again.');
   }
 
   return dbToCompletion(data);
