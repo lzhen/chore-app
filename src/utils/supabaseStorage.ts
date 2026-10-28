@@ -353,7 +353,8 @@ export async function updateCategory(category: Category): Promise<Category> {
   // An ID-only acknowledgement does not prove which name/color/icon was
   // persisted. Keep the last confirmed UI state unless the exact row returns
   // with its full database values (including any server normalization).
-  if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== category.id) {
+  if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== category.id ||
+      typeof data[0]?.name !== 'string' || typeof data[0]?.color !== 'string') {
     throw new Error('Could not update category. Refresh to check before trying again.');
   }
 
