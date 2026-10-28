@@ -212,7 +212,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Supabase returns auth errors as { error } rather than rejecting its promise.
+    // Never tell the Account UI sign-out succeeded while the SDK retains a session.
+    const { error } = await supabase.auth.signOut();
+    if (error) throw new Error('Could not sign out. Please try again.');
   };
 
   const deleteAccount = async (confirmedAccountId?: string) => {
