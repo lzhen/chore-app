@@ -114,6 +114,27 @@ describe('member profile database persistence', () => {
     expect(db.getPayload()).not.toHaveProperty('avatar_url');
     expect(created?.id).toBe(row.id);
   });
+
+  it.each([
+    ['null receipt', null],
+    ['missing ID', { ...row, id: undefined }],
+    ['empty ID', { ...row, id: '' }],
+    ['whitespace-only ID', { ...row, id: '   ' }],
+  ])('holds local member creation for %s to prevent duplicate retries', async (_reason, data) => {
+    fixture({ data: data as typeof row | null, error: null });
+    const { id: _id, ...withoutId } = member;
+    await expect(createTeamMember(withoutId)).rejects.toThrow(
+      'Team member save could not be confirmed. Refresh to check before trying again.',
+    );
+  });
+
+  it('rejects a PostgREST error even if the response contains a member row', async () => {
+    fixture({ data: row, error: { message: 'synthetic permission rejection' } });
+    const { id: _id, ...withoutId } = member;
+    await expect(createTeamMember(withoutId)).rejects.toThrow(
+      'Team member save could not be confirmed. Refresh to check before trying again.',
+    );
+  });
 });
 
 
