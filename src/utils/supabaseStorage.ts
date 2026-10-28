@@ -339,7 +339,7 @@ export async function createCategory(category: Omit<Category, 'id'>): Promise<Ca
   return dbToCategory(data);
 }
 
-export async function updateCategory(category: Category): Promise<boolean> {
+export async function updateCategory(category: Category): Promise<Category> {
   const { data, error } = await supabase
     .from('categories')
     .update({
@@ -348,16 +348,16 @@ export async function updateCategory(category: Category): Promise<boolean> {
       icon: category.icon || null,
     })
     .eq('id', category.id)
-    .select('id');
+    .select('*');
 
-  // A zero-row response without a PostgREST error is possible when an RLS
-  // policy hides the target or the row no longer exists. Never show the
-  // optimistic category as saved unless the exact row was acknowledged.
+  // An ID-only acknowledgement does not prove which name/color/icon was
+  // persisted. Keep the last confirmed UI state unless the exact row returns
+  // with its full database values (including any server normalization).
   if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== category.id) {
-    throw new Error('Could not update category. Please try again.');
+    throw new Error('Could not update category. Refresh to check before trying again.');
   }
 
-  return true;
+  return dbToCategory(data[0]);
 }
 
 export async function deleteCategory(id: string): Promise<boolean> {
