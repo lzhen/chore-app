@@ -31,6 +31,23 @@ describe('AuthContext', () => {
     expect(result.current.session).toBeNull();
   });
 
+
+  it('ignores a late initial session result after an auth sign-out event', async () => {
+    let finish!: (value: any) => void;
+    vi.mocked(supabase.auth.getSession).mockImplementationOnce(() =>
+      new Promise(resolve => { finish = resolve; }) as ReturnType<typeof supabase.auth.getSession>);
+    let emit: any;
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementationOnce(callback => {
+      emit = callback;
+      return { data: { subscription: { unsubscribe: vi.fn() } } } as any;
+    });
+    const { result } = renderHook(useAuth, { wrapper: AuthProvider });
+    act(() => { emit('SIGNED_OUT', null); });
+    await act(async () => { finish({ data: { session: { user: { id: 'old-synthetic' } } }, error: null }); });
+    expect(result.current.loading).toBe(false);
+    expect(result.current.user).toBeNull();
+  });
+
   it('throws error when used outside AuthProvider', () => {
     expect(() => {
       renderHook(() => useAuth());
