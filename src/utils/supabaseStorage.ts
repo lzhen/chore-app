@@ -259,8 +259,11 @@ export async function createTeamMember(member: Omit<TeamMember, 'id'>): Promise<
     .select()
     .single();
 
-  if (error || !data) {
-    throw new Error('Could not save team member. Please try again.');
+  // A successful INSERT may have committed even if PostgREST could not
+  // return the inserted row. Do not display an ID-less household member or
+  // encourage an immediate retry that could create a duplicate member.
+  if (error || !data || typeof data.id !== 'string' || data.id.trim().length === 0) {
+    throw new Error('Team member save could not be confirmed. Refresh to check before trying again.');
   }
   return dbToMember(data);
 }
