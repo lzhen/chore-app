@@ -24,6 +24,7 @@ function compileCurrentEdge() {
     '(payload as { expectedUserId?: unknown })',
     'adminClient.auth.admin.deleteUser(user.id)',
     'userClient.auth.getUser(bearerToken)',
+    "const finalize = async (state: 'confirmed' | 'uncertain') =>",
   ]) assert.ok(edgeSource.includes(marker), 'Source contract changed: ' + marker);
   assert.equal((edgeSource.match(/Deno\.env\.get\('[A-Z_]+'\)!/g) || []).length, 0);
   assert.match(edgeSource, /if \(!supabaseUrl \|\| !anonKey \|\| !serviceRoleKey\)/);
@@ -32,6 +33,7 @@ function compileCurrentEdge() {
     .replace('Deno.serve(async (request: Request) =>', 'Deno.serve(async (request) =>')
     .replace('let payload: unknown', 'let payload')
     .replace('(payload as { expectedUserId?: unknown })', '(payload)')
+    .replace("const finalize = async (state: 'confirmed' | 'uncertain') =>", 'const finalize = async state =>')
     .replace(/(Deno\.env\.get\('[A-Z_]+'\))!/g, '$1');
 }
 
