@@ -16,6 +16,7 @@ import {
   fetchAvailability,
   updateTeamMember,
   createCompletion,
+  updateChore as persistChore,
 } from '../utils/supabaseStorage';
 
 vi.mock('./AuthContext', () => ({ useAuth: vi.fn() }));
@@ -27,6 +28,7 @@ vi.mock('../utils/supabaseStorage', () => ({
   fetchAvailability: vi.fn(),
   updateTeamMember: vi.fn(),
   createCompletion: vi.fn(),
+  updateChore: vi.fn(),
 }));
 
 const original: TeamMember = {
@@ -211,5 +213,58 @@ describe('chore completion keeps points/badges persistence best-effort', () => {
     expect(screen.getByTestId('member-state').textContent).toContain('Canonical reward response');
     expect(screen.getByTestId('member-state').textContent).toContain('"points":3');
     expect(screen.getByTestId('member-state').textContent).toContain('server-confirmed-badge');
+  });
+});
+
+function ChoreUpdateProbe() {
+  const { state, updateChore } = useApp();
+  const [feedback, setFeedback] = useState('idle');
+  return (
+    <>
+      <pre data-testid="chore-update-state">{JSON.stringify(state.chores[0] ?? null)}</pre>
+      <button type="button" onClick={() => {
+        void updateChore({ ...syntheticChore, title: 'Unsaved browser title' })
+          .then(() => setFeedback('saved'))
+          .catch((error: unknown) => setFeedback(error instanceof Error ? error.message : 'save rejected'));
+      }}>Save synthetic chore edit</button>
+      <output aria-label="chore edit result">{feedback}</output>
+    </>
+  );
+}
+
+describe('AppContext chore updates display only persisted server state', () => {
+  async function mountChore() {
+    vi.mocked(fetchChores).mockResolvedValue([syntheticChore]);
+    render(<AppProvider><ChoreUpdateProbe /></AppProvider>);
+    await waitFor(() =>
+      expect(screen.getByTestId('chore-update-state').textContent).toContain(syntheticChore.title),
+    );
+  }
+
+  it('renders the canonical database-returned fields, not the user-submitted title', async () => {
+    vi.mocked(persistChore).mockResolvedValue({
+      ...syntheticChore,
+      title: 'Persisted database title',
+      estimatedMinutes: 20,
+    });
+    await mountChore();
+    fireEvent.click(screen.getByRole('button', { name: /save synthetic chore edit/i }));
+    await waitFor(() => expect(screen.getByLabelText('chore edit result')).toHaveTextContent('saved'));
+    expect(persistChore).toHaveBeenCalledExactlyOnceWith({
+      ...syntheticChore,
+      title: 'Unsaved browser title',
+    });
+    expect(screen.getByTestId('chore-update-state')).toHaveTextContent('Persisted database title');
+    expect(screen.getByTestId('chore-update-state')).toHaveTextContent('"estimatedMinutes":20');
+    expect(screen.getByTestId('chore-update-state')).not.toHaveTextContent('Unsaved browser title');
+  });
+
+  it('keeps the last confirmed chore when the database update is rejected', async () => {
+    vi.mocked(persistChore).mockRejectedValue(new Error('Synthetic update denied'));
+    await mountChore();
+    fireEvent.click(screen.getByRole('button', { name: /save synthetic chore edit/i }));
+    await waitFor(() => expect(screen.getByLabelText('chore edit result')).toHaveTextContent('Synthetic update denied'));
+    expect(screen.getByTestId('chore-update-state')).toHaveTextContent(syntheticChore.title);
+    expect(screen.getByTestId('chore-update-state')).not.toHaveTextContent('Unsaved browser title');
   });
 });
