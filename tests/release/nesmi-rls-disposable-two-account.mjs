@@ -102,6 +102,11 @@ function selfTest() {
   assert.throws(() => assertCreatedMember({ id: 'other-id', name: 'fixture' }, 'fixture-id', 'fixture'), /synthetic member ID/);
   assert.throws(() => assertCreatedMember(null, 'fixture-id', 'fixture'), /synthetic member ID/);
   console.log('PASS: 3/3 deterministic member insert-receipt checks (no network, no credentials)');
+  assert.equal(choreExistsForCleanup([], 'synthetic-chore'), false);
+  assert.equal(choreExistsForCleanup([{ id: 'synthetic-chore' }], 'synthetic-chore'), true);
+  assert.throws(() => choreExistsForCleanup([{ id: 'other-chore' }], 'synthetic-chore'), /wrong chore/);
+  assert.throws(() => choreExistsForCleanup([{ id: 'synthetic-chore' }, { id: 'second' }], 'synthetic-chore'), /Ambiguous chore/);
+  console.log('PASS: 4/4 synthetic chore cleanup lookup cases (no network, no credentials)');
 }
 
 function assertCreatedMember(receipt, expectedId, expectedName) {
@@ -122,6 +127,16 @@ function assertUnaffectedOwnerChore(rowsVisibleToB, rowsVisibleToA, choreId, exp
   assert.equal(rowsVisibleToA[0]?.id, choreId, 'A must still see the expected chore');
   assert.equal(rowsVisibleToA[0]?.title, expectedTitle,
     'RLS violation: cross-account chore mutation changed persisted A data despite empty UPDATE RETURNING');
+}
+
+// A missing INSERT receipt might mean that the disposable write failed before
+// commit, OR that a committed row lost its acknowledgement. Query by the
+// preassigned test UUID; only remove the row when it really exists.
+function choreExistsForCleanup(rows, expectedId) {
+  assert.ok(Array.isArray(rows) && rows.length <= 1, 'Ambiguous chore cleanup lookup');
+  if (rows.length === 0) return false;
+  assert.equal(rows[0]?.id, expectedId, 'Cleanup lookup returned the wrong chore');
+  return true;
 }
 
 function safeError(stage, result) {
@@ -237,12 +252,24 @@ async function runDisposableSmoke(config) {
     // use the generated UUID and owner A's authenticated test session only.
     if (choreInsertAttempted) {
       try {
-        const removedChore = safeError('synthetic chore cleanup', await a.from('chores')
-          .delete().eq('id', choreId).select('id'));
-        assert.equal(removedChore.length, 1, 'Cleanup must delete exactly one test-owned chore');
-        assert.equal(removedChore[0]?.id, choreId, 'Cleanup must confirm the exact chore ID');
+        // The INSERT can fail before commit or commit with a lost receipt.
+        // Resolve that ambiguity using only our preassigned disposable UUID.
+        const foundChore = safeError('synthetic chore cleanup lookup', await a.from('chores')
+          .select('id').eq('id', choreId));
+        if (choreExistsForCleanup(foundChore, choreId)) {
+          const removedChore = safeError('synthetic chore cleanup', await a.from('chores')
+            .delete().eq('id', choreId).select('id'));
+          assert.equal(removedChore.length, 1, 'Cleanup must delete exactly one test-owned chore');
+          assert.equal(removedChore[0]?.id, choreId, 'Cleanup must confirm the exact chore ID');
+        }
+        const afterChoreCleanup = safeError('verify synthetic chore cleanup', await a.from('chores')
+          .select('id').eq('id', choreId));
+        assert.deepEqual(afterChoreCleanup, [], 'Synthetic chore must be absent after cleanup');
       } catch {
-        testError = testError || new Error('Synthetic chore cleanup could not be verified in disposable project');
+        const cleanupError = new Error('Synthetic chore cleanup could not be verified in disposable project');
+        testError = testError
+          ? new AggregateError([testError, cleanupError], 'Test failed and chore cleanup was not verified')
+          : cleanupError;
       }
     }
     if (memberInsertAttempted) {
