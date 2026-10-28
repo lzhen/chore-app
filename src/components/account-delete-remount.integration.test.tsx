@@ -84,6 +84,32 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+describe('Nesmi Account sign-out recovery', () => {
+  it('shows a retryable error when the sign-out promise rejects, without touching account deletion', async () => {
+    const user = userEvent.setup();
+    auth.signOut.mockRejectedValueOnce(new Error('synthetic lost connection'));
+    render(<DeletionTabHost />);
+    await user.click(screen.getByRole('button', { name: 'Sign Out' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not sign out');
+    expect(screen.getByRole('button', { name: 'Sign Out' })).toBeEnabled();
+    expect(auth.signOut).toHaveBeenCalledTimes(1);
+    expect(auth.deleteAccount).not.toHaveBeenCalled();
+  });
+
+  it('blocks repeated sign-out clicks until the first request settles', async () => {
+    const user = userEvent.setup();
+    const pending = deferred<void>();
+    auth.signOut.mockReturnValueOnce(pending.promise);
+    render(<DeletionTabHost />);
+    await user.click(screen.getByRole('button', { name: 'Sign Out' }));
+    expect(screen.getByRole('button', { name: 'Signing out…' })).toBeDisabled();
+    expect(auth.signOut).toHaveBeenCalledTimes(1);
+    await act(async () => { pending.resolve(); await pending.promise; });
+    expect(screen.getByRole('button', { name: 'Sign Out' })).toBeEnabled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+});
+
 describe('account deletion remount + Assistant portal release gate', () => {
   it('discloses linked household record loss in both deletion steps before any request', async () => {
     const user = userEvent.setup();
