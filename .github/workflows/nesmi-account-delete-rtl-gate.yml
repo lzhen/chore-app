@@ -58,3 +58,11 @@ jobs:
         run: npx vitest run src/components/account-delete-remount.integration.test.tsx src/components/AgentPanel.test.tsx src/context/AuthContext.delete-account.test.tsx src/components/AuthForm.test.tsx
       - name: Typecheck proposed source
         run: npm run typecheck
+      # Deno/TS compilation is a separate release gate from Node VM mocks.
+      # Installs only public tooling, no live Supabase keys, Edge deploy or account calls.
+      - name: Set up Deno 2 (review-only)
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Typecheck draft v2 Edge handler (no deploy)
+        run: deno check supabase/functions/delete-account-v2/index.ts
