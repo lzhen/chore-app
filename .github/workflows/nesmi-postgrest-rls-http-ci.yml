@@ -1,0 +1,86 @@
+name: Nesmi isolated PostgREST HTTP A/B release gate
+
+# No Supabase credentials or production traffic. The PostgreSQL 16 service,
+# PostgREST container and all synthetic tenant rows are disposable CI resources.
+on:
+  push:
+    branches: [fix/nesmi-b123-member-profile-save-20261026]
+    paths:
+      - 'tests/release/nesmi-postgrest-http-setup.ci.sql'
+      - 'tests/release/nesmi-postgrest-rls-http.ci.py'
+      - 'tests/release/nesmi-rls-migration-isolated-postgres.ci.sql'
+      - 'supabase/migrations/20260826234000_owner_isolation.sql'
+      - '.github/workflows/nesmi-postgrest-rls-http-ci.yml'
+  pull_request:
+    branches: [fix/chorely-auth-viewport-20260927-icon-family-20261026]
+    paths:
+      - 'tests/release/nesmi-postgrest-http-setup.ci.sql'
+      - 'tests/release/nesmi-postgrest-rls-http.ci.py'
+      - 'tests/release/nesmi-rls-migration-isolated-postgres.ci.sql'
+      - 'supabase/migrations/20260826234000_owner_isolation.sql'
+      - '.github/workflows/nesmi-postgrest-rls-http-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-postgrest-http:
+    name: PostgreSQL 16 plus JWT/PostgREST HTTP (ephemeral only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: nesmi_synthetic_ci_only
+          POSTGRES_DB: nesmi_isolation_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d nesmi_isolation_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 8
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGDATABASE: nesmi_isolation_ci
+      PGPASSWORD: nesmi_synthetic_ci_only
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply checked-in migration and verify real A/B PostgreSQL policies
+        run: psql -v ON_ERROR_STOP=1 -f tests/release/nesmi-rls-migration-isolated-postgres.ci.sql
+      - name: Prepare synthetic-only PostgREST JWT/authenticator fixture
+        run: psql -v ON_ERROR_STOP=1 -f tests/release/nesmi-postgrest-http-setup.ci.sql
+      - name: Start local disposable PostgREST
+        run: |
+          docker run -d --name nesmi-postgrest-ci --network host \
+            -e PGRST_DB_URI='postgres://authenticator:nesmi_http_ci_only@127.0.0.1:5432/nesmi_isolation_ci' \
+            -e PGRST_DB_SCHEMAS=public \
+            -e PGRST_DB_ANON_ROLE=anon \
+            -e PGRST_JWT_SECRET='nesmi-ci-only-postgrest-jwt-secret-32' \
+            -e PGRST_SERVER_PORT=3000 \
+            postgrest/postgrest:v12.2.12
+          ready=0
+          for i in $(seq 1 35); do
+            if curl --silent --fail --max-time 3 http://127.0.0.1:3000/ >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != "1" ]; then
+            docker logs nesmi-postgrest-ci
+            exit 1
+          fi
+      - name: Execute real HTTP A/B data isolation and storage acceptance
+        run: |
+          python3 -m py_compile tests/release/nesmi-postgrest-rls-http.ci.py
+          python3 tests/release/nesmi-postgrest-rls-http.ci.py
+      - name: Tear down HTTP container
+        if: always()
+        run: |
+          docker logs --tail 50 nesmi-postgrest-ci 2>/dev/null || true
+          docker rm -f nesmi-postgrest-ci >/dev/null 2>&1 || true
