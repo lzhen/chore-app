@@ -485,7 +485,7 @@ export async function createAvailability(availability: Omit<MemberAvailability, 
 }
 
 export async function updateAvailability(availability: MemberAvailability): Promise<boolean> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('member_availability')
     .update({
       member_id: availability.memberId,
@@ -493,9 +493,13 @@ export async function updateAvailability(availability: MemberAvailability): Prom
       end_date: availability.endDate,
       reason: availability.reason || null,
     })
-    .eq('id', availability.id);
+    .eq('id', availability.id)
+    .select('id');
 
-  if (error) {
+  // A successful HTTP response can affect zero rows (e.g. after deletion or
+  // because of RLS). Never confirm a saved absence interval without an exact
+  // database acknowledgement for the requested availability record.
+  if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== availability.id) {
     throw new Error('Could not update availability. Please try again.');
   }
 
@@ -503,12 +507,15 @@ export async function updateAvailability(availability: MemberAvailability): Prom
 }
 
 export async function deleteAvailability(id: string): Promise<boolean> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('member_availability')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .select('id');
 
-  if (error) {
+  // Keep the absence interval visible unless this exact database row is
+  // confirmed deleted. A zero-row or wrong-ID receipt is not success.
+  if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== id) {
     throw new Error('Could not delete availability. Please try again.');
   }
 
