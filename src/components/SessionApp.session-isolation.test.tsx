@@ -39,6 +39,13 @@ vi.mock('./App', () => ({
           {JSON.stringify(state.chores.map((chore: Chore) => chore.id))}
         </output>
         <output data-testid="household-loading">{String(state.loading)}</output>
+        <output data-testid="household-private-ids">{JSON.stringify({
+          chores: state.chores.map(row => row.id),
+          members: state.teamMembers.map(row => row.id),
+          categories: state.categories.map(row => row.id),
+          completions: state.completions.map(row => row.id),
+          availability: state.availability.map(row => row.id),
+        })}</output>
       </>
     );
   },
@@ -115,4 +122,66 @@ describe('Nesmi session household isolation', () => {
     expect(screen.getByTestId('household-chores')).toHaveTextContent('only-account-b');
     expect(screen.getByTestId('household-chores')).not.toHaveTextContent('only-account-a');
   });
+  it('clears all five private household collections before loading the next account', async () => {
+    const memberA = { id: 'member-a', name: 'Synthetic A', color: '#ff0000', points: 0, badges: [] };
+    const memberB = { id: 'member-b', name: 'Synthetic B', color: '#00ff00', points: 0, badges: [] };
+    const categoryA = { id: 'category-a', name: 'A only', color: '#ff0000' };
+    const categoryB = { id: 'category-b', name: 'B only', color: '#00ff00' };
+    const completionA = {
+      id: 'completion-a', choreId: choreA.id, instanceDate: '2026-10-28',
+      completedBy: memberA.id, completedAt: '2026-10-28T00:00:00.000Z',
+    };
+    const completionB = {
+      id: 'completion-b', choreId: choreB.id, instanceDate: '2026-10-28',
+      completedBy: memberB.id, completedAt: '2026-10-28T00:00:00.000Z',
+    };
+    const availabilityA = {
+      id: 'availability-a', memberId: memberA.id, startDate: '2026-10-28', endDate: '2026-10-29',
+    };
+    const availabilityB = {
+      id: 'availability-b', memberId: memberB.id, startDate: '2026-10-28', endDate: '2026-10-29',
+    };
+
+    vi.mocked(fetchChores).mockResolvedValueOnce([choreA]).mockResolvedValueOnce([choreB]);
+    vi.mocked(fetchTeamMembers).mockResolvedValueOnce([memberA]).mockResolvedValueOnce([memberB]);
+    vi.mocked(fetchCategories).mockResolvedValueOnce([categoryA]).mockResolvedValueOnce([categoryB]);
+    vi.mocked(fetchCompletions).mockResolvedValueOnce([completionA]).mockResolvedValueOnce([completionB]);
+    const pendingB = deferred<typeof availabilityB[]>();
+    vi.mocked(fetchAvailability).mockResolvedValueOnce([availabilityA]).mockReturnValueOnce(pendingB.promise);
+
+    const view = render(<SessionApp />);
+    const household = () => screen.getByTestId('household-private-ids');
+    await waitFor(() => expect(household()).toHaveTextContent('availability-a'));
+    for (const id of ['only-account-a', 'member-a', 'category-a', 'completion-a', 'availability-a']) {
+      expect(household()).toHaveTextContent(id);
+    }
+
+    activeUserId = 'account-b';
+    view.rerender(<SessionApp />);
+    // The next session cannot see ANY prior-account collection, even while its
+    // final Supabase fetch is still pending.
+    expect(household()).toHaveTextContent(
+      '{"chores":[],"members":[],"categories":[],"completions":[],"availability":[]}',
+    );
+    expect(screen.getByTestId('household-loading')).toHaveTextContent('true');
+
+    await act(async () => {
+      pendingB.resolve([availabilityB]);
+      await pendingB.promise;
+    });
+    await waitFor(() => expect(household()).toHaveTextContent('availability-b'));
+    for (const id of ['only-account-b', 'member-b', 'category-b', 'completion-b', 'availability-b']) {
+      expect(household()).toHaveTextContent(id);
+    }
+    for (const id of ['only-account-a', 'member-a', 'category-a', 'completion-a', 'availability-a']) {
+      expect(household()).not.toHaveTextContent(id);
+    }
+
+    activeUserId = null;
+    view.rerender(<SessionApp />);
+    expect(household()).toHaveTextContent(
+      '{"chores":[],"members":[],"categories":[],"completions":[],"availability":[]}',
+    );
+  });
+
 });
