@@ -2,7 +2,8 @@
  * Nesmi draft release-gate: explicitly opted-in two-disposable-account RLS smoke.
  * NEVER pointed at production or run from CI with credentials. No account provisioning.
  * Uses only a publishable/anon key and two separate test-user password sessions.
- * Writes only synthetic team_members + linked chores, created/cleaned by test account A.
+ * Writes only synthetic team_members + linked chores with preassigned UUIDs,
+ * so ambiguous INSERT receipts can still be looked up and cleaned by test account A.
  * Run `node tests/release/nesmi-rls-disposable-two-account.mjs --self-test`
  * for credential-free, network-free guard verification.
  */
@@ -97,6 +98,15 @@ function selfTest() {
   assert.throws(() => assertUnaffectedOwnerChore([], [{ id: 'synthetic-chore', title: 'unauthorized-write' }], 'synthetic-chore', 'original'), /cross-account chore mutation/);
   assert.throws(() => assertUnaffectedOwnerChore([], [{ id: 'other-chore', title: 'original' }], 'synthetic-chore', 'original'), /expected chore/);
   console.log('PASS: 3/3 chore owner-side isolation assertions (no network, no credentials)');
+  assert.doesNotThrow(() => assertCreatedMember({ id: 'fixture-id', name: 'fixture' }, 'fixture-id', 'fixture'));
+  assert.throws(() => assertCreatedMember({ id: 'other-id', name: 'fixture' }, 'fixture-id', 'fixture'), /synthetic member ID/);
+  assert.throws(() => assertCreatedMember(null, 'fixture-id', 'fixture'), /synthetic member ID/);
+  console.log('PASS: 3/3 deterministic member insert-receipt checks (no network, no credentials)');
+}
+
+function assertCreatedMember(receipt, expectedId, expectedName) {
+  assert.equal(receipt?.id, expectedId, 'Unexpected or missing synthetic member ID after insert');
+  assert.equal(receipt?.name, expectedName, 'Unexpected synthetic member name after insert');
 }
 
 function assertUnaffectedOwnerRow(rowsVisibleToB, rowsVisibleToA, expectedName) {
@@ -134,16 +144,18 @@ async function runDisposableSmoke(config) {
 
   const marker = `NESMI-RLS-DISPOSABLE-${randomUUID()}`;
   const updated = `${marker}-saved`;
-  let rowId;
+  // Choose member ID BEFORE sending INSERT: even a successful write with a
+  // missing PostgREST receipt can then be found and cleaned on test account A.
+  const rowId = randomUUID();
+  let memberInsertAttempted = false;
   let choreId;
   let choreInsertAttempted = false;
   let testError;
   try {
+    memberInsertAttempted = true;
     const created = safeError('create A synthetic row', await a.from('team_members')
-      .insert({ name: marker, color: '#335577' }).select('id, name').single());
-    assert.equal(created?.name, marker);
-    assert.ok(created?.id);
-    rowId = created.id;
+      .insert({ id: rowId, name: marker, color: '#335577' }).select('id, name').single());
+    assertCreatedMember(created, rowId, marker);
 
     const aRead = safeError('A read own row', await a.from('team_members').select('id, name').eq('id', rowId));
     assert.equal(aRead.length, 1, 'A must see own newly persisted row');
@@ -233,13 +245,28 @@ async function runDisposableSmoke(config) {
         testError = testError || new Error('Synthetic chore cleanup could not be verified in disposable project');
       }
     }
-    if (rowId) {
+    if (memberInsertAttempted) {
       try {
-        const removed = safeError('synthetic cleanup', await a.from('team_members')
-          .delete().eq('id', rowId).select('id'));
-        assert.equal(removed.length, 1, 'Cleanup must delete exactly the test-owned synthetic row');
+        // A failed/missing INSERT receipt does not prove the DB rolled back.
+        // Query the preassigned UUID, and delete it if it was written.
+        const found = safeError('synthetic member cleanup lookup', await a.from('team_members')
+          .select('id').eq('id', rowId));
+        assert.ok(Array.isArray(found) && found.length <= 1, 'Ambiguous member cleanup lookup');
+        if (found.length === 1) {
+          assert.equal(found[0]?.id, rowId, 'Cleanup lookup returned the wrong member');
+          const removed = safeError('synthetic member cleanup', await a.from('team_members')
+            .delete().eq('id', rowId).select('id'));
+          assert.equal(removed.length, 1, 'Cleanup must delete exactly one synthetic member');
+          assert.equal(removed[0]?.id, rowId, 'Cleanup deleted the wrong member');
+        }
+        const after = safeError('verify synthetic member cleanup', await a.from('team_members')
+          .select('id').eq('id', rowId));
+        assert.deepEqual(after, [], 'Synthetic member must be absent after cleanup');
       } catch {
-        testError = testError || new Error('Synthetic cleanup could not be verified in disposable project');
+        const cleanupError = new Error('Synthetic member cleanup could not be verified in disposable project');
+        testError = testError
+          ? new AggregateError([testError, cleanupError], 'Test failed and member cleanup was not verified')
+          : cleanupError;
       }
     }
     await Promise.allSettled([a.auth.signOut({ scope: 'local' }), b.auth.signOut({ scope: 'local' })]);
