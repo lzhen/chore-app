@@ -272,10 +272,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateCategoryFn = async (category: Category) => {
-    const success = await dbUpdateCategory(category);
-    if (success) {
-      dispatch({ type: 'UPDATE_CATEGORY', payload: category });
-    }
+    // Render only the category name/color/icon confirmed by the database.
+    const saved = await dbUpdateCategory(category);
+    dispatch({ type: 'UPDATE_CATEGORY', payload: saved });
   };
 
   const deleteCategoryFn = async (id: string) => {
