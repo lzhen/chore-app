@@ -16,6 +16,7 @@ const auth = vi.hoisted(() => ({
   user: { id: 'synthetic-account-A', email: 'release-fixture@example.invalid' },
   deleteAccount: vi.fn(),
   signOut: vi.fn(),
+  signOutStatus: 'idle' as 'idle' | 'pending' | 'succeeded',
 }));
 
 vi.mock('../context/AuthContext', () => ({
@@ -23,6 +24,7 @@ vi.mock('../context/AuthContext', () => ({
     user: auth.user,
     deleteAccount: auth.deleteAccount,
     signOut: auth.signOut,
+    signOutStatus: auth.signOutStatus,
   }),
 }));
 vi.mock('./ThemeSelector', () => ({ ThemeSelector: () => null }));
@@ -80,6 +82,7 @@ beforeEach(() => {
   auth.user = { id: 'synthetic-account-A', email: 'release-fixture@example.invalid' };
   auth.deleteAccount.mockReset();
   auth.signOut.mockReset();
+  auth.signOutStatus = 'idle';
   localStorage.clear(); // synthetic jsdom isolation; never a real browser
 });
 afterEach(cleanup);
@@ -109,6 +112,54 @@ describe('Nesmi Account sign-out recovery', () => {
     expect(screen.getByRole('button', { name: 'Signed out' })).toBeDisabled();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+  it('retains pending logout protection across Account tab remount and releases it after failure', async () => {
+    const user = userEvent.setup();
+    const pending = deferred<void>();
+    auth.signOut.mockImplementationOnce(() => {
+      // The real AuthProvider persists this status independently of Account.
+      auth.signOutStatus = 'pending';
+      return pending.promise;
+    });
+    render(<DeletionTabHost />);
+    await user.click(screen.getByRole('button', { name: 'Sign Out' }));
+    await user.click(screen.getByRole('button', { name: 'Today tab' }));
+    await user.click(screen.getByRole('button', { name: 'Account tab' }));
+    expect(screen.getByRole('button', { name: 'Signing out…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Delete my account' })).toBeDisabled();
+    expect(auth.deleteAccount).not.toHaveBeenCalled();
+    expect(localStorage.getItem(accountDeletionAttemptKey('synthetic-account-A'))).toBeNull();
+
+    auth.signOutStatus = 'idle'; // SDK failure releases the provider lock.
+    await act(async () => {
+      pending.reject(new Error('synthetic logout failure'));
+      await pending.promise.catch(() => {});
+    });
+    await user.click(screen.getByRole('button', { name: 'Today tab' }));
+    await user.click(screen.getByRole('button', { name: 'Account tab' }));
+    expect(screen.getByRole('button', { name: 'Sign Out' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Delete my account' })).toBeEnabled();
+    expect(auth.deleteAccount).not.toHaveBeenCalled();
+  });
+
+  it('does not re-enable account deletion on remount after logout succeeds', async () => {
+    const user = userEvent.setup();
+    const pending = deferred<void>();
+    auth.signOut.mockImplementationOnce(() => {
+      auth.signOutStatus = 'pending';
+      return pending.promise;
+    });
+    render(<DeletionTabHost />);
+    await user.click(screen.getByRole('button', { name: 'Sign Out' }));
+    await user.click(screen.getByRole('button', { name: 'Today tab' }));
+    auth.signOutStatus = 'succeeded';
+    await act(async () => { pending.resolve(); await pending.promise; });
+    await user.click(screen.getByRole('button', { name: 'Account tab' }));
+    expect(screen.getByRole('button', { name: 'Signed out' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Delete my account' })).toBeDisabled();
+    expect(auth.deleteAccount).not.toHaveBeenCalled();
+    expect(localStorage.getItem(accountDeletionAttemptKey('synthetic-account-A'))).toBeNull();
+  });
+
   it('never starts irreversible deletion while sign-out is pending and recovers on sign-out failure', async () => {
     const user = userEvent.setup();
     const pending = deferred<void>();
