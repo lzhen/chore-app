@@ -177,7 +177,7 @@ export async function createChore(chore: Omit<Chore, 'id'>): Promise<Chore | nul
   return dbToChore(data);
 }
 
-export async function updateChore(chore: Chore): Promise<boolean> {
+export async function updateChore(chore: Chore): Promise<Chore> {
   const { data, error } = await supabase
     .from('chores')
     .update({
@@ -193,15 +193,16 @@ export async function updateChore(chore: Chore): Promise<boolean> {
       estimated_minutes: chore.estimatedMinutes ?? null,
     })
     .eq('id', chore.id)
-    .select('id');
+    .select('*');
 
-  // A successful HTTP response can still acknowledge zero rows when the
-  // target was removed or hidden by RLS. Accept only the exact chore ID.
+  // An ID-only receipt proves that a row was touched, not what was stored.
+  // Render the complete database-returned chore rather than unverified form
+  // values, and reject zero-row / wrong-row / multirow acknowledgements.
   if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== chore.id) {
-    throw new Error('Could not update chore. Please try again.');
+    throw new Error('Could not confirm updated chore. Refresh to check before trying again.');
   }
 
-  return true;
+  return dbToChore(data[0]);
 }
 
 export async function deleteChore(id: string): Promise<boolean> {
