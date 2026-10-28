@@ -19,6 +19,10 @@ export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [signOutCompleted, setSignOutCompleted] = useState(false);
+  // A pending OR successful sign-out must not race an irreversible delete.
+  // Retain the lock after SDK success until auth navigation unmounts this view.
+  const signOutPendingOrCompletedRef = useRef(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const deleteInFlight = useRef(false);
   // Never silently switch the account targeted by a two-step confirmation.
@@ -32,12 +36,16 @@ export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt
   if (!isOpen) return null;
 
   const handleSignOut = async () => {
-    if (deleteInFlight.current || attemptLocked || signingOut) return;
+    if (deleteInFlight.current || attemptLocked || signOutPendingOrCompletedRef.current) return;
+    signOutPendingOrCompletedRef.current = true;
     setSignOutError(null);
     setSigningOut(true);
     try {
       await signOut();
+      setSignOutCompleted(true);
     } catch {
+      // A confirmed SDK failure permits retry and a fresh deletion decision.
+      signOutPendingOrCompletedRef.current = false;
       // SDK errors and network rejections must not look like successful logout.
       setSignOutError('Could not sign out. Check your connection and try again.');
     } finally {
@@ -48,7 +56,7 @@ export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt
   // A missing acknowledgement can mean deletion already happened. Never
   // offer a second irreversible attempt without server-side reconciliation.
   const handleDelete = async () => {
-    if (deleteInFlight.current || attemptLocked) return;
+    if (deleteInFlight.current || attemptLocked || signOutPendingOrCompletedRef.current) return;
     const confirmedAccountId = confirmedAccountIdRef.current;
     if (!confirmedAccountId || confirmedAccountId !== user?.id) {
       // Safe abort: no irreversible request, so a fresh confirmation is allowed.
@@ -131,10 +139,10 @@ export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt
         <button
           type="button"
           onClick={() => { void handleSignOut(); }}
-          disabled={deleting || attemptLocked || signingOut}
+          disabled={deleting || attemptLocked || signingOut || signOutCompleted}
           className="chore-button secondary mt-6"
         >
-          {signingOut ? 'Signing out…' : 'Sign Out'}
+          {signOutCompleted ? 'Signed out' : signingOut ? 'Signing out…' : 'Sign Out'}
         </button>
         {signOutError && <p className="mt-2 text-sm text-red-500" role="alert">{signOutError}</p>}
 
@@ -156,12 +164,12 @@ export function AccountSettings({ isOpen, onClose, onInsights, onDeletionAttempt
             </div>
           )}
           {!confirming ? (
-            <button onClick={() => { if (!deleteInFlight.current && !attemptLocked) { confirmedAccountIdRef.current = user?.id ?? null; setIdentityChanged(false); setError(null); setConfirming(true); } }} disabled={deleting || attemptLocked} className="mt-4 rounded-fluent-sm border border-red-500 px-4 py-2 text-sm text-red-500 hover:bg-red-500/10">Delete my account</button>
+            <button onClick={() => { if (!deleteInFlight.current && !attemptLocked && !signOutPendingOrCompletedRef.current) { confirmedAccountIdRef.current = user?.id ?? null; setIdentityChanged(false); setError(null); setConfirming(true); } }} disabled={deleting || attemptLocked || signingOut || signOutCompleted} className="mt-4 rounded-fluent-sm border border-red-500 px-4 py-2 text-sm text-red-500 hover:bg-red-500/10">Delete my account</button>
           ) : (
             <div className="mt-4 rounded-fluent-sm border border-red-500/40 bg-red-500/10 p-4">
               <p className="text-sm text-content-primary">Are you sure you want to permanently delete your account and its household records?</p>
               <div className="mt-3 flex gap-3">
-                <button onClick={handleDelete} disabled={deleting || attemptLocked} className="rounded-fluent-sm bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-60">{deleting ? 'Deleting…' : attemptLocked ? 'Deletion attempted' : 'Delete permanently'}</button>
+                <button onClick={handleDelete} disabled={deleting || attemptLocked || signingOut || signOutCompleted} className="rounded-fluent-sm bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-60">{deleting ? 'Deleting…' : attemptLocked ? 'Deletion attempted' : 'Delete permanently'}</button>
                 <button onClick={() => { if (!deleteInFlight.current && !attemptLocked) { confirmedAccountIdRef.current = null; setConfirming(false); } }} disabled={deleting || attemptLocked} className="rounded-fluent-sm border border-border px-4 py-2 text-sm text-content-primary">Cancel</button>
               </div>
             </div>
