@@ -4,7 +4,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { supabase } from './supabase';
-import { deleteCompletion } from './supabaseStorage';
+import { createCompletion, deleteCompletion } from './supabaseStorage';
 
 const completionId = 'synthetic-completion';
 type Receipt = { data: { id: string }[] | null; error: { message: string } | null };
@@ -39,5 +39,72 @@ describe('chore completion deletion receipt', () => {
   ] satisfies Array<[string, Receipt]>)('rejects completion deletion with %s', async (_name, response) => {
     fixture(response);
     await expect(deleteCompletion(completionId)).rejects.toThrow('Could not delete completion');
+  });
+});
+
+
+describe('chore completion create receipt', () => {
+  const payload = {
+    choreId: 'synthetic-chore',
+    instanceDate: '2026-10-27',
+    completedBy: 'synthetic-member',
+    completedAt: '2026-10-27T19:00:00.000Z',
+    notes: 'Finished',
+  };
+  const saved = {
+    id: completionId,
+    chore_id: payload.choreId,
+    instance_date: payload.instanceDate,
+    completed_by: payload.completedBy,
+    completed_at: payload.completedAt,
+    notes: payload.notes,
+  };
+
+  function createFixture(response: { data: unknown; error: { message: string } | null }) {
+    const single = vi.fn().mockResolvedValue(response);
+    const select = vi.fn().mockReturnValue({ single });
+    const insert = vi.fn().mockReturnValue({ select });
+    const from = vi.fn().mockReturnValue({ insert });
+    Object.assign(supabase, { from });
+    return { from, insert, select, single };
+  }
+
+  it('confirms only a server-created completion with a persisted ID', async () => {
+    const db = createFixture({ data: saved, error: null });
+    await expect(createCompletion(payload)).resolves.toMatchObject({
+      id: completionId,
+      choreId: payload.choreId,
+      instanceDate: payload.instanceDate,
+      completedBy: payload.completedBy,
+    });
+    expect(db.from).toHaveBeenCalledWith('chore_completions');
+    expect(db.insert).toHaveBeenCalledWith({
+      chore_id: payload.choreId,
+      instance_date: payload.instanceDate,
+      completed_by: payload.completedBy,
+      completed_at: payload.completedAt,
+      notes: payload.notes,
+    });
+    expect(db.select).toHaveBeenCalledOnce();
+    expect(db.single).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ['null receipt', null],
+    ['missing ID', { ...saved, id: undefined }],
+    ['empty ID', { ...saved, id: '' }],
+    ['whitespace-only ID', { ...saved, id: '  ' }],
+  ])('rejects %s without confirming completion or encouraging duplicate retries', async (_name, data) => {
+    createFixture({ data, error: null });
+    await expect(createCompletion(payload)).rejects.toThrow(
+      'Completion save could not be confirmed. Refresh to check before trying again.',
+    );
+  });
+
+  it('rejects a PostgREST error even if data is present', async () => {
+    createFixture({ data: saved, error: { message: 'synthetic denied' } });
+    await expect(createCompletion(payload)).rejects.toThrow(
+      'Could not save completion. Please check your connection before trying again.',
+    );
   });
 });
