@@ -165,7 +165,13 @@ export async function createChore(chore: Omit<Chore, 'id'>): Promise<Chore | nul
     .single();
 
   if (error) {
-    throw new Error('Could not save chore. Please try again.');
+    throw new Error('Could not save chore. Please check your connection before trying again.');
+  }
+  // The INSERT can have reached the database even when its acknowledgement
+  // is missing. Never add an ID-less chore locally or encourage a blind retry
+  // that could create a duplicate household task.
+  if (!data || typeof data.id !== 'string' || data.id.trim().length === 0) {
+    throw new Error('Chore save could not be confirmed. Refresh to check before trying again.');
   }
 
   return dbToChore(data);
