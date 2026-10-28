@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Chore, ChoreCompletion, TeamMember } from '../types';
+import type { Chore, ChoreCompletion, TeamMember, MemberAvailability } from '../types';
 import { AppProvider, useApp } from './AppContext';
 import { useAuth } from './AuthContext';
 import {
@@ -17,6 +17,7 @@ import {
   updateTeamMember,
   createCompletion,
   updateChore as persistChore,
+  updateAvailability as persistAvailability,
 } from '../utils/supabaseStorage';
 
 vi.mock('./AuthContext', () => ({ useAuth: vi.fn() }));
@@ -29,6 +30,7 @@ vi.mock('../utils/supabaseStorage', () => ({
   updateTeamMember: vi.fn(),
   createCompletion: vi.fn(),
   updateChore: vi.fn(),
+  updateAvailability: vi.fn(),
 }));
 
 const original: TeamMember = {
@@ -266,5 +268,61 @@ describe('AppContext chore updates display only persisted server state', () => {
     await waitFor(() => expect(screen.getByLabelText('chore edit result')).toHaveTextContent('Synthetic update denied'));
     expect(screen.getByTestId('chore-update-state')).toHaveTextContent(syntheticChore.title);
     expect(screen.getByTestId('chore-update-state')).not.toHaveTextContent('Unsaved browser title');
+  });
+});
+ 
+const storedAvailability: MemberAvailability = {
+  id: 'synthetic-availability',
+  memberId: original.id,
+  startDate: '2026-11-02',
+  endDate: '2026-11-04',
+  reason: 'Previously saved',
+};
+
+function AvailabilityProbe() {
+  const { state, updateAvailability } = useApp();
+  const [feedback, setFeedback] = useState('idle');
+  return (
+    <>
+      <pre data-testid="availability-state">{JSON.stringify(state.availability[0] ?? null)}</pre>
+      <button type="button" onClick={() => {
+        void updateAvailability({ ...storedAvailability, reason: 'Unverified form input' })
+          .then(() => setFeedback('saved'))
+          .catch((error: unknown) => setFeedback(error instanceof Error ? error.message : 'rejected'));
+      }}>Save synthetic absence</button>
+      <output aria-label="availability result">{feedback}</output>
+    </>
+  );
+}
+
+describe('AppContext availability updates use server truth', () => {
+  async function mountAvailability() {
+    vi.mocked(fetchAvailability).mockResolvedValue([storedAvailability]);
+    render(<AppProvider><AvailabilityProbe /></AppProvider>);
+    await waitFor(() => expect(screen.getByTestId('availability-state')).toHaveTextContent('Previously saved'));
+  }
+
+  it('renders database-returned dates/reason, not the submitted form', async () => {
+    vi.mocked(persistAvailability).mockResolvedValue({
+      ...storedAvailability, startDate: '2026-11-03', reason: 'Persisted reason',
+    });
+    await mountAvailability();
+    fireEvent.click(screen.getByRole('button', { name: /save synthetic absence/i }));
+    await waitFor(() => expect(screen.getByLabelText('availability result')).toHaveTextContent('saved'));
+    expect(persistAvailability).toHaveBeenCalledExactlyOnceWith({
+      ...storedAvailability, reason: 'Unverified form input',
+    });
+    expect(screen.getByTestId('availability-state')).toHaveTextContent('Persisted reason');
+    expect(screen.getByTestId('availability-state')).toHaveTextContent('2026-11-03');
+    expect(screen.getByTestId('availability-state')).not.toHaveTextContent('Unverified form input');
+  });
+
+  it('keeps the prior saved interval when storage rejects the update', async () => {
+    vi.mocked(persistAvailability).mockRejectedValue(new Error('Synthetic write denied'));
+    await mountAvailability();
+    fireEvent.click(screen.getByRole('button', { name: /save synthetic absence/i }));
+    await waitFor(() => expect(screen.getByLabelText('availability result')).toHaveTextContent('Synthetic write denied'));
+    expect(screen.getByTestId('availability-state')).toHaveTextContent('Previously saved');
+    expect(screen.getByTestId('availability-state')).not.toHaveTextContent('Unverified form input');
   });
 });
