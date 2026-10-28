@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Chore, ChoreCompletion, TeamMember, MemberAvailability } from '../types';
+import type { Chore, ChoreCompletion, TeamMember, MemberAvailability, Category } from '../types';
 import { AppProvider, useApp } from './AppContext';
 import { useAuth } from './AuthContext';
 import {
@@ -18,6 +18,7 @@ import {
   createCompletion,
   updateChore as persistChore,
   updateAvailability as persistAvailability,
+  updateCategory as persistCategory,
 } from '../utils/supabaseStorage';
 
 vi.mock('./AuthContext', () => ({ useAuth: vi.fn() }));
@@ -31,6 +32,7 @@ vi.mock('../utils/supabaseStorage', () => ({
   createCompletion: vi.fn(),
   updateChore: vi.fn(),
   updateAvailability: vi.fn(),
+  updateCategory: vi.fn(),
 }));
 
 const original: TeamMember = {
@@ -324,5 +326,65 @@ describe('AppContext availability updates use server truth', () => {
     await waitFor(() => expect(screen.getByLabelText('availability result')).toHaveTextContent('Synthetic write denied'));
     expect(screen.getByTestId('availability-state')).toHaveTextContent('Previously saved');
     expect(screen.getByTestId('availability-state')).not.toHaveTextContent('Unverified form input');
+  });
+});
+
+const storedCategory: Category = {
+  id: 'synthetic-category', name: 'Previously saved category', color: '#445566', icon: 'home',
+};
+
+function CategoryEditProbe() {
+  const { state, updateCategory } = useApp();
+  const [feedback, setFeedback] = useState('idle');
+  return (
+    <>
+      <pre data-testid="category-state">{JSON.stringify(state.categories[0] ?? null)}</pre>
+      <button type="button" onClick={() => {
+        void updateCategory({ ...storedCategory, name: 'Unverified client title' })
+          .then(() => setFeedback('saved'))
+          .catch((error: unknown) =>
+            setFeedback(error instanceof Error ? error.message : 'save rejected'));
+      }}>Save synthetic category edit</button>
+      <output aria-label="category edit result">{feedback}</output>
+    </>
+  );
+}
+
+describe('AppContext category edit uses server-confirmed values', () => {
+  async function mountCategory() {
+    vi.mocked(fetchCategories).mockResolvedValue([storedCategory]);
+    render(<AppProvider><CategoryEditProbe /></AppProvider>);
+    await waitFor(() =>
+      expect(screen.getByTestId('category-state')).toHaveTextContent('Previously saved category'),
+    );
+  }
+
+  it('shows only normalized persisted name/color/icon, not unconfirmed client input', async () => {
+    vi.mocked(persistCategory).mockResolvedValue({
+      ...storedCategory, name: 'Database category', color: '#334455', icon: 'check',
+    });
+    await mountCategory();
+    fireEvent.click(screen.getByRole('button', { name: /save synthetic category edit/i }));
+    await waitFor(() =>
+      expect(screen.getByLabelText('category edit result')).toHaveTextContent('saved'),
+    );
+    expect(persistCategory).toHaveBeenCalledExactlyOnceWith({
+      ...storedCategory, name: 'Unverified client title',
+    });
+    expect(screen.getByTestId('category-state')).toHaveTextContent('Database category');
+    expect(screen.getByTestId('category-state')).toHaveTextContent('#334455');
+    expect(screen.getByTestId('category-state')).toHaveTextContent('"icon":"check"');
+    expect(screen.getByTestId('category-state')).not.toHaveTextContent('Unverified client title');
+  });
+
+  it('retains last persisted category when PostgREST rejects an update', async () => {
+    vi.mocked(persistCategory).mockRejectedValue(new Error('Synthetic update denied'));
+    await mountCategory();
+    fireEvent.click(screen.getByRole('button', { name: /save synthetic category edit/i }));
+    await waitFor(() =>
+      expect(screen.getByLabelText('category edit result')).toHaveTextContent('Synthetic update denied'),
+    );
+    expect(screen.getByTestId('category-state')).toHaveTextContent('Previously saved category');
+    expect(screen.getByTestId('category-state')).not.toHaveTextContent('Unverified client title');
   });
 });
