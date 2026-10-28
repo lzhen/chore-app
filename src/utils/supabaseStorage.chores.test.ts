@@ -4,7 +4,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { supabase } from './supabase';
-import { updateChore, deleteChore } from './supabaseStorage';
+import { createChore, updateChore, deleteChore } from './supabaseStorage';
 import type { Chore } from '../types';
 
 const chore: Chore = {
@@ -80,5 +80,84 @@ describe('core chore mutation acknowledgement', () => {
   ] satisfies Array<[string, Receipt]>)('rejects chore deletion with %s', async (_reason, response) => {
     fixture(response);
     await expect(deleteChore(chore.id)).rejects.toThrow('Could not delete chore');
+  });
+});
+
+
+// A null/ID-less INSERT acknowledgement is not proof that the server did
+// nothing. The user must refresh before retrying to avoid duplicate chores.
+describe('core chore create acknowledgement', () => {
+  const payload: Omit<Chore, 'id'> = {
+    title: chore.title,
+    date: chore.date,
+    assigneeId: chore.assigneeId,
+    recurrence: chore.recurrence,
+    priority: chore.priority,
+    estimatedMinutes: chore.estimatedMinutes,
+  };
+  const saved = {
+    id: chore.id,
+    title: chore.title,
+    description: null,
+    date: chore.date,
+    due_time: null,
+    end_time: null,
+    assignee_id: null,
+    recurrence: 'none',
+    priority: 'medium',
+    category_id: null,
+    estimated_minutes: 15,
+  };
+
+  function createFixture(response: { data: unknown; error: { message: string } | null }) {
+    const single = vi.fn().mockResolvedValue(response);
+    const select = vi.fn().mockReturnValue({ single });
+    const insert = vi.fn().mockReturnValue({ select });
+    const from = vi.fn().mockReturnValue({ insert });
+    Object.assign(supabase, { from });
+    return { from, insert, select, single };
+  }
+
+  it('requires a persisted chore with a nonempty database ID', async () => {
+    const db = createFixture({ data: saved, error: null });
+    await expect(createChore(payload)).resolves.toMatchObject({
+      id: chore.id,
+      title: chore.title,
+      date: chore.date,
+    });
+    expect(db.from).toHaveBeenCalledWith('chores');
+    expect(db.insert).toHaveBeenCalledWith({
+      title: chore.title,
+      description: null,
+      date: chore.date,
+      due_time: null,
+      end_time: null,
+      assignee_id: null,
+      recurrence: 'none',
+      priority: 'medium',
+      category_id: null,
+      estimated_minutes: 15,
+    });
+    expect(db.select).toHaveBeenCalledOnce();
+    expect(db.single).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ['null acknowledgement', null],
+    ['missing ID', { ...saved, id: undefined }],
+    ['blank ID', { ...saved, id: '' }],
+    ['whitespace-only ID', { ...saved, id: '   ' }],
+  ])('holds the form and warns against blind retries on %s', async (_name, data) => {
+    createFixture({ data, error: null });
+    await expect(createChore(payload)).rejects.toThrow(
+      'Chore save could not be confirmed. Refresh to check before trying again.',
+    );
+  });
+
+  it('rejects an explicit database error without returning a local chore', async () => {
+    createFixture({ data: saved, error: { message: 'synthetic constraint rejection' } });
+    await expect(createChore(payload)).rejects.toThrow(
+      'Could not save chore. Please check your connection before trying again.',
+    );
   });
 });
