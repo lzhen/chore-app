@@ -494,8 +494,11 @@ export async function createAvailability(availability: Omit<MemberAvailability, 
     .select()
     .single();
 
-  if (error) {
-    throw new Error('Could not save availability. Please try again.');
+  // An INSERT may commit even when its PostgREST acknowledgement is absent.
+  // Avoid displaying an ID-less absence interval or suggesting a blind retry
+  // that could produce duplicate availability records.
+  if (error || !data || typeof data.id !== 'string' || data.id.trim().length === 0) {
+    throw new Error('Availability save could not be confirmed. Refresh to check before trying again.');
   }
 
   return dbToAvailability(data);
