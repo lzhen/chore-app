@@ -220,11 +220,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateChore = async (chore: Chore) => {
-    const success = await dbUpdateChore(chore);
-    if (!success) throw new Error('Your changes could not be saved. Please try again.');
-    if (success) {
-      dispatch({ type: 'UPDATE_CHORE', payload: chore });
-    }
+    // Preserve server truth: do not display unsaved form values as persisted.
+    const saved = await dbUpdateChore(chore);
+    dispatch({ type: 'UPDATE_CHORE', payload: saved });
   };
 
   const deleteChore = async (id: string) => {
