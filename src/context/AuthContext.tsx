@@ -63,6 +63,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOutStatusRef = useRef<'idle' | 'pending' | 'succeeded'>('idle');
   // Serialize destructive deletion with explicit logout, including callers outside AccountSettings.
   const deletionInFlightRef = useRef(false);
+  // SDK sign-in/up can change the bearer before their promises resolve.
+  // Keep deletion and logout from starting against a moving identity.
+  const authChangeInFlightRef = useRef(false);
   // A live SDK auth event is newer than an in-flight startup getSession snapshot.
   // Keep delayed initial reads from replacing a freshly signed-in/out identity.
   const startupAuthEventRef = useRef(false);
@@ -177,11 +180,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string) => {
     // Do not mutate SDK identity while an irreversible deletion or logout
     // is pending. A completed logout may be followed by a deliberate login.
-    if (deletionInFlightRef.current || signOutStatusRef.current === 'pending') {
+    if (deletionInFlightRef.current || signOutStatusRef.current === 'pending' || authChangeInFlightRef.current) {
       return { error: new Error('Account change is in progress. Please try again when it finishes.') };
     }
-    const requestRevision = authRevisionRef.current;
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    authChangeInFlightRef.current = true;
+    try {
+      const requestRevision = authRevisionRef.current;
+      const { data, error } = await supabase.auth.signUp({ email, password });
     // A deletion receipt from another tab (or a newer explicit login) may
     // arrive while the SDK request is in flight. Never let the old response
     // clear that receipt and resurrect/swap the now-revoked identity.
@@ -203,17 +208,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.session.user);
       setDeletionCleanupWarning(null);
     }
-    return { error: error as Error | null };
+      return { error: error as Error | null };
+    } finally {
+      authChangeInFlightRef.current = false;
+    }
   };
 
   const signIn = async (email: string, password: string) => {
     // Avoid changing Supabase's active bearer while a destructive Edge call
     // or a pending explicit logout is still being reconciled.
-    if (deletionInFlightRef.current || signOutStatusRef.current === 'pending') {
+    if (deletionInFlightRef.current || signOutStatusRef.current === 'pending' || authChangeInFlightRef.current) {
       return { error: new Error('Account change is in progress. Please try again when it finishes.') };
     }
-    const requestRevision = authRevisionRef.current;
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    authChangeInFlightRef.current = true;
+    try {
+      const requestRevision = authRevisionRef.current;
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (authRevisionRef.current !== requestRevision) {
       return { error: new Error('Account state changed during sign-in. Please sign in again.') };
     }
@@ -232,10 +242,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.session.user);
       setDeletionCleanupWarning(null);
     }
-    return { error: error as Error | null };
+      return { error: error as Error | null };
+    } finally {
+      authChangeInFlightRef.current = false;
+    }
   };
 
   const signOut = async () => {
+    if (authChangeInFlightRef.current) {
+      throw new Error('Account sign-in or sign-up is in progress. Please try signing out after it finishes.');
+    }
     // An in-flight delete may already have reached the server. Never change the
     // SDK identity until its response and local cleanup have been reconciled.
     if (deletionInFlightRef.current) {
@@ -271,6 +287,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteAccount = async (confirmedAccountId?: string) => {
+    // A pending SDK login can change the bearer used by the Edge request.
+    // Refuse deletion until that identity transition has settled.
+    if (authChangeInFlightRef.current) {
+      return {
+        error: new Error('Account sign-in or sign-up is in progress. Please try account deletion after it finishes.'),
+        deletionConfirmed: false,
+      };
+    }
     // AccountSettings disables this action during logout, but the provider
     // must enforce the same invariant for other callers and stale views.
     // Do not start an irreversible network request while SDK identity is
