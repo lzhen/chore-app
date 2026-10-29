@@ -174,6 +174,77 @@ describe('Nesmi deletion and sign-out ordering (provider release gate)', () => {
       hook.unmount();
     }
   });
+
+  it('prevents a second deletion POST and explicit logout until first deletion is reconciled', async () => {
+    // One synthetic account, deferred SDK invoke; no real Edge or user is touched.
+    const accountId = 'synthetic-delete-first-account';
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: accountId } } }, error: null,
+    } as any);
+    let finishDelete!: (value: any) => void;
+    const pendingDelete = new Promise<any>(resolve => { finishDelete = resolve; });
+    vi.mocked(supabase.functions.invoke).mockReturnValueOnce(pendingDelete as any);
+    const hook = await mountAuth();
+    try {
+      let first!: ReturnType<typeof hook.result.current.deleteAccount>;
+      act(() => { first = hook.result.current.deleteAccount(accountId); });
+      await act(async () => {
+        const duplicate = await hook.result.current.deleteAccount(accountId);
+        expect(duplicate.deletionConfirmed).toBe(false);
+        expect(duplicate.error?.message).toMatch(/deletion is already in progress/i);
+        await expect(hook.result.current.signOut()).rejects.toThrow(/deletion is in progress/i);
+      });
+      expect(supabase.functions.invoke).toHaveBeenCalledTimes(1);
+      expect(supabase.auth.signOut).not.toHaveBeenCalled();
+
+      await act(async () => {
+        finishDelete({ data: { deleted: true }, error: null });
+        const result = await first;
+        expect(result.deletionConfirmed).toBe(true);
+      });
+      expect(supabase.auth.signOut).toHaveBeenCalledTimes(1);
+      expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+      expect(hook.result.current.user).toBeNull();
+      expect(localStorage.getItem(NESMI_CHORES)).toBeNull();
+      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+    } finally {
+      hook.unmount();
+    }
+  });
+
+  it('releases deletion/logout mutex after an explicit server refusal, without repeating deletion', async () => {
+    const accountId = 'synthetic-deletion-refused-account';
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: accountId } } }, error: null,
+    } as any);
+    let finishDelete!: (value: any) => void;
+    const pendingDelete = new Promise<any>(resolve => { finishDelete = resolve; });
+    vi.mocked(supabase.functions.invoke).mockReturnValueOnce(pendingDelete as any);
+    const hook = await mountAuth();
+    try {
+      let first!: ReturnType<typeof hook.result.current.deleteAccount>;
+      act(() => { first = hook.result.current.deleteAccount(accountId); });
+      await act(async () => {
+        await expect(hook.result.current.signOut()).rejects.toThrow(/deletion is in progress/i);
+      });
+      await act(async () => {
+        finishDelete({ data: null, error: new Error('synthetic server refusal') });
+        const result = await first;
+        expect(result.deletionConfirmed).toBe(false);
+        expect(result.error?.message).toMatch(/synthetic server refusal/i);
+      });
+      // The release is only of the in-flight lock; no second delete is retried.
+      await act(async () => { await hook.result.current.signOut(); });
+      expect(hook.result.current.signOutStatus).toBe('succeeded');
+      expect(supabase.functions.invoke).toHaveBeenCalledTimes(1);
+      expect(supabase.auth.signOut).toHaveBeenCalledTimes(1);
+      expect(localStorage.getItem(NESMI_CHORES)).toBe('nesmi-chores-fixture');
+      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+    } finally {
+      hook.unmount();
+    }
+  });
+
 });
 
 describe('Nesmi sign-out identity serialization', () => {
