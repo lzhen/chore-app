@@ -1311,3 +1311,58 @@ describe('Nesmi account deletion confirmation and same-origin data isolation', (
   });
 
 });
+
+describe('Nesmi login-first identity mutation exclusion (draft release gate)', () => {
+  for (const action of ['signIn', 'signUp'] as const) {
+    it(`serializes a pending ${action} before account deletion, logout and a second login`, async () => {
+      // All SDK responses and identities are synthetic: never touches a hosted account.
+      const originalSession = { user: { id: 'synthetic-pre-transition-account' } };
+      vi.mocked(supabase.auth.getSession).mockResolvedValue({
+        data: { session: originalSession }, error: null,
+      } as any);
+      let resolveChange!: (value: any) => void;
+      const deferredChange = new Promise<any>(resolve => { resolveChange = resolve; });
+      if (action === 'signIn') {
+        vi.mocked(supabase.auth.signInWithPassword).mockReturnValueOnce(deferredChange as any);
+      } else {
+        vi.mocked(supabase.auth.signUp).mockReturnValueOnce(deferredChange as any);
+      }
+      const hook = await mountAuth();
+      try {
+        expect(hook.result.current.user?.id).toBe(originalSession.user.id);
+        let pendingChange!: Promise<{ error: Error | null }>;
+        act(() => {
+          pendingChange = hook.result.current[action]('synthetic@example.invalid', 'fixture-only');
+        });
+        await act(async () => {
+          const deletion = await hook.result.current.deleteAccount(originalSession.user.id);
+          expect(deletion.deletionConfirmed).toBe(false);
+          expect(deletion.error?.message).toMatch(/sign-in or sign-up is in progress/i);
+          await expect(hook.result.current.signOut()).rejects.toThrow(/sign-in or sign-up is in progress/i);
+          const duplicate = await hook.result.current[action]('duplicate@example.invalid', 'fixture-only');
+          expect(duplicate.error?.message).toMatch(/account change is in progress/i);
+        });
+        expect(supabase.functions.invoke).not.toHaveBeenCalled();
+        expect(supabase.auth.signOut).not.toHaveBeenCalled();
+        if (action === 'signIn') {
+          expect(supabase.auth.signInWithPassword).toHaveBeenCalledTimes(1);
+        } else {
+          expect(supabase.auth.signUp).toHaveBeenCalledTimes(1);
+        }
+        // The SDK response fails: the provider releases its synchronous guard.
+        await act(async () => {
+          resolveChange({ data: { user: null, session: null }, error: new Error('synthetic auth failure') });
+          const response = await pendingChange;
+          expect(response.error?.message).toBe('synthetic auth failure');
+        });
+        await act(async () => { await hook.result.current.signOut(); });
+        expect(supabase.auth.signOut).toHaveBeenCalledTimes(1);
+        expect(hook.result.current.signOutStatus).toBe('succeeded');
+        expect(hook.result.current.user).toBeNull();
+        expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+      } finally {
+        hook.unmount();
+      }
+    });
+  }
+});
