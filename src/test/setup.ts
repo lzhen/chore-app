@@ -52,6 +52,7 @@ vi.mock('../utils/supabase', () => ({
       resetPasswordForEmail: vi.fn(),
       updateUser: vi.fn(),
     },
+    functions: { invoke: vi.fn() },
   },
 }));
 

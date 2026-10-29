@@ -1,0 +1,68 @@
+name: Nesmi account-deletion UI regression
+
+# Narrow release-branch PR gate. It does not deploy, archive iOS, access
+# production credentials, use third-party paid services, or submit to Apple.
+on:
+  pull_request:
+    # Include the immutable B123 release branch now targeted by Draft PR #35.
+    # Retain the B122 predecessor while historical draft comparisons remain open.
+    branches:
+      - fix/chorely-auth-viewport-20260927-native-followup-20261016
+      - fix/chorely-auth-viewport-20260927-icon-family-20261026
+    paths:
+      - 'src/components/AccountSettings.tsx'
+      - 'src/utils/accountDeletionAttempt.ts'
+      - 'src/components/AuthForm.tsx'
+      - 'src/components/AuthForm.test.tsx'
+      - 'src/components/AgentPanel.tsx'
+      - 'src/components/App.tsx'
+      - 'src/components/account-delete-remount.integration.test.tsx'
+      - 'src/context/AuthContext.tsx'
+      - 'supabase/functions/delete-account/index.ts'
+      - 'supabase/functions/delete-account-v2/index.ts'
+      - 'src/context/AuthContext.delete-account.test.tsx'
+      - 'src/test/setup.ts'
+      - 'tests/release/account-delete-ui-guard.node.cjs'
+      - 'tests/release/supabase-sdk-local-session.node.mjs'
+      - '.github/workflows/nesmi-account-delete-rtl-gate.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nesmi-delete-rtl-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  deletion-rtl:
+    name: Account deletion remount and Assistant portal
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout proposed changes (not deployed)
+        uses: actions/checkout@v4
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install lockfile dependencies
+        run: npm ci
+        env:
+          HUSKY: '0'
+      - name: Account deletion source regressions
+        run: npm run test:release-delete
+      - name: Real Supabase SDK offline storage-adapter gate
+        run: node --test tests/release/supabase-sdk-local-session.node.mjs
+      - name: Real jsdom RTL portal and remount regressions
+        run: npx vitest run src/components/account-delete-remount.integration.test.tsx src/components/AgentPanel.test.tsx src/context/AuthContext.delete-account.test.tsx src/components/AuthForm.test.tsx
+      - name: Typecheck proposed source
+        run: npm run typecheck
+      # Deno/TS compilation is a separate release gate from Node VM mocks.
+      # Installs only public tooling, no live Supabase keys, Edge deploy or account calls.
+      - name: Set up Deno 2 (review-only)
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Typecheck draft v2 Edge handler (no deploy)
+        run: deno check --node-modules-dir=auto supabase/functions/delete-account-v2/index.ts
