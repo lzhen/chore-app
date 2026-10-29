@@ -107,6 +107,75 @@ describe('Nesmi explicit sign-out outcome', () => {
   });
 });
 
+describe('Nesmi deletion and sign-out ordering (provider release gate)', () => {
+  it('does not send account deletion while sign-out is pending or already succeeded', async () => {
+    const currentSession = { user: { id: 'synthetic-account-being-signed-out' } };
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: currentSession }, error: null,
+    } as any);
+    let finishLogout!: (value: any) => void;
+    const pendingLogout = new Promise<any>(resolve => { finishLogout = resolve; });
+    vi.mocked(supabase.auth.signOut).mockReturnValueOnce(pendingLogout as any);
+    const hook = await mountAuth();
+    try {
+      let logout!: Promise<void>;
+      act(() => { logout = hook.result.current.signOut(); });
+      expect(hook.result.current.signOutStatus).toBe('pending');
+
+      await act(async () => {
+        const result = await hook.result.current.deleteAccount(currentSession.user.id);
+        expect(result.deletionConfirmed).toBe(false);
+        expect(result.error?.message).toMatch(/sign-out is pending or completed/i);
+      });
+      expect(supabase.functions.invoke).not.toHaveBeenCalled();
+
+      await act(async () => { finishLogout({ error: null }); await logout; });
+      expect(hook.result.current.signOutStatus).toBe('succeeded');
+      await act(async () => {
+        const result = await hook.result.current.deleteAccount(currentSession.user.id);
+        expect(result.deletionConfirmed).toBe(false);
+        expect(result.error?.message).toMatch(/sign-out is pending or completed/i);
+      });
+      expect(supabase.functions.invoke).not.toHaveBeenCalled();
+      expect(hook.result.current.user).toBeNull();
+      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+    } finally {
+      hook.unmount();
+    }
+  });
+
+  it('permits deletion request after confirmed sign-out failure releases provider lock', async () => {
+    const currentSession = { user: { id: 'synthetic-retry-account' } };
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: currentSession }, error: null,
+    } as any);
+    vi.mocked(supabase.auth.signOut).mockResolvedValueOnce({
+      error: new Error('synthetic SDK sign-out failure'),
+    } as any);
+    vi.mocked(supabase.functions.invoke).mockResolvedValueOnce({
+      data: null, error: new Error('synthetic server refusal'),
+    } as any);
+    const hook = await mountAuth();
+    try {
+      await act(async () => {
+        await expect(hook.result.current.signOut()).rejects.toThrow('Could not sign out');
+      });
+      expect(hook.result.current.signOutStatus).toBe('idle');
+      await act(async () => {
+        const result = await hook.result.current.deleteAccount(currentSession.user.id);
+        expect(result.deletionConfirmed).toBe(false);
+        expect(result.error?.message).toMatch(/synthetic server refusal/i);
+      });
+      expect(supabase.functions.invoke).toHaveBeenCalledTimes(1);
+      expect(supabase.functions.invoke).toHaveBeenCalledWith('delete-account-v2', {
+        method: 'POST', body: { expectedUserId: currentSession.user.id },
+      });
+    } finally {
+      hook.unmount();
+    }
+  });
+});
+
 describe('Nesmi sign-out identity serialization', () => {
   it('rejects an older sign-in result that resolves after successful logout', async () => {
     const originalSession = { user: { id: 'synthetic-account-before-logout' } };
