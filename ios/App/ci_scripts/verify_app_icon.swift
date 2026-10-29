@@ -4,7 +4,7 @@ import CoreGraphics
 import ImageIO
 
 // Approved black-background nest master, resized to 1024px without artwork changes.
-let approvedSHA256 = "3c64d0e94fab8bb076576ff33e252e919fbc19c14aef40e375cc035943062990"
+let approvedSHA256 = "d08f3287cb2ddefa44fb9b4b9d1cd7a7d71705c8f6aadf950247dab6dde2df8f"
 
 func require(_ condition: Bool, _ message: String) {
     if !condition {
