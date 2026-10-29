@@ -1,0 +1,73 @@
+name: Nesmi isolated PostgreSQL deletion-claim prototype
+
+# Review-only: this workflow runs against a disposable GitHub Actions
+# postgres:16 service. It never connects to Supabase or any real account.
+on:
+  pull_request:
+    paths:
+      - 'docs/release/prototypes/nesmi_delete_claim_nondeploy.sql'
+      # Require source-executed claim/compatibility checks even for a code-only PR change.
+      - 'supabase/functions/delete-account/index.ts'
+      - 'supabase/functions/delete-account-v2/index.ts'
+      - 'src/context/AuthContext.tsx'
+      - 'src/components/AccountSettings.tsx'
+      - 'docs/release/nesmi-b122-to-claimed-edge-transition-gate-20261025.md'
+      - 'tests/release/nesmi-delete-claim-postgres-ci.sh'
+      - 'docs/release/prototypes/nesmi-delete-edge-orchestration.nondeploy.cjs'
+      - 'tests/release/nesmi-delete-edge-orchestration.contract.test.cjs'
+      - 'tests/release/nesmi-edge-actual-source-compatibility.nondeploy.test.cjs'
+      - 'docs/release/prototypes/nesmi-delete-edge-sdk-bridge.nondeploy.cjs'
+      - 'tests/release/nesmi-delete-edge-sdk-bridge.nondeploy.test.cjs'
+      - 'docs/release/prototypes/nesmi-delete-edge-http-route.nondeploy.cjs'
+      - 'tests/release/nesmi-delete-edge-http-route.nondeploy.test.cjs'
+      - 'docs/release/prototypes/nesmi-delete-claimed-deno-handler.nondeploy.ts'
+      - 'tests/release/nesmi-delete-claimed-deno-handler.nondeploy.test.cjs'
+      - 'tests/release/nesmi-b123-client-server-contract.nondeploy.test.cjs'
+      - '.github/workflows/nesmi-delete-claim-postgres-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-postgres:
+    name: PostgreSQL rollback and cross-connection claim
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_ci_only
+          POSTGRES_DB: nesmi_claim_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d nesmi_claim_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 8
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGDATABASE: nesmi_claim_test
+      PGPASSWORD: synthetic_ci_only
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check no-network Edge claim coordination contract
+        run: node --test tests/release/nesmi-delete-edge-orchestration.contract.test.cjs
+      - name: Execute actual draft Edge source with synthetic no-network B122 compatibility cases
+        run: node --test tests/release/nesmi-edge-actual-source-compatibility.nondeploy.test.cjs
+      - name: Check SDK-shaped claim/delete/finalize bridge (no network)
+        run: node --test tests/release/nesmi-delete-edge-sdk-bridge.nondeploy.test.cjs
+      - name: Exercise nondeployed Edge HTTP handler boundary (no network)
+        run: node --test tests/release/nesmi-delete-edge-http-route.nondeploy.test.cjs
+      - name: Execute nondeployed Deno.serve candidate and strict claim replay gate (synthetic only)
+        run: node --test tests/release/nesmi-delete-claimed-deno-handler.nondeploy.test.cjs
+      - name: Fetch immutable B123 release-client source (no app build or backend access)
+        run: git fetch --no-tags --depth=1 origin 6eab3d3b20a32d07376c1bd938979219a3565a74
+      - name: Confirm current B123 bodyless-versus-Edge compatibility HOLD
+        run: node --test tests/release/nesmi-b123-client-server-contract.nondeploy.test.cjs
+      - name: Check disposable PostgreSQL prototype (no user data)
+        run: bash tests/release/nesmi-delete-claim-postgres-ci.sh

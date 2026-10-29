@@ -85,16 +85,16 @@ function dbToMember(db: DbTeamMember): TeamMember {
     id: db.id,
     name: db.name,
     color: db.color,
-    avatarUrl: db.avatar_url || undefined,
-    email: db.email || undefined,
-    skills: db.skills || undefined,
-    workingHours: db.working_hours_start && db.working_hours_end ? {
+    avatarUrl: db.avatar_url ?? undefined,
+    email: db.email ?? undefined,
+    skills: db.skills ?? undefined,
+    workingHours: db.working_hours_start != null && db.working_hours_end != null ? {
       start: db.working_hours_start,
       end: db.working_hours_end,
-      days: db.working_days || [1, 2, 3, 4, 5],
+      days: db.working_days ?? [1, 2, 3, 4, 5],
     } : undefined,
-    points: db.points || 0,
-    badges: db.badges || [],
+    points: db.points ?? 0,
+    badges: db.badges ?? [],
     weeklyCapacityMinutes: db.weekly_capacity_minutes ?? undefined,
   };
 }
@@ -165,13 +165,19 @@ export async function createChore(chore: Omit<Chore, 'id'>): Promise<Chore | nul
     .single();
 
   if (error) {
-    throw new Error('Could not save chore. Please try again.');
+    throw new Error('Could not save chore. Please check your connection before trying again.');
+  }
+  // The INSERT can have reached the database even when its acknowledgement
+  // is missing. Never add an ID-less chore locally or encourage a blind retry
+  // that could create a duplicate household task.
+  if (!data || typeof data.id !== 'string' || data.id.trim().length === 0) {
+    throw new Error('Chore save could not be confirmed. Refresh to check before trying again.');
   }
 
   return dbToChore(data);
 }
 
-export async function updateChore(chore: Chore): Promise<boolean> {
+export async function updateChore(chore: Chore): Promise<Chore> {
   const { data, error } = await supabase
     .from('chores')
     .update({
@@ -186,22 +192,28 @@ export async function updateChore(chore: Chore): Promise<boolean> {
       category_id: chore.categoryId || null,
       estimated_minutes: chore.estimatedMinutes ?? null,
     })
-    .eq('id', chore.id).select('id');
+    .eq('id', chore.id)
+    .select('*');
 
-  if (error || !data?.length) {
-    throw new Error('Could not update chore. Please try again.');
+  // An ID-only receipt proves that a row was touched, not what was stored.
+  // Render the complete database-returned chore rather than unverified form
+  // values, and reject zero-row / wrong-row / multirow acknowledgements.
+  if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== chore.id) {
+    throw new Error('Could not confirm updated chore. Refresh to check before trying again.');
   }
 
-  return true;
+  return dbToChore(data[0]);
 }
 
 export async function deleteChore(id: string): Promise<boolean> {
   const { data, error } = await supabase
     .from('chores')
     .delete()
-    .eq('id', id).select('id');
+    .eq('id', id)
+    .select('id');
 
-  if (error || !data?.length) {
+  // Never hide a chore locally unless this exact row was deleted on server.
+  if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== id) {
     throw new Error('Could not delete chore. Please try again.');
   }
 
@@ -225,75 +237,67 @@ export async function fetchTeamMembers(): Promise<TeamMember[]> {
   return (data || []).map(dbToMember);
 }
 
+// Persist only columns already present in public.team_members.
+// Avatar uploads are intentionally excluded: FileReader data URLs are not
+// durable object-storage URLs and must not be silently written to avatar_url.
+const memberWritePayload = (member: Omit<TeamMember, 'id'>): Record<string, unknown> => ({
+  name: member.name,
+  color: member.color,
+  email: member.email ?? null,
+  skills: member.skills ?? null,
+  working_hours_start: member.workingHours?.start ?? null,
+  working_hours_end: member.workingHours?.end ?? null,
+  working_days: member.workingHours?.days ?? null,
+  points: member.points ?? 0,
+  badges: member.badges ?? [],
+  weekly_capacity_minutes: member.weeklyCapacityMinutes ?? null,
+});
+
 export async function createTeamMember(member: Omit<TeamMember, 'id'>): Promise<TeamMember | null> {
-  // Start with essential fields that definitely exist
-  const insertData: Record<string, unknown> = {
-    name: member.name,
-    color: member.color,
-  };
+  const { data, error } = await supabase
+    .from('team_members')
+    .insert(memberWritePayload(member))
+    .select()
+    .single();
 
-  // Add optional fields if they have values (these may or may not exist in the DB)
-  // Only known columns are sent to the database.
-  try {
-    const { data, error } = await supabase
-      .from('team_members')
-      .insert(insertData)
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error('Could not save team member. Please try again.');
-    }
-
-    return dbToMember(data);
-  } catch (err) {
-    throw err instanceof Error ? err : new Error('Could not save family member. Please try again.');
+  // A successful INSERT may have committed even if PostgREST could not
+  // return the inserted row. Do not display an ID-less household member or
+  // encourage an immediate retry that could create a duplicate member.
+  if (error || !data || typeof data.id !== 'string' || data.id.trim().length === 0) {
+    throw new Error('Team member save could not be confirmed. Refresh to check before trying again.');
   }
+  return dbToMember(data);
 }
 
-export async function updateTeamMember(member: TeamMember): Promise<TeamMember | null> {
-  // Only update fields that exist - start with essential ones
-  const updateData: Record<string, unknown> = {
-    name: member.name,
-    color: member.color,
-  };
+export async function updateTeamMember(member: TeamMember): Promise<TeamMember> {
+  const { data, error } = await supabase
+    .from('team_members')
+    .update(memberWritePayload(member))
+    .eq('id', member.id)
+    .select()
+    .single();
 
-  try {
-    const { data, error } = await supabase
-      .from('team_members')
-      .update(updateData)
-      .eq('id', member.id)
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error('Could not update team member. Please try again.');
-    }
-
-    // Return the updated member with local data merged (for fields not in DB)
-    return {
-      ...dbToMember(data),
-      avatarUrl: member.avatarUrl,
-      email: member.email,
-      skills: member.skills,
-      workingHours: member.workingHours,
-      points: member.points || 0,
-      badges: member.badges || [],
-      weeklyCapacityMinutes: member.weeklyCapacityMinutes,
-    };
-  } catch (err) {
-    console.error('Error updating team member:', err);
-    return null;
+  // A PostgREST single-row receipt is not enough if the returned identity
+  // or required profile fields are missing. Never replace the visible member
+  // with a different record, nor render an incomplete acknowledgement as saved.
+  if (error || !data || data.id !== member.id ||
+      typeof data.name !== 'string' || typeof data.color !== 'string') {
+    throw new Error('Could not update team member. Please try again.');
   }
+  return dbToMember(data);
 }
 
 export async function deleteTeamMember(id: string): Promise<boolean> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('team_members')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .select('id');
 
-  if (error) {
+  // PostgREST can return no error while RLS filters out the target row.
+  // Only remove the member from local state when the database confirms the
+  // exact requested ID was deleted; otherwise surface an actionable failure.
+  if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== id) {
     throw new Error('Could not delete team member. Please try again.');
   }
 
@@ -328,37 +332,47 @@ export async function createCategory(category: Omit<Category, 'id'>): Promise<Ca
     .select()
     .single();
 
-  if (error) {
-    throw new Error('Could not save category. Please try again.');
+  // A category INSERT can commit even if its PostgREST receipt is absent.
+  // Do not add an ID-less category or suggest an immediate duplicate retry.
+  if (error || !data || typeof data.id !== 'string' || data.id.trim().length === 0) {
+    throw new Error('Category save could not be confirmed. Refresh to check before trying again.');
   }
 
   return dbToCategory(data);
 }
 
-export async function updateCategory(category: Category): Promise<boolean> {
-  const { error } = await supabase
+export async function updateCategory(category: Category): Promise<Category> {
+  const { data, error } = await supabase
     .from('categories')
     .update({
       name: category.name,
       color: category.color,
       icon: category.icon || null,
     })
-    .eq('id', category.id);
+    .eq('id', category.id)
+    .select('*');
 
-  if (error) {
-    throw new Error('Could not update category. Please try again.');
+  // An ID-only acknowledgement does not prove which name/color/icon was
+  // persisted. Keep the last confirmed UI state unless the exact row returns
+  // with its full database values (including any server normalization).
+  if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== category.id ||
+      typeof data[0]?.name !== 'string' || typeof data[0]?.color !== 'string') {
+    throw new Error('Could not update category. Refresh to check before trying again.');
   }
 
-  return true;
+  return dbToCategory(data[0]);
 }
 
 export async function deleteCategory(id: string): Promise<boolean> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('categories')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .select('id');
 
-  if (error) {
+  // Keep the category visible if the server did not explicitly confirm
+  // removing this one row. An empty RLS-filtered DELETE is not success.
+  if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== id) {
     throw new Error('Could not delete category. Please try again.');
   }
 
@@ -396,7 +410,13 @@ export async function createCompletion(completion: Omit<ChoreCompletion, 'id'>):
     .single();
 
   if (error) {
-    throw new Error('Could not save completion. Please try again.');
+    throw new Error('Completion save could not be confirmed. Refresh to check before trying again.');
+  }
+  // An INSERT may have reached Postgres even without a readable receipt.
+  // Do not announce completion or award points without a persisted row ID,
+  // and discourage blind retries that could record the same chore twice.
+  if (!data || typeof data.id !== 'string' || data.id.trim().length === 0) {
+    throw new Error('Completion save could not be confirmed. Refresh to check before trying again.');
   }
 
   return dbToCompletion(data);
@@ -406,9 +426,12 @@ export async function deleteCompletion(id: string): Promise<boolean> {
   const { data, error } = await supabase
     .from('chore_completions')
     .delete()
-    .eq('id', id).select('id');
+    .eq('id', id)
+    .select('id');
 
-  if (error || !data?.length) {
+  // A zero-row, wrong-ID, or multirow receipt must never be interpreted as
+  // deleting the requested completion. This can happen without HTTP errors.
+  if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== id) {
     throw new Error('Could not delete completion. Please try again.');
   }
 
@@ -475,15 +498,18 @@ export async function createAvailability(availability: Omit<MemberAvailability, 
     .select()
     .single();
 
-  if (error) {
-    throw new Error('Could not save availability. Please try again.');
+  // An INSERT may commit even when its PostgREST acknowledgement is absent.
+  // Avoid displaying an ID-less absence interval or suggesting a blind retry
+  // that could produce duplicate availability records.
+  if (error || !data || typeof data.id !== 'string' || data.id.trim().length === 0) {
+    throw new Error('Availability save could not be confirmed. Refresh to check before trying again.');
   }
 
   return dbToAvailability(data);
 }
 
-export async function updateAvailability(availability: MemberAvailability): Promise<boolean> {
-  const { error } = await supabase
+export async function updateAvailability(availability: MemberAvailability): Promise<MemberAvailability> {
+  const { data, error } = await supabase
     .from('member_availability')
     .update({
       member_id: availability.memberId,
@@ -491,22 +517,30 @@ export async function updateAvailability(availability: MemberAvailability): Prom
       end_date: availability.endDate,
       reason: availability.reason || null,
     })
-    .eq('id', availability.id);
+    .eq('id', availability.id)
+    .select('*');
 
-  if (error) {
+  // A successful HTTP response can affect zero rows (e.g. after deletion or
+  // because of RLS). Never confirm a saved absence interval without an exact
+  // database acknowledgement for the requested availability record.
+  if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== availability.id) {
     throw new Error('Could not update availability. Please try again.');
   }
 
-  return true;
+  // Only the persisted database row should become visible in scheduling UI.
+  return dbToAvailability(data[0]);
 }
 
 export async function deleteAvailability(id: string): Promise<boolean> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('member_availability')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .select('id');
 
-  if (error) {
+  // Keep the absence interval visible unless this exact database row is
+  // confirmed deleted. A zero-row or wrong-ID receipt is not success.
+  if (error || !Array.isArray(data) || data.length !== 1 || data[0]?.id !== id) {
     throw new Error('Could not delete availability. Please try again.');
   }
 

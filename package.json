@@ -23,7 +23,8 @@
     "prepare": "husky",
     "ios:init": "CAPACITOR_BUILD=true npm run build && npx cap add ios",
     "ios:sync": "CAPACITOR_BUILD=true npm run build && npx cap sync ios",
-    "ios:open": "npx cap open ios"
+    "ios:open": "npx cap open ios",
+    "test:release-delete": "node --test tests/release/account-delete-ui-guard.node.cjs"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

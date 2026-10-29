@@ -1,0 +1,211 @@
+name: Nesmi B123 member profile draft regression
+on:
+  push:
+    branches: [fix/nesmi-b123-member-profile-save-20261026]
+    paths:
+      - 'src/utils/supabaseStorage.ts'
+      - 'src/utils/supabaseStorage.members.test.ts'
+      - 'src/utils/supabaseStorage.categories.test.ts'
+      - 'src/utils/supabaseStorage.chores.test.ts'
+      - 'src/utils/supabaseStorage.completions.test.ts'
+      - 'src/utils/supabaseStorage.availability.test.ts'
+      - 'src/components/MemberProfileModal.tsx'
+      - 'src/components/MemberProfileModal.test.tsx'
+      - 'src/context/AppContext.tsx'
+      - 'src/context/AuthContext.tsx'
+      - 'src/context/AuthContext.test.tsx'
+      - 'src/context/AppContext.member.test.tsx'
+      - 'src/components/SessionApp.session-isolation.test.tsx'
+      - 'tests/release/nesmi-rls-disposable-two-account.mjs'
+      - 'ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png'
+      - 'ios/App/ci_scripts/verify_app_icon.swift'
+      - '.github/workflows/nesmi-member-profile-gate.yml'
+  pull_request:
+    branches: [fix/chorely-auth-viewport-20260927-icon-family-20261026]
+    paths:
+      - 'src/utils/supabaseStorage.ts'
+      - 'src/utils/supabaseStorage.members.test.ts'
+      - 'src/utils/supabaseStorage.categories.test.ts'
+      - 'src/utils/supabaseStorage.chores.test.ts'
+      - 'src/utils/supabaseStorage.completions.test.ts'
+      - 'src/utils/supabaseStorage.availability.test.ts'
+      - 'src/components/MemberProfileModal.tsx'
+      - 'src/components/MemberProfileModal.test.tsx'
+      - 'src/context/AppContext.tsx'
+      - 'src/context/AuthContext.tsx'
+      - 'src/context/AuthContext.test.tsx'
+      - 'src/context/AppContext.member.test.tsx'
+      - 'src/components/SessionApp.session-isolation.test.tsx'
+      - 'tests/release/nesmi-rls-disposable-two-account.mjs'
+      - 'ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png'
+      - 'ios/App/ci_scripts/verify_app_icon.swift'
+      - '.github/workflows/nesmi-member-profile-gate.yml'
+permissions:
+  contents: read
+jobs:
+  member-profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Apple-confirmed B123 AppIcon provenance (candidate only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          icon='ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png'
+          verifier='ios/App/ci_scripts/verify_app_icon.swift'
+          # Approved exact PNG bytes from Apple-linked B123 (source 6eab3d3).
+          expected='d08f3287cb2ddefa44fb9b4b9d1cd7a7d71705c8f6aadf950247dab6dde2df8f'
+          actual="$(sha256sum "$icon" | cut -d ' ' -f1)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "::error::B123 AppIcon PNG drifted from Apple-confirmed source; stop release-candidate promotion."
+            exit 1
+          fi
+          if ! grep -Fxq "let approvedSHA256 = \"$expected\"" "$verifier"; then
+            echo "::error::AppIcon verifier checksum does not match approved B123 PNG."
+            exit 1
+          fi
+          echo "PASS: Apple-linked B123 AppIcon bytes and Swift checksum agree; no new Archive or device acceptance is implied."
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install locked dependencies without hook scripts
+        run: npm ci
+        env:
+          HUSKY: '0'
+      - name: Verify exact-branch TypeScript
+        run: npm run typecheck
+      - name: Build production-equivalent Capacitor web assets (no native archive or deploy)
+        env:
+          CAPACITOR_BUILD: 'true'
+        run: npm run build
+      - name: Require generated web bundle files (no upload)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/index.html
+          test -d dist/assets
+          find dist/assets -maxdepth 1 -type f -name '*.js' | grep -q .
+          echo 'PASS: local Capacitor web bundle exists; no IPA, device QA or App Review implied.'
+      - name: Verify disposable two-account RLS harness guards (offline only)
+        run: node tests/release/nesmi-rls-disposable-two-account.mjs --self-test
+      - name: Run offline persistence and editor RTL regressions
+        run: npx vitest run src/utils/supabaseStorage.members.test.ts src/utils/supabaseStorage.categories.test.ts src/utils/supabaseStorage.chores.test.ts src/utils/supabaseStorage.completions.test.ts src/utils/supabaseStorage.availability.test.ts src/components/MemberProfileModal.test.tsx src/context/AppContext.member.test.tsx src/components/SessionApp.session-isolation.test.tsx src/context/AuthContext.test.tsx
+
+  native-ios-simulator:
+    name: Unsigned simulator + Release device archive (draft only)
+    # Public repo, standard hosted runner; no Apple certificates or signing secrets.
+    # This compiles the integrated branch and makes an unsigned local device archive, never signs, exports, or uploads an app.
+    needs: member-profile
+    runs-on: macos-15
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    env:
+      HUSKY: '0'
+      CAPACITOR_BUILD: 'true'
+      CODE_SIGNING_ALLOWED: 'NO'
+    steps:
+      - name: Checkout exact integrated PR head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Select Xcode and display versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcrun simctl list devices available | head -35
+          pod --version
+      - name: Set up Node 22 (no dependency hook scripts)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Build and sync local Capacitor assets (no deployment)
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts
+          npm run build
+          npx cap sync ios
+          test -s ios/App/App/public/index.html
+          test -d ios/App/Pods
+      - name: Compile unsigned iOS Simulator target (not Archive or TestFlight)
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/nesmi-draft-derived-data" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+          echo 'PASS: unsigned simulator compile only; no IPA, device test, App Store state, or production readiness implied.'
+      - name: Boot/install/launch unsigned iOS simulator app (no sign-in or real accounts)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Clean simulator with no personal session, Apple signing, device access, or Store action.
+          # This checks native install + initial process launch, not login, network, or UX acceptance.
+          app="$RUNNER_TEMP/nesmi-draft-derived-data/Build/Products/Debug-iphonesimulator/Nesmi.app"
+          test -d "$app"
+          device="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; matches=[d for group in devices.values() for d in group if d.get("isAvailable",True) and d.get("name")=="iPhone 16 Pro"]; print(matches[0]["udid"] if matches else "")')"
+          if [[ -z "$device" ]]; then
+            echo "::error::No available iPhone 16 Pro Simulator for unsigned install/launch smoke."
+            exit 1
+          fi
+          trap 'xcrun simctl shutdown "$device" >/dev/null 2>&1 || true' EXIT
+          xcrun simctl boot "$device"
+          xcrun simctl bootstatus "$device" -b
+          xcrun simctl install "$device" "$app"
+          xcrun simctl launch "$device" com.pawssible.chorely
+          sleep 5
+          # Ephemeral local screenshot confirms display capture; do not upload unpublished UI.
+          xcrun simctl io "$device" screenshot "$RUNNER_TEMP/nesmi-draft-launch-smoke.png"
+          test -s "$RUNNER_TEMP/nesmi-draft-launch-smoke.png"
+          echo 'PASS: clean unsigned iOS Simulator app install, launch and local screen capture; NOT signed, logged in, network-isolation tested, iPhone accepted or App Store approved.'
+      - name: Archive unsigned Release iOS device application (no signing or export)
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/nesmi-draft-unsigned.xcarchive"
+          # Release/device compilation is distinct from Debug/simulator compilation.
+          # No Apple signing assets, provisioning, IPA export or upload are used.
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/nesmi-draft-derived-data" \
+            -archivePath "$archive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            archive
+          # The Xcode scheme/target is App, but PRODUCT_NAME is Nesmi.
+          # Verify the actual archived app name, not the scheme label (Task215 CI fix).
+          app="$archive/Products/Applications/Nesmi.app"
+          if [[ ! -d "$app" ]]; then
+            echo "::error::Unsigned Release archive does not contain Nesmi.app."
+            find "$archive/Products/Applications" -maxdepth 1 -type d -name "*.app" -print || true
+            exit 1
+          fi
+          plist="$app/Info.plist"
+          test -s "$plist"
+          identifier=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$plist")
+          executable=$(/usr/libexec/PlistBuddy -c 'Print CFBundleExecutable' "$plist")
+          if [[ "$identifier" != "com.pawssible.chorely" ]]; then
+            echo "::error::Unexpected draft iOS bundle identifier: $identifier"
+            exit 1
+          fi
+          test -n "$executable"
+          test -s "$app/$executable"
+          test -d "$app/public"
+          test -s "$app/public/index.html"
+          echo 'PASS: unsigned Release iOS device archive and embedded web assets exist locally; NOT signed, exported, uploaded, installed, or App Store ready.'
+
