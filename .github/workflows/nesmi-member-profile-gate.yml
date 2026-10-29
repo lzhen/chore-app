@@ -76,7 +76,19 @@ jobs:
           HUSKY: '0'
       - name: Verify exact-branch TypeScript
         run: npm run typecheck
-      - name: Verify disposable two-account RLS harness guards (offline only)
+      - name: Build production-equivalent Capacitor web assets (no native archive or deploy)
+        env:
+          CAPACITOR_BUILD: 'true'
+        run: npm run build
+      - name: Require generated web bundle files (no upload)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/index.html
+          test -d dist/assets
+          find dist/assets -maxdepth 1 -type f -name '*.js' | grep -q .
+          echo 'PASS: local Capacitor web bundle exists; no IPA, device QA or App Review implied.'
+            - name: Verify disposable two-account RLS harness guards (offline only)
         run: node tests/release/nesmi-rls-disposable-two-account.mjs --self-test
       - name: Run offline persistence and editor RTL regressions
         run: npx vitest run src/utils/supabaseStorage.members.test.ts src/utils/supabaseStorage.categories.test.ts src/utils/supabaseStorage.chores.test.ts src/utils/supabaseStorage.completions.test.ts src/utils/supabaseStorage.availability.test.ts src/components/MemberProfileModal.test.tsx src/context/AppContext.member.test.tsx src/components/SessionApp.session-isolation.test.tsx src/context/AuthContext.test.tsx
