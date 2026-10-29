@@ -187,27 +187,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const requestRevision = authRevisionRef.current;
       const { data, error } = await supabase.auth.signUp({ email, password });
-    // A deletion receipt from another tab (or a newer explicit login) may
-    // arrive while the SDK request is in flight. Never let the old response
-    // clear that receipt and resurrect/swap the now-revoked identity.
-    if (authRevisionRef.current !== requestRevision) {
-      return { error: new Error('Account state changed during sign-up. Check your email or sign in again.') };
-    }
-    if (!error && data?.session) {
-      const receiptError = clearDeletionReceiptForNewSession();
-      if (receiptError) return { error: receiptError };
-      if (deletionConfirmedRef.current || postDeletionExplicitUserIdRef.current) {
-        postDeletionExplicitUserIdRef.current = data.session.user.id;
-      }
-      authRevisionRef.current += 1;
-      signOutStatusRef.current = 'idle';
-      setSignOutStatus('idle');
-      deletionConfirmedRef.current = false;
-      // The previous deletion marker was cleared before React auth re-armed.
-      setSession(data.session);
-      setUser(data.session.user);
-      setDeletionCleanupWarning(null);
-    }
+      // A deletion receipt from another tab (or a newer explicit login) may
+      // arrive while the SDK request is in flight. Never let the old response
+      // clear that receipt and resurrect/swap the now-revoked identity.
+        if (authRevisionRef.current !== requestRevision) {
+          return { error: new Error('Account state changed during sign-up. Check your email or sign in again.') };
+        }
+        if (!error && data?.session) {
+          const receiptError = clearDeletionReceiptForNewSession();
+          if (receiptError) return { error: receiptError };
+          if (deletionConfirmedRef.current || postDeletionExplicitUserIdRef.current) {
+            postDeletionExplicitUserIdRef.current = data.session.user.id;
+          }
+          authRevisionRef.current += 1;
+          signOutStatusRef.current = 'idle';
+          setSignOutStatus('idle');
+          deletionConfirmedRef.current = false;
+          // The previous deletion marker was cleared before React auth re-armed.
+          setSession(data.session);
+          setUser(data.session.user);
+          setDeletionCleanupWarning(null);
+        }
       return { error: error as Error | null };
     } finally {
       authChangeInFlightRef.current = false;
