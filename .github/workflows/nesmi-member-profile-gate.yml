@@ -164,7 +164,14 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             archive
-          app="$archive/Products/Applications/App.app"
+          # The Xcode scheme/target is App, but PRODUCT_NAME is Nesmi.
+          # Verify the actual archived app name, not the scheme label (Task215 CI fix).
+          app="$archive/Products/Applications/Nesmi.app"
+          if [[ ! -d "$app" ]]; then
+            echo "::error::Unsigned Release archive does not contain Nesmi.app."
+            find "$archive/Products/Applications" -maxdepth 1 -type d -name "*.app" -print || true
+            exit 1
+          fi
           plist="$app/Info.plist"
           test -s "$plist"
           identifier=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$plist")
