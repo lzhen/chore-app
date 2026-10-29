@@ -100,6 +100,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         if (deletionConfirmedRef.current) return;
+        // A completed explicit sign-out takes precedence over delayed SDK
+        // SIGNED_IN / TOKEN_REFRESHED callbacks from its old session.
+        // A later explicit successful sign-in clears this lock itself.
+        if (signOutStatusRef.current === 'succeeded' && session?.user) return;
         // Ignore delayed old-account auth events after a new explicit login.
         if (postDeletionExplicitUserIdRef.current && session?.user?.id &&
             session.user.id !== postDeletionExplicitUserIdRef.current) return;
@@ -227,12 +231,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     signOutStatusRef.current = 'pending';
     setSignOutStatus('pending');
+    // Any login/signup started before this logout must not re-authorize the UI
+    // when its slower promise resolves after the logout request.
+    authRevisionRef.current += 1;
     try {
       // Supabase may resolve with { error } instead of rejecting.
       const { error } = await supabase.auth.signOut();
       if (error) throw new Error('Could not sign out. Please try again.');
       signOutStatusRef.current = 'succeeded';
       setSignOutStatus('succeeded');
+      // Invalidate requests started while logout was pending, too. Do not
+      // depend on an SDK event firing in order to clear a signed-out UI.
+      authRevisionRef.current += 1;
+      setSession(null);
+      setUser(null);
     } catch (error) {
       // A confirmed failure releases the lock so the user may retry.
       signOutStatusRef.current = 'idle';
