@@ -107,6 +107,78 @@ describe('Nesmi explicit sign-out outcome', () => {
   });
 });
 
+describe('Nesmi sign-out identity serialization', () => {
+  it('rejects an older sign-in result that resolves after successful logout', async () => {
+    const originalSession = { user: { id: 'synthetic-account-before-logout' } };
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: originalSession }, error: null,
+    } as any);
+    let finishLogin!: (value: any) => void;
+    const deferredLogin = new Promise<any>(resolve => { finishLogin = resolve; });
+    vi.mocked(supabase.auth.signInWithPassword).mockReturnValueOnce(deferredLogin as any);
+    const hook = await mountAuth();
+    try {
+      expect(hook.result.current.user?.id).toBe('synthetic-account-before-logout');
+      let lateLogin!: Promise<{ error: Error | null }>;
+      act(() => {
+        lateLogin = hook.result.current.signIn('new@example.invalid', 'fixture-only');
+      });
+      await act(async () => { await hook.result.current.signOut(); });
+      expect(hook.result.current.signOutStatus).toBe('succeeded');
+      expect(hook.result.current.user).toBeNull();
+      expect(hook.result.current.session).toBeNull();
+
+      let result!: { error: Error | null };
+      await act(async () => {
+        finishLogin({
+          data: { user: { id: 'synthetic-late-login' },
+            session: { user: { id: 'synthetic-late-login' } } }, error: null,
+        });
+        result = await lateLogin;
+      });
+      expect(result.error?.message).toMatch(/account state changed/i);
+      expect(hook.result.current.user).toBeNull();
+      expect(hook.result.current.session).toBeNull();
+      expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
+    } finally {
+      hook.unmount();
+    }
+  });
+
+  it('ignores a stale SDK SIGNED_IN event after logout but permits deliberate new login', async () => {
+    const oldSession = { user: { id: 'synthetic-old-account' } };
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: oldSession }, error: null,
+    } as any);
+    let emitAuth!: (event: string, session: any) => void;
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementation(((listener: any) => {
+      emitAuth = listener;
+      return { data: { subscription: { unsubscribe: vi.fn() } } };
+    }) as any);
+    const hook = await mountAuth();
+    try {
+      await act(async () => { await hook.result.current.signOut(); });
+      expect(hook.result.current.user).toBeNull();
+      await act(async () => { emitAuth('SIGNED_IN', oldSession); });
+      expect(hook.result.current.user).toBeNull();
+      expect(hook.result.current.session).toBeNull();
+
+      const deliberateSession = { user: { id: 'synthetic-deliberate-new-account' } };
+      vi.mocked(supabase.auth.signInWithPassword).mockResolvedValueOnce({
+        data: { user: deliberateSession.user, session: deliberateSession }, error: null,
+      } as any);
+      await act(async () => {
+        const result = await hook.result.current.signIn('new@example.invalid', 'fixture-only');
+        expect(result.error).toBeNull();
+      });
+      expect(hook.result.current.signOutStatus).toBe('idle');
+      expect(hook.result.current.user?.id).toBe('synthetic-deliberate-new-account');
+    } finally {
+      hook.unmount();
+    }
+  });
+});
+
 describe('Nesmi account deletion confirmation and same-origin data isolation', () => {
   it('revokes an already-mounted tab when a cross-tab deletion receipt arrives, preserving sibling data', async () => {
     const oldSession = { user: { id: 'synthetic-deleted-user' } };
