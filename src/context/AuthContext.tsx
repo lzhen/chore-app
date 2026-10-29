@@ -254,6 +254,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteAccount = async (confirmedAccountId?: string) => {
+    // AccountSettings disables this action during logout, but the provider
+    // must enforce the same invariant for other callers and stale views.
+    // Do not start an irreversible network request while SDK identity is
+    // changing, or after an explicit sign-out has succeeded.
+    if (signOutStatusRef.current !== 'idle') {
+      return {
+        error: new Error('Account deletion is unavailable while sign-out is pending or completed. Sign in again to manage this account.'),
+        deletionConfirmed: false,
+      };
+    }
     // The Account view sends the ID captured at the start of confirmation.
     // Edge rejects any mismatch against the current authenticated bearer.
     const expectedUserId = confirmedAccountId ?? user?.id ?? '';
