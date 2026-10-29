@@ -146,6 +146,29 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
           echo 'PASS: unsigned simulator compile only; no IPA, device test, App Store state, or production readiness implied.'
+      - name: Boot/install/launch unsigned iOS simulator app (no sign-in or real accounts)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Clean simulator with no personal session, Apple signing, device access, or Store action.
+          # This checks native install + initial process launch, not login, network, or UX acceptance.
+          app="$RUNNER_TEMP/nesmi-draft-derived-data/Build/Products/Debug-iphonesimulator/Nesmi.app"
+          test -d "$app"
+          device="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; matches=[d for group in devices.values() for d in group if d.get("isAvailable",True) and d.get("name")=="iPhone 16 Pro"]; print(matches[0]["udid"] if matches else "")')"
+          if [[ -z "$device" ]]; then
+            echo "::error::No available iPhone 16 Pro Simulator for unsigned install/launch smoke."
+            exit 1
+          fi
+          trap 'xcrun simctl shutdown "$device" >/dev/null 2>&1 || true' EXIT
+          xcrun simctl boot "$device"
+          xcrun simctl bootstatus "$device" -b
+          xcrun simctl install "$device" "$app"
+          xcrun simctl launch "$device" com.pawssible.chorely
+          sleep 5
+          # Ephemeral local screenshot confirms display capture; do not upload unpublished UI.
+          xcrun simctl io "$device" screenshot "$RUNNER_TEMP/nesmi-draft-launch-smoke.png"
+          test -s "$RUNNER_TEMP/nesmi-draft-launch-smoke.png"
+          echo 'PASS: clean unsigned iOS Simulator app install, launch and local screen capture; NOT signed, logged in, network-isolation tested, iPhone accepted or App Store approved.'
       - name: Archive unsigned Release iOS device application (no signing or export)
         shell: bash
         run: |
