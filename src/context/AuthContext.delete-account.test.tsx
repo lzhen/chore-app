@@ -48,6 +48,63 @@ beforeEach(() => {
   vi.mocked(supabase.auth.signOut).mockResolvedValue({ error: null } as any);
 });
 
+describe('Nesmi B123 bootstrap event-first release gate (PR35 / PR36 integration)', () => {
+  it('shows signed-out state without waiting for a stale getSession result', async () => {
+    // SDK startup hydration can hang while SIGNED_OUT has already arrived.
+    let finishSession!: (value: any) => void;
+    vi.mocked(supabase.auth.getSession).mockImplementationOnce(() =>
+      new Promise<any>(resolve => { finishSession = resolve; }) as any
+    );
+    let emitAuth!: (event: string, session: any) => void;
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementationOnce(((listener: any) => {
+      emitAuth = listener;
+      return { data: { subscription: { unsubscribe: vi.fn() } } };
+    }) as any);
+    const hook = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    try {
+      expect(hook.result.current.loading).toBe(true);
+      await act(async () => { emitAuth('SIGNED_OUT', null); });
+      expect(hook.result.current.loading).toBe(false);
+      expect(hook.result.current.user).toBeNull();
+
+      // The old snapshot cannot resurrect the signed-out identity.
+      await act(async () => {
+        finishSession({ data: { session: { user: { id: 'stale-synthetic-account' } } }, error: null });
+      });
+      expect(hook.result.current.user).toBeNull();
+      expect(hook.result.current.session).toBeNull();
+    } finally {
+      hook.unmount();
+    }
+  });
+
+  it('shows an event-first signed-in identity before hydration resolves', async () => {
+    let rejectSession!: (reason: Error) => void;
+    vi.mocked(supabase.auth.getSession).mockImplementationOnce(() =>
+      new Promise<any>((_, reject) => { rejectSession = reject; }) as any
+    );
+    let emitAuth!: (event: string, session: any) => void;
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementationOnce(((listener: any) => {
+      emitAuth = listener;
+      return { data: { subscription: { unsubscribe: vi.fn() } } };
+    }) as any);
+    const hook = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    try {
+      expect(hook.result.current.loading).toBe(true);
+      const currentSession = { user: { id: 'event-first-synthetic-account' } };
+      await act(async () => { emitAuth('SIGNED_IN', currentSession); });
+      expect(hook.result.current.loading).toBe(false);
+      expect(hook.result.current.user?.id).toBe('event-first-synthetic-account');
+
+      // A late startup SDK failure must not undo a newer authenticated event.
+      await act(async () => { rejectSession(new Error('synthetic hydration failure')); });
+      expect(hook.result.current.user?.id).toBe('event-first-synthetic-account');
+    } finally {
+      hook.unmount();
+    }
+  });
+});
+
 describe('Nesmi explicit sign-out outcome', () => {
   it('does not silently accept a resolved Supabase SDK error', async () => {
     vi.mocked(supabase.auth.signOut).mockResolvedValueOnce({
