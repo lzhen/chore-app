@@ -247,6 +247,81 @@ describe('Nesmi deletion and sign-out ordering (provider release gate)', () => {
 
 });
 
+describe('Nesmi SDK identity mutation exclusions during destructive operations', () => {
+  it('does not call login or signup SDK while deletion is unresolved; permits new login after explicit refusal', async () => {
+    const accountId = 'synthetic-pending-delete-owner';
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { user: { id: accountId } } }, error: null,
+    } as any);
+    let finishDelete!: (value: any) => void;
+    const pendingDelete = new Promise<any>(resolve => { finishDelete = resolve; });
+    vi.mocked(supabase.functions.invoke).mockReturnValueOnce(pendingDelete as any);
+    const hook = await mountAuth();
+    try {
+      let deletion!: ReturnType<typeof hook.result.current.deleteAccount>;
+      act(() => { deletion = hook.result.current.deleteAccount(accountId); });
+      await act(async () => {
+        const login = await hook.result.current.signIn('other@example.invalid', 'synthetic-only');
+        const signup = await hook.result.current.signUp('new@example.invalid', 'synthetic-only');
+        expect(login.error?.message).toMatch(/account change is in progress/i);
+        expect(signup.error?.message).toMatch(/account change is in progress/i);
+      });
+      expect(supabase.auth.signInWithPassword).not.toHaveBeenCalled();
+      expect(supabase.auth.signUp).not.toHaveBeenCalled();
+      expect(supabase.functions.invoke).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        finishDelete({ data: null, error: new Error('synthetic refusal') });
+        const response = await deletion;
+        expect(response.deletionConfirmed).toBe(false);
+      });
+      const newSession = { user: { id: 'synthetic-later-account' } };
+      vi.mocked(supabase.auth.signInWithPassword).mockResolvedValueOnce({
+        data: { user: newSession.user, session: newSession }, error: null,
+      } as any);
+      await act(async () => {
+        expect((await hook.result.current.signIn('other@example.invalid', 'synthetic-only')).error).toBeNull();
+      });
+      expect(supabase.auth.signInWithPassword).toHaveBeenCalledTimes(1);
+      expect(hook.result.current.user?.id).toBe('synthetic-later-account');
+    } finally {
+      hook.unmount();
+    }
+  });
+
+  it('blocks SDK login and signup during pending logout but permits deliberate login after success', async () => {
+    let finishLogout!: (value: any) => void;
+    const pendingLogout = new Promise<any>(resolve => { finishLogout = resolve; });
+    vi.mocked(supabase.auth.signOut).mockReturnValueOnce(pendingLogout as any);
+    const hook = await mountAuth();
+    try {
+      let logout!: Promise<void>;
+      act(() => { logout = hook.result.current.signOut(); });
+      await act(async () => {
+        expect((await hook.result.current.signIn('other@example.invalid', 'synthetic-only')).error?.message)
+          .toMatch(/account change is in progress/i);
+        expect((await hook.result.current.signUp('other@example.invalid', 'synthetic-only')).error?.message)
+          .toMatch(/account change is in progress/i);
+      });
+      expect(supabase.auth.signInWithPassword).not.toHaveBeenCalled();
+      expect(supabase.auth.signUp).not.toHaveBeenCalled();
+      await act(async () => { finishLogout({ error: null }); await logout; });
+      const session = { user: { id: 'synthetic-post-logout' } };
+      vi.mocked(supabase.auth.signInWithPassword).mockResolvedValueOnce({
+        data: { user: session.user, session }, error: null,
+      } as any);
+      await act(async () => {
+        expect((await hook.result.current.signIn('other@example.invalid', 'synthetic-only')).error).toBeNull();
+      });
+      expect(hook.result.current.user?.id).toBe('synthetic-post-logout');
+      expect(hook.result.current.signOutStatus).toBe('idle');
+      expect(supabase.auth.signInWithPassword).toHaveBeenCalledTimes(1);
+    } finally {
+      hook.unmount();
+    }
+  });
+});
+
 describe('Nesmi sign-out identity serialization', () => {
   it('rejects an older sign-in result that resolves after successful logout', async () => {
     const originalSession = { user: { id: 'synthetic-account-before-logout' } };
