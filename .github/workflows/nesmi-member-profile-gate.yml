@@ -94,12 +94,12 @@ jobs:
         run: npx vitest run src/utils/supabaseStorage.members.test.ts src/utils/supabaseStorage.categories.test.ts src/utils/supabaseStorage.chores.test.ts src/utils/supabaseStorage.completions.test.ts src/utils/supabaseStorage.availability.test.ts src/components/MemberProfileModal.test.tsx src/context/AppContext.member.test.tsx src/components/SessionApp.session-isolation.test.tsx src/context/AuthContext.test.tsx
 
   native-ios-simulator:
-    name: Unsigned iOS Simulator compile (release draft only)
+    name: Unsigned simulator + Release device archive (draft only)
     # Public repo, standard hosted runner; no Apple certificates or signing secrets.
-    # This only compiles the integrated branch, never Archives or uploads an app.
+    # This compiles the integrated branch and makes an unsigned local device archive, never signs, exports, or uploads an app.
     needs: member-profile
     runs-on: macos-15
-    timeout-minutes: 25
+    timeout-minutes: 40
     permissions:
       contents: read
     env:
@@ -146,3 +146,36 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
           echo 'PASS: unsigned simulator compile only; no IPA, device test, App Store state, or production readiness implied.'
+      - name: Archive unsigned Release iOS device application (no signing or export)
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/nesmi-draft-unsigned.xcarchive"
+          # Release/device compilation is distinct from Debug/simulator compilation.
+          # No Apple signing assets, provisioning, IPA export or upload are used.
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/nesmi-draft-derived-data" \
+            -archivePath "$archive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            archive
+          app="$archive/Products/Applications/App.app"
+          plist="$app/Info.plist"
+          test -s "$plist"
+          identifier=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$plist")
+          executable=$(/usr/libexec/PlistBuddy -c 'Print CFBundleExecutable' "$plist")
+          if [[ "$identifier" != "com.pawssible.chorely" ]]; then
+            echo "::error::Unexpected draft iOS bundle identifier: $identifier"
+            exit 1
+          fi
+          test -n "$executable"
+          test -s "$app/$executable"
+          test -d "$app/public"
+          test -s "$app/public/index.html"
+          echo 'PASS: unsigned Release iOS device archive and embedded web assets exist locally; NOT signed, exported, uploaded, installed, or App Store ready.'
+
