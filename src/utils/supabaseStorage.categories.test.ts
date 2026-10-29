@@ -1,0 +1,117 @@
+/**
+ * Offline Nesmi category write receipt contract. No network, real users,
+ * accounts, or production database mutations. These adapter fixtures model
+ * a PostgREST success response with zero RLS-visible affected rows.
+ */
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { supabase } from './supabase';
+import { createCategory, updateCategory, deleteCategory } from './supabaseStorage';
+import type { Category } from '../types';
+
+const category: Category = { id: 'synthetic-category', name: 'Household', color: '#445566', icon: 'home' };
+type Receipt = { data: Array<{ id: string; name?: string; color?: string; icon?: string | null }> | null; error: { message: string } | null };
+
+function receiptFixture(response: Receipt) {
+  const select = vi.fn().mockResolvedValue(response);
+  const eq = vi.fn().mockReturnValue({ select });
+  const update = vi.fn().mockReturnValue({ eq });
+  const deleteRow = vi.fn().mockReturnValue({ eq });
+  const from = vi.fn().mockReturnValue({ update, delete: deleteRow });
+  Object.assign(supabase, { from });
+  return { from, update, deleteRow, eq, select };
+}
+
+beforeEach(() => { vi.clearAllMocks(); });
+
+describe('Nesmi category mutation acknowledgements', () => {
+  it('returns only the complete persisted category, including server-normalized values', async () => {
+    const f = receiptFixture({ data: [{
+      id: category.id, name: 'Persisted household', color: '#112233', icon: 'check',
+    }], error: null });
+    await expect(updateCategory(category)).resolves.toEqual({
+      ...category, name: 'Persisted household', color: '#112233', icon: 'check',
+    });
+    expect(f.from).toHaveBeenCalledWith('categories');
+    expect(f.update).toHaveBeenCalledWith({ name: 'Household', color: '#445566', icon: 'home' });
+    expect(f.eq).toHaveBeenCalledWith('id', category.id);
+    expect(f.select).toHaveBeenCalledWith('*');
+  });
+
+  it.each([
+    ['zero-row / hidden by RLS', { data: [], error: null }],
+    ['null response', { data: null, error: null }],
+    ['wrong identity', { data: [{ id: 'another-category' }], error: null }],
+    ['more than one receipt', { data: [{ id: category.id }, { id: 'another-category' }], error: null }],
+    ['ID-only receipt', { data: [{ id: category.id }], error: null }],
+    ['missing color', { data: [{ id: category.id, name: 'Saved', color: undefined }], error: null }],
+    ['PostgREST rejection', { data: null, error: { message: 'synthetic denied' } }],
+  ] satisfies Array<[string, Receipt]>)('rejects category update with %s', async (_name, reply) => {
+    receiptFixture(reply);
+    await expect(updateCategory(category)).rejects.toThrow('Could not update category');
+  });
+
+  it('confirms exact category deletion before local removal', async () => {
+    const f = receiptFixture({ data: [{ id: category.id }], error: null });
+    await expect(deleteCategory(category.id)).resolves.toBe(true);
+    expect(f.from).toHaveBeenCalledWith('categories');
+    expect(f.deleteRow).toHaveBeenCalledOnce();
+    expect(f.eq).toHaveBeenCalledWith('id', category.id);
+    expect(f.select).toHaveBeenCalledWith('id');
+  });
+
+  it.each([
+    ['zero-row / hidden by RLS', { data: [], error: null }],
+    ['null response', { data: null, error: null }],
+    ['wrong identity', { data: [{ id: 'another-category' }], error: null }],
+    ['more than one receipt', { data: [{ id: category.id }, { id: 'another-category' }], error: null }],
+    ['PostgREST rejection', { data: null, error: { message: 'synthetic denied' } }],
+  ] satisfies Array<[string, Receipt]>)('rejects category deletion with %s', async (_name, reply) => {
+    receiptFixture(reply);
+    await expect(deleteCategory(category.id)).rejects.toThrow('Could not delete category');
+  });
+});
+
+
+describe('Nesmi category creation acknowledgement', () => {
+  function insertFixture(response: { data: unknown; error: { message: string } | null }) {
+    const single = vi.fn().mockResolvedValue(response);
+    const select = vi.fn().mockReturnValue({ single });
+    const insert = vi.fn().mockReturnValue({ select });
+    const from = vi.fn().mockReturnValue({ insert });
+    Object.assign(supabase, { from });
+    return { from, insert, select, single };
+  }
+
+  const saved = { id: category.id, name: category.name, color: category.color, icon: category.icon };
+
+  it('confirms an inserted category only after receiving its durable server identity', async () => {
+    const f = insertFixture({ data: saved, error: null });
+    const created = await createCategory({ name: category.name, color: category.color, icon: category.icon });
+    expect(created).toEqual(category);
+    expect(f.from).toHaveBeenCalledWith('categories');
+    expect(f.insert).toHaveBeenCalledWith({
+      name: category.name, color: category.color, icon: category.icon,
+    });
+    expect(f.select).toHaveBeenCalledOnce();
+    expect(f.single).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ['null receipt', null],
+    ['missing ID', { ...saved, id: undefined }],
+    ['empty ID', { ...saved, id: '' }],
+    ['whitespace-only ID', { ...saved, id: '   ' }],
+  ])('rejects %s and does not encourage a potentially duplicate retry', async (_case, data) => {
+    insertFixture({ data, error: null });
+    await expect(createCategory({
+      name: category.name, color: category.color, icon: category.icon,
+    })).rejects.toThrow('Category save could not be confirmed. Refresh to check before trying again.');
+  });
+
+  it('rejects a PostgREST error even if a category row is returned', async () => {
+    insertFixture({ data: saved, error: { message: 'synthetic failure' } });
+    await expect(createCategory({
+      name: category.name, color: category.color, icon: category.icon,
+    })).rejects.toThrow('Category save could not be confirmed. Refresh to check before trying again.');
+  });
+});
