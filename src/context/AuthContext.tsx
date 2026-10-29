@@ -76,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isPasswordReset, setIsPasswordReset] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
     const hash = window.location.hash;
     if (hash.includes('type=recovery')) {
       setIsPasswordReset(true);
@@ -90,12 +91,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       const initialRevision = authRevisionRef.current;
       supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!mounted) return;
         if (!deletionConfirmedRef.current && !startupAuthEventRef.current && authRevisionRef.current === initialRevision) {
           setSession(session);
           setUser(session?.user ?? null);
         }
         setLoading(false);
       }).catch(() => {
+        if (!mounted) return;
         // A storage/SDK failure must not leave the login screen loading forever.
         setLoading(false);
       });
@@ -104,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        if (deletionConfirmedRef.current) return;
+        if (!mounted || deletionConfirmedRef.current) return;
         // A completed explicit sign-out takes precedence over delayed SDK
         // SIGNED_IN / TOKEN_REFRESHED callbacks from its old session.
         // A later explicit successful sign-in clears this lock itself.
@@ -115,6 +118,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         startupAuthEventRef.current = true;
         setSession(session);
         setUser(session?.user ?? null);
+        // An SDK auth event is authoritative even when getSession is delayed
+        // or never settles. Do not strand the login screen in loading.
+        setLoading(false);
       }
     );
 
@@ -144,6 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     window.addEventListener('storage', onDeletionReceiptFromAnotherTab);
     return () => {
+      mounted = false;
       window.removeEventListener('storage', onDeletionReceiptFromAnotherTab);
       subscription.unsubscribe();
     };
