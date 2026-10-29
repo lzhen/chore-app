@@ -323,7 +323,7 @@ describe('Nesmi SDK identity mutation exclusions during destructive operations',
 });
 
 describe('Nesmi sign-out identity serialization', () => {
-  it('rejects an older sign-in result that resolves after successful logout', async () => {
+  it('holds logout until a pending successful sign-in settles, then allows an explicit logout', async () => {
     const originalSession = { user: { id: 'synthetic-account-before-logout' } };
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: originalSession }, error: null,
@@ -334,24 +334,29 @@ describe('Nesmi sign-out identity serialization', () => {
     const hook = await mountAuth();
     try {
       expect(hook.result.current.user?.id).toBe('synthetic-account-before-logout');
-      let lateLogin!: Promise<{ error: Error | null }>;
+      let pendingLogin!: Promise<{ error: Error | null }>;
       act(() => {
-        lateLogin = hook.result.current.signIn('new@example.invalid', 'fixture-only');
+        pendingLogin = hook.result.current.signIn('new@example.invalid', 'fixture-only');
       });
-      await act(async () => { await hook.result.current.signOut(); });
-      expect(hook.result.current.signOutStatus).toBe('succeeded');
-      expect(hook.result.current.user).toBeNull();
-      expect(hook.result.current.session).toBeNull();
+      await act(async () => {
+        await expect(hook.result.current.signOut()).rejects.toThrow(/sign-in or sign-up is in progress/i);
+      });
+      expect(supabase.auth.signOut).not.toHaveBeenCalled();
+      expect(hook.result.current.signOutStatus).toBe('idle');
 
-      let result!: { error: Error | null };
       await act(async () => {
         finishLogin({
-          data: { user: { id: 'synthetic-late-login' },
-            session: { user: { id: 'synthetic-late-login' } } }, error: null,
+          data: { user: { id: 'synthetic-new-login' },
+            session: { user: { id: 'synthetic-new-login' } } }, error: null,
         });
-        result = await lateLogin;
+        const result = await pendingLogin;
+        expect(result.error).toBeNull();
       });
-      expect(result.error?.message).toMatch(/account state changed/i);
+      expect(hook.result.current.user?.id).toBe('synthetic-new-login');
+
+      await act(async () => { await hook.result.current.signOut(); });
+      expect(supabase.auth.signOut).toHaveBeenCalledTimes(1);
+      expect(hook.result.current.signOutStatus).toBe('succeeded');
       expect(hook.result.current.user).toBeNull();
       expect(hook.result.current.session).toBeNull();
       expect(localStorage.getItem(OTHER_APP_FIXTURE)).toBe('sibling-app-data-fixture');
