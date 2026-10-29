@@ -178,8 +178,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string) => {
-    // Do not mutate SDK identity while an irreversible deletion or logout
-    // is pending. A completed logout may be followed by a deliberate login.
+    // The SDK bearer must stay stable during pending deletion or logout;
+    // simultaneous explicit logins must not race against each other.
     if (deletionInFlightRef.current || signOutStatusRef.current === 'pending' || authChangeInFlightRef.current) {
       return { error: new Error('Account change is in progress. Please try again when it finishes.') };
     }
@@ -187,27 +187,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const requestRevision = authRevisionRef.current;
       const { data, error } = await supabase.auth.signUp({ email, password });
-      // A deletion receipt from another tab (or a newer explicit login) may
-      // arrive while the SDK request is in flight. Never let the old response
-      // clear that receipt and resurrect/swap the now-revoked identity.
-        if (authRevisionRef.current !== requestRevision) {
-          return { error: new Error('Account state changed during sign-up. Check your email or sign in again.') };
+      // Cross-tab deletion or a newer auth transition invalidates this result.
+      if (authRevisionRef.current !== requestRevision) {
+        return { error: new Error('Account state changed during sign-up. Check your email or sign in again.') };
+      }
+      if (!error && data?.session) {
+        const receiptError = clearDeletionReceiptForNewSession();
+        if (receiptError) return { error: receiptError };
+        if (deletionConfirmedRef.current || postDeletionExplicitUserIdRef.current) {
+          postDeletionExplicitUserIdRef.current = data.session.user.id;
         }
-        if (!error && data?.session) {
-          const receiptError = clearDeletionReceiptForNewSession();
-          if (receiptError) return { error: receiptError };
-          if (deletionConfirmedRef.current || postDeletionExplicitUserIdRef.current) {
-            postDeletionExplicitUserIdRef.current = data.session.user.id;
-          }
-          authRevisionRef.current += 1;
-          signOutStatusRef.current = 'idle';
-          setSignOutStatus('idle');
-          deletionConfirmedRef.current = false;
-          // The previous deletion marker was cleared before React auth re-armed.
-          setSession(data.session);
-          setUser(data.session.user);
-          setDeletionCleanupWarning(null);
-        }
+        authRevisionRef.current += 1;
+        signOutStatusRef.current = 'idle';
+        setSignOutStatus('idle');
+        deletionConfirmedRef.current = false;
+        // The previous deletion marker was cleared before React auth re-armed.
+        setSession(data.session);
+        setUser(data.session.user);
+        setDeletionCleanupWarning(null);
+      }
       return { error: error as Error | null };
     } finally {
       authChangeInFlightRef.current = false;
@@ -215,8 +213,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    // Avoid changing Supabase's active bearer while a destructive Edge call
-    // or a pending explicit logout is still being reconciled.
+    // Avoid changing Supabase's active bearer while a destructive Edge call,
+    // pending logout, or another explicit login is unresolved.
     if (deletionInFlightRef.current || signOutStatusRef.current === 'pending' || authChangeInFlightRef.current) {
       return { error: new Error('Account change is in progress. Please try again when it finishes.') };
     }
@@ -224,24 +222,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const requestRevision = authRevisionRef.current;
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (authRevisionRef.current !== requestRevision) {
-      return { error: new Error('Account state changed during sign-in. Please sign in again.') };
-    }
-    if (!error && data?.session) {
-      const receiptError = clearDeletionReceiptForNewSession();
-      if (receiptError) return { error: receiptError };
-      if (deletionConfirmedRef.current || postDeletionExplicitUserIdRef.current) {
-        postDeletionExplicitUserIdRef.current = data.session.user.id;
+      if (authRevisionRef.current !== requestRevision) {
+        return { error: new Error('Account state changed during sign-in. Please sign in again.') };
       }
-      authRevisionRef.current += 1;
-      signOutStatusRef.current = 'idle';
-      setSignOutStatus('idle');
-      deletionConfirmedRef.current = false;
-      // The previous deletion marker was cleared before React auth re-armed.
-      setSession(data.session);
-      setUser(data.session.user);
-      setDeletionCleanupWarning(null);
-    }
+      if (!error && data?.session) {
+        const receiptError = clearDeletionReceiptForNewSession();
+        if (receiptError) return { error: receiptError };
+        if (deletionConfirmedRef.current || postDeletionExplicitUserIdRef.current) {
+          postDeletionExplicitUserIdRef.current = data.session.user.id;
+        }
+        authRevisionRef.current += 1;
+        signOutStatusRef.current = 'idle';
+        setSignOutStatus('idle');
+        deletionConfirmedRef.current = false;
+        // The previous deletion marker was cleared before React auth re-armed.
+        setSession(data.session);
+        setUser(data.session.user);
+        setDeletionCleanupWarning(null);
+      }
       return { error: error as Error | null };
     } finally {
       authChangeInFlightRef.current = false;
