@@ -61,6 +61,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const authRevisionRef = useRef(0);
   const [signOutStatus, setSignOutStatus] = useState<'idle' | 'pending' | 'succeeded'>('idle');
   const signOutStatusRef = useRef<'idle' | 'pending' | 'succeeded'>('idle');
+  // Serialize destructive deletion with explicit logout, including callers outside AccountSettings.
+  const deletionInFlightRef = useRef(false);
   // A live SDK auth event is newer than an in-flight startup getSession snapshot.
   // Keep delayed initial reads from replacing a freshly signed-in/out identity.
   const startupAuthEventRef = useRef(false);
@@ -224,6 +226,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // An in-flight delete may already have reached the server. Never change the
+    // SDK identity until its response and local cleanup have been reconciled.
+    if (deletionInFlightRef.current) {
+      throw new Error('Account deletion is in progress. Sign-out is temporarily unavailable.');
+    }
     // A provider-owned synchronous lock survives Account tab unmount/remount.
     // Never start a second auth side effect while the original logout is pending.
     if (signOutStatusRef.current !== 'idle') {
@@ -264,64 +271,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         deletionConfirmed: false,
       };
     }
-    // The Account view sends the ID captured at the start of confirmation.
-    // Edge rejects any mismatch against the current authenticated bearer.
-    const expectedUserId = confirmedAccountId ?? user?.id ?? '';
-    const { data, error } = await supabase.functions.invoke('delete-account-v2', {
-      method: 'POST',
-      body: { expectedUserId },
-    });
-
-    if (error) {
-      return { error: error as Error, deletionConfirmed: false };
-    }
-
-    if (data?.deleted !== true) {
+    // A second caller must not issue another irreversible POST while the first
+    // result is still unknown. A synchronous ref closes the same-tick gap.
+    if (deletionInFlightRef.current) {
       return {
-        error: new Error('Account deletion could not be confirmed. Do not retry until support verifies whether the account was deleted.'),
+        error: new Error('Account deletion is already in progress. Do not retry while its result is unknown.'),
         deletionConfirmed: false,
       };
     }
+    deletionInFlightRef.current = true;
+    try {
+      // The Account view sends the ID captured at the start of confirmation.
+      // Edge rejects any mismatch against the current authenticated bearer.
+      const expectedUserId = confirmedAccountId ?? user?.id ?? '';
+      const { data, error } = await supabase.functions.invoke('delete-account-v2', {
+        method: 'POST',
+        body: { expectedUserId },
+      });
 
-    // Confirmed deletion invalidates any pending getSession/old auth events.
-    // The old user must not be resurrected in this React provider.
-    deletionConfirmedRef.current = true;
-    postDeletionExplicitUserIdRef.current = null;
-    authRevisionRef.current += 1;
-    // The server explicitly acknowledged deletion. Subsequent local cleanup
-    // failures must not be presented as an unknown server deletion outcome.
-    let cleanupError: Error | null = null;
-    try {
-      localStorage.setItem(DELETION_RECEIPT_KEY, 'true');
-    } catch {
-      cleanupError = new Error('Account was deleted, but local session protection could not be saved.');
-    }
-    // Only remove caches owned by Nesmi; do not clear the shared origin.
-    for (const key of ['chore-app-chores', 'chore-app-members']) {
-      try {
-        localStorage.removeItem(key);
-      } catch {
-        cleanupError ??= new Error('Account was deleted, but local cache cleanup did not finish.');
+      if (error) {
+        return { error: error as Error, deletionConfirmed: false };
       }
-    }
-    try {
-      const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' });
-      if (signOutError) {
+
+      if (data?.deleted !== true) {
+        return {
+          error: new Error('Account deletion could not be confirmed. Do not retry until support verifies whether the account was deleted.'),
+          deletionConfirmed: false,
+        };
+      }
+
+      // Confirmed deletion invalidates any pending getSession/old auth events.
+      // The old user must not be resurrected in this React provider.
+      deletionConfirmedRef.current = true;
+      postDeletionExplicitUserIdRef.current = null;
+      authRevisionRef.current += 1;
+      // The server explicitly acknowledged deletion. Subsequent local cleanup
+      // failures must not be presented as an unknown server deletion outcome.
+      let cleanupError: Error | null = null;
+      try {
+        localStorage.setItem(DELETION_RECEIPT_KEY, 'true');
+      } catch {
+        cleanupError = new Error('Account was deleted, but local session protection could not be saved.');
+      }
+      // Only remove caches owned by Nesmi; do not clear the shared origin.
+      for (const key of ['chore-app-chores', 'chore-app-members']) {
+        try {
+          localStorage.removeItem(key);
+        } catch {
+          cleanupError ??= new Error('Account was deleted, but local cache cleanup did not finish.');
+        }
+      }
+      try {
+        const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' });
+        if (signOutError) {
+          cleanupError ??= new Error('Account was deleted, but local sign-out did not finish.');
+        }
+      } catch {
         cleanupError ??= new Error('Account was deleted, but local sign-out did not finish.');
       }
-    } catch {
-      cleanupError ??= new Error('Account was deleted, but local sign-out did not finish.');
+      // Clearing React state does not prove the SDK persisted session was removed.
+      // The UI must warn the user about any sign-out or storage cleanup failure.
+      setSession(null);
+      setUser(null);
+      // AccountSettings immediately unmounts when App switches to AuthForm;
+      // its local alert cannot be relied on to display this cleanup failure.
+      setDeletionCleanupWarning(cleanupError
+        ? 'Account deleted, but this device could not fully clear its local sign-in data. Closing or restarting Nesmi may restore an old session. Contact support before using Nesmi on this device again.'
+        : null);
+      return { error: cleanupError, deletionConfirmed: true };
+    } finally {
+      deletionInFlightRef.current = false;
     }
-    // Clearing React state does not prove the SDK persisted session was removed.
-    // The UI must warn the user about any sign-out or storage cleanup failure.
-    setSession(null);
-    setUser(null);
-    // AccountSettings immediately unmounts when App switches to AuthForm;
-    // its local alert cannot be relied on to display this cleanup failure.
-    setDeletionCleanupWarning(cleanupError
-      ? 'Account deleted, but this device could not fully clear its local sign-in data. Closing or restarting Nesmi may restore an old session. Contact support before using Nesmi on this device again.'
-      : null);
-    return { error: cleanupError, deletionConfirmed: true };
   };
 
   const resetPassword = async (email: string) => {
