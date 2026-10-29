@@ -175,6 +175,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string) => {
+    // Do not mutate SDK identity while an irreversible deletion or logout
+    // is pending. A completed logout may be followed by a deliberate login.
+    if (deletionInFlightRef.current || signOutStatusRef.current === 'pending') {
+      return { error: new Error('Account change is in progress. Please try again when it finishes.') };
+    }
     const requestRevision = authRevisionRef.current;
     const { data, error } = await supabase.auth.signUp({ email, password });
     // A deletion receipt from another tab (or a newer explicit login) may
@@ -202,6 +207,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    // Avoid changing Supabase's active bearer while a destructive Edge call
+    // or a pending explicit logout is still being reconciled.
+    if (deletionInFlightRef.current || signOutStatusRef.current === 'pending') {
+      return { error: new Error('Account change is in progress. Please try again when it finishes.') };
+    }
     const requestRevision = authRevisionRef.current;
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (authRevisionRef.current !== requestRevision) {
