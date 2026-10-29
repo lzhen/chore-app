@@ -17,6 +17,8 @@ on:
       - 'src/context/AppContext.member.test.tsx'
       - 'src/components/SessionApp.session-isolation.test.tsx'
       - 'tests/release/nesmi-rls-disposable-two-account.mjs'
+      - 'ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png'
+      - 'ios/App/ci_scripts/verify_app_icon.swift'
       - '.github/workflows/nesmi-member-profile-gate.yml'
   pull_request:
     branches: [fix/chorely-auth-viewport-20260927-icon-family-20261026]
@@ -35,6 +37,8 @@ on:
       - 'src/context/AppContext.member.test.tsx'
       - 'src/components/SessionApp.session-isolation.test.tsx'
       - 'tests/release/nesmi-rls-disposable-two-account.mjs'
+      - 'ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png'
+      - 'ios/App/ci_scripts/verify_app_icon.swift'
       - '.github/workflows/nesmi-member-profile-gate.yml'
 permissions:
   contents: read
@@ -44,6 +48,24 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+      - name: Verify Apple-confirmed B123 AppIcon provenance (candidate only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          icon='ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png'
+          verifier='ios/App/ci_scripts/verify_app_icon.swift'
+          # Approved exact PNG bytes from Apple-linked B123 (source 6eab3d3).
+          expected='d08f3287cb2ddefa44fb9b4b9d1cd7a7d71705c8f6aadf950247dab6dde2df8f'
+          actual="$(sha256sum "$icon" | cut -d ' ' -f1)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "::error::B123 AppIcon PNG drifted from Apple-confirmed source; stop release-candidate promotion."
+            exit 1
+          fi
+          if ! grep -Fxq "let approvedSHA256 = \"$expected\"" "$verifier"; then
+            echo "::error::AppIcon verifier checksum does not match approved B123 PNG."
+            exit 1
+          fi
+          echo "PASS: Apple-linked B123 AppIcon bytes and Swift checksum agree; no new Archive or device acceptance is implied."
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
