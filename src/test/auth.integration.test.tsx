@@ -132,7 +132,7 @@ describe('Integration Tests: Full Auth Flows', () => {
       await user.type(screen.getByLabelText(/password/i), 'MyPassword123');
 
       // Submit login
-      await user.click(screen.getByRole('button', { name: /sign in/i }));
+      await user.click(screen.getByRole('button', { name: /^sign in$/i }));
 
       // Verify API was called
       expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
@@ -153,7 +153,7 @@ describe('Integration Tests: Full Auth Flows', () => {
 
       await user.type(screen.getByLabelText(/email/i), 'user@example.com');
       await user.type(screen.getByLabelText(/password/i), 'WrongPassword');
-      await user.click(screen.getByRole('button', { name: /sign in/i }));
+      await user.click(screen.getByRole('button', { name: /^sign in$/i }));
 
       await waitFor(() => {
         expect(screen.getByText('Invalid login credentials')).toBeInTheDocument();
@@ -172,7 +172,7 @@ describe('Integration Tests: Full Auth Flows', () => {
 
       await user.type(screen.getByLabelText(/email/i), 'nonexistent@example.com');
       await user.type(screen.getByLabelText(/password/i), 'SomePassword');
-      await user.click(screen.getByRole('button', { name: /sign in/i }));
+      await user.click(screen.getByRole('button', { name: /^sign in$/i }));
 
       await waitFor(() => {
         expect(screen.getByText('No account found with this email')).toBeInTheDocument();
@@ -459,7 +459,7 @@ describe('Integration Tests: Full Auth Flows', () => {
 
       await user.type(screen.getByLabelText(/email/i), 'newuser@example.com');
       await user.type(screen.getByLabelText(/password/i), 'SecurePass123');
-      await user.click(screen.getByRole('button', { name: /sign in/i }));
+      await user.click(screen.getByRole('button', { name: /^sign in$/i }));
 
       expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
         email: 'newuser@example.com',
@@ -525,7 +525,7 @@ describe('Integration Tests: Full Auth Flows', () => {
 
       await user.type(screen.getByLabelText(/email/i), 'user@example.com');
       await user.type(screen.getByLabelText(/password/i), 'NewSecurePass456');
-      await user.click(screen.getByRole('button', { name: /sign in/i }));
+      await user.click(screen.getByRole('button', { name: /^sign in$/i }));
 
       expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
         email: 'user@example.com',

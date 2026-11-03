@@ -1,4 +1,5 @@
 import {createContext,useContext,useEffect,useState,type ReactNode} from 'react';
+import { Capacitor } from '@capacitor/core';
 import { useApp } from '../context/AppContext';
 import {
   getNotificationState,
@@ -38,7 +39,7 @@ function useHouseholdTools(){
 
   // Initialize Google Calendar API
   useEffect(() => {
-    const configured = isGoogleCalendarConfigured();
+    const configured = !Capacitor.isNativePlatform() && isGoogleCalendarConfigured();
     setGoogleConfigured(configured);
     if (configured) {
       initGoogleApi().then(() => {
@@ -117,7 +118,7 @@ export function AccountTools(){
      </button>}
    </div>
   </section>}
-  <section className="nesmi-settings-section" aria-labelledby="google-title"><div className="nesmi-settings-row"><div><h3 id="google-title">Google Calendar</h3><p>{!googleConfigured?'Calendar connection is not set up.':googleSignedIn?'Connected. Sync when ready.':'Sync household chores.'}</p></div>{googleConfigured&&!googleSignedIn&&<button className="chore-button secondary" onClick={handleGoogleSignIn}>Connect Google Calendar</button>}</div>{googleConfigured&&googleSignedIn&&<div className="nesmi-settings-actions"><button className="chore-button secondary" onClick={handleSyncToGoogle} disabled={isSyncing||state.chores.length===0}>{isSyncing?'Syncing…':'Sync to Google Calendar'}</button><button className="chore-button secondary" onClick={handleGoogleSignOut}>Disconnect</button>{syncResult&&<p role="status">Synced {syncResult.success} chores{syncResult.failed>0?`; ${syncResult.failed} failed`:''}</p>}</div>}</section>
+  <section className="nesmi-settings-section" aria-labelledby="google-title"><div className="nesmi-settings-row"><div><h3 id="google-title">Google Calendar</h3><p>{Capacitor.isNativePlatform()?'Google Calendar connection is not available in this app version. Your Nesmi calendar and chores are still available.':!googleConfigured?'Calendar connection is not set up.':googleSignedIn?'Connected. Sync when ready.':'Sync household chores.'}</p></div>{googleConfigured&&!googleSignedIn&&<button className="chore-button secondary" onClick={handleGoogleSignIn}>Connect Google Calendar</button>}</div>{googleConfigured&&googleSignedIn&&<div className="nesmi-settings-actions"><button className="chore-button secondary" onClick={handleSyncToGoogle} disabled={isSyncing||state.chores.length===0}>{isSyncing?'Syncing…':'Sync to Google Calendar'}</button><button className="chore-button secondary" onClick={handleGoogleSignOut}>Disconnect</button>{syncResult&&<p role="status">Synced {syncResult.success} chores{syncResult.failed>0?`; ${syncResult.failed} failed`:''}</p>}</div>}</section>
 
  </div>;
 }

@@ -1,6 +1,9 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '../utils/supabase';
+import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
+import { createMagicLinkFlow, magicRedirect, isMagicReturn, LINK_ERROR } from '../utils/magicLink';
+import { supabase, emailLinkAuth } from '../utils/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -13,6 +16,8 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  sendMagicLink: (email: string) => Promise<{ error: Error | null }>;
+  magicLinkError: string | null;
   deleteAccount: () => Promise<{ error: Error | null }>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
 }
@@ -26,11 +31,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isEmailVerification, setIsEmailVerification] = useState(false);
   const [isPasswordReset, setIsPasswordReset] = useState(false);
 
+  const [magicLinkError, setMagicLinkError] = useState<string | null>(null);
+  const magicFlow = useMemo(() => {
+    try {
+      return createMagicLinkFlow(emailLinkAuth, magicRedirect(Capacitor.isNativePlatform(), window.location.origin, import.meta.env.BASE_URL || '/'), localStorage);
+    } catch { return null; }
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    const receive = async (url: string) => {
+      if (!magicFlow || !isMagicReturn(url)) return;
+      // Remove callback material from browser history before asynchronous exchange.
+      if (!Capacitor.isNativePlatform()) window.history.replaceState(null, '', window.location.pathname);
+      const result = await magicFlow.receive(url);
+      if (!disposed && result.handled) setMagicLinkError(result.error?.message ?? null);
+    };
+    if (Capacitor.isNativePlatform()) {
+      // Register before getLaunchUrl; flow state deduplicates overlapping cold/warm events.
+      const listener = App.addListener('appUrlOpen', ({ url }) => { void receive(url); });
+      void App.getLaunchUrl().then(result => { if (!disposed && result?.url) void receive(result.url); }).catch(() => {
+        if (!disposed) setMagicLinkError(LINK_ERROR);
+      });
+      return () => { disposed = true; void listener.then(handle => handle.remove()).catch(() => {}); };
+    }
+    void receive(window.location.href);
+    return () => { disposed = true; };
+  }, [magicFlow]);
+
+  const sendMagicLink = async (email: string) => {
+    setMagicLinkError(null);
+    return magicFlow ? magicFlow.send(email) : { error: new Error('Email link sign-in is unavailable at this address.') };
+  };
+
   useEffect(() => {
     const hash = window.location.hash;
-    if (hash.includes('type=recovery')) {
+    if (!isMagicReturn(window.location.href) && hash.includes('type=recovery')) {
       setIsPasswordReset(true);
-    } else if (hash.includes('type=signup') || hash.includes('type=email') || hash.includes('access_token')) {
+    } else if (!isMagicReturn(window.location.href) && (hash.includes('type=signup') || hash.includes('type=email') || hash.includes('access_token'))) {
       setIsEmailVerification(true);
     }
 
@@ -109,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset, signUp, signIn, signOut, deleteAccount, resetPassword }}>
+    <AuthContext.Provider value={{ user, session, loading, isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset, signUp, signIn, signOut, deleteAccount, resetPassword, sendMagicLink, magicLinkError }}>
       {children}
     </AuthContext.Provider>
   );

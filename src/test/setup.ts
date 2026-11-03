@@ -39,21 +39,23 @@ Object.defineProperty(window, 'history', {
 });
 
 // Mock Supabase client
-vi.mock('../utils/supabase', () => ({
-  supabase: {
-    auth: {
+vi.mock('../utils/supabase', () => {
+  const auth = {
       getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
       onAuthStateChange: vi.fn().mockReturnValue({
         data: { subscription: { unsubscribe: vi.fn() } },
       }),
       signUp: vi.fn(),
+      signInWithOtp: vi.fn(),
+      exchangeCodeForSession: vi.fn(),
       signInWithPassword: vi.fn(),
       signOut: vi.fn(),
       resetPasswordForEmail: vi.fn(),
       updateUser: vi.fn(),
-    },
-  },
-}));
+      setSession: vi.fn(),
+  };
+  return { supabase: { auth }, emailLinkAuth: auth };
+});
 
 // Reset mocks between tests
 beforeEach(() => {

@@ -2,12 +2,13 @@ import {cleanup,render,screen} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import {AccountTools,HouseholdToolsProvider} from './AccountTools';
-const mocks=vi.hoisted(()=>({update:vi.fn(),permission:vi.fn(),state:vi.fn(),connect:vi.fn(),disconnect:vi.fn(),sync:vi.fn(),notify:vi.fn(),init:vi.fn()}));
+const mocks=vi.hoisted(()=>({update:vi.fn(),permission:vi.fn(),state:vi.fn(),connect:vi.fn(),disconnect:vi.fn(),sync:vi.fn(),notify:vi.fn(),init:vi.fn(),native:vi.fn()}));
+vi.mock('@capacitor/core',()=>({Capacitor:{isNativePlatform:mocks.native}}));
 vi.mock('../context/AppContext',()=>({useApp:()=>({state:{chores:[{id:'chore',title:'Clean kitchen',assigneeId:null}],teamMembers:[{id:'alex',name:'Alex'}]},updateChore:mocks.update})}));
 vi.mock('../utils/schedulingAgent',()=>({analyzeWorkloadBalance:()=>({isBalanced:true,suggestions:[],stats:[{memberId:'alex',memberName:'Alex',recentAssignments:2}]}),autoAssignChores:()=>[['chore','alex']],getUpcomingChores:()=>[],suggestAssignee:()=>({id:'alex',name:'Alex'})}));
 vi.mock('../utils/googleCalendar',()=>({isGoogleCalendarConfigured:()=>true,initGoogleApi:mocks.init,isGoogleSignedIn:()=>false,signInToGoogle:mocks.connect,signOutFromGoogle:mocks.disconnect,syncChoresToGoogleCalendar:mocks.sync}));
 vi.mock('../utils/notifications',()=>({getNotificationState:mocks.state,requestNotificationAccess:mocks.permission,checkAndNotifyUpcomingChores:mocks.notify}));
-beforeEach(()=>{vi.clearAllMocks();mocks.notify.mockReturnValue(true);mocks.init.mockResolvedValue(undefined);mocks.connect.mockResolvedValue(true);mocks.state.mockReturnValue('default');mocks.permission.mockResolvedValue('granted');mocks.sync.mockResolvedValue({success:1,failed:0});});
+beforeEach(()=>{vi.clearAllMocks();mocks.native.mockReturnValue(false);mocks.notify.mockReturnValue(true);mocks.init.mockResolvedValue(undefined);mocks.connect.mockResolvedValue(true);mocks.state.mockReturnValue('default');mocks.permission.mockResolvedValue('granted');mocks.sync.mockResolvedValue({success:1,failed:0});});
 afterEach(cleanup);
 it('keeps tools in settings without granting permission, connecting or writing on mount',async()=>{
  render(<HouseholdToolsProvider><AccountTools/></HouseholdToolsProvider>);
@@ -64,4 +65,13 @@ for (const state of ['native','unsupported']) it(`hides the whole unsupported no
  expect(screen.queryByRole('button',{name:'Enable Reminders'})).not.toBeInTheDocument();
  expect(screen.queryByRole('button',{name:'Check again'})).not.toBeInTheDocument();
  expect(mocks.permission).not.toHaveBeenCalled();
+});
+
+it('explains native Calendar unavailability without initializing OAuth or exposing connect/sync actions',()=>{
+ mocks.native.mockReturnValue(true);
+ render(<HouseholdToolsProvider><AccountTools/></HouseholdToolsProvider>);
+ expect(screen.getByText(/Google Calendar connection is not available in this app version/)).toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:'Connect Google Calendar'})).not.toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:'Sync to Google Calendar'})).not.toBeInTheDocument();
+ for(const fn of [mocks.init,mocks.connect,mocks.disconnect,mocks.sync,mocks.update])expect(fn).not.toHaveBeenCalled();
 });

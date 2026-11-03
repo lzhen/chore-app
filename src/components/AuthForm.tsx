@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { SENT_MESSAGE } from '../utils/magicLink';
 import { Logo } from './Logo';
 import './AuthForm.css';
 
-type AuthMode = 'signIn' | 'signUp' | 'forgotPassword';
+type AuthMode = 'signIn' | 'signUp' | 'forgotPassword' | 'magicLink';
 
 export function AuthForm() {
-  const { signIn, signUp, resetPassword } = useAuth();
+  const { signIn, signUp, resetPassword, sendMagicLink, magicLinkError } = useAuth();
   const [mode, setMode] = useState<AuthMode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,44 +16,61 @@ export function AuthForm() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  const submitting = useRef(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting.current) return;
+    submitting.current = true;
     setError(null);
     setMessage(null);
     setLoading(true);
+    try {
 
-    if (mode === 'forgotPassword') {
-      const { error } = await resetPassword(email.trim().toLowerCase());
-      if (error) {
-        setError(error.message);
+      if (mode === 'magicLink') {
+        const { error } = await sendMagicLink(email);
+        if (error) setError(error.message);
+        else setMessage(SENT_MESSAGE);
+      } else if (mode === 'forgotPassword') {
+        const { error } = await resetPassword(email.trim().toLowerCase());
+        if (error) {
+          setError(error.message);
+        } else {
+          setMessage('Check your email for a password reset link!');
+        }
+      } else if (mode === 'signUp') {
+        const { error } = await signUp(email.trim().toLowerCase(), password);
+        if (error) {
+          setError(error.message);
+        } else {
+          setMessage('Check your email for a confirmation link!');
+        }
       } else {
-        setMessage('Check your email for a password reset link!');
+        const { error } = await signIn(email.trim().toLowerCase(), password);
+        if (error) {
+          setError(error.message);
+        }
       }
-    } else if (mode === 'signUp') {
-      const { error } = await signUp(email.trim().toLowerCase(), password);
-      if (error) {
-        setError(error.message);
-      } else {
-        setMessage('Check your email for a confirmation link!');
-      }
-    } else {
-      const { error } = await signIn(email.trim().toLowerCase(), password);
-      if (error) {
-        setError(error.message);
-      }
+    } catch {
+      setError('Unable to complete sign-in. Please try again.');
+    } finally {
+      submitting.current = false;
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const switchMode = (newMode: AuthMode) => {
+    if (submitting.current) return;
     setMode(newMode);
+    setPassword('');
     setError(null);
     setMessage(null);
   };
 
   const getTitle = () => {
     switch (mode) {
+      case 'magicLink':
+        return 'Sign in without a password';
       case 'signUp':
         return 'Create an account';
       case 'forgotPassword':
@@ -65,6 +83,8 @@ export function AuthForm() {
   const getButtonText = () => {
     if (loading) return 'Loading...';
     switch (mode) {
+      case 'magicLink':
+        return 'Email me a sign-in link';
       case 'signUp':
         return 'Sign Up';
       case 'forgotPassword':
@@ -94,7 +114,7 @@ export function AuthForm() {
           </section>
           <section className="nesmi-auth-form">
           <h2 id="nesmi-auth-title" className={mode === 'signIn' ? 'sr-only' : undefined}>{getTitle()}</h2>
-          {mode !== 'signIn' && <p className="nesmi-auth-form-description">{mode === 'signUp' ? 'Start with one chore. Build a routine that works for you.' : 'We’ll email you a link to reset your password.'}</p>}
+          {mode !== 'signIn' && <p className="nesmi-auth-form-description">{mode === 'signUp' ? 'Start with one chore. Build a routine that works for you.' : mode === 'magicLink' ? 'Use the email address of your existing Nesmi account. You must open the email link on this same device to return to Nesmi.' : 'We’ll email you a link to reset your password.'}</p>}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -116,7 +136,7 @@ export function AuthForm() {
               />
             </div>
 
-            {mode !== 'forgotPassword' && (
+            {(mode === 'signIn' || mode === 'signUp') && (
               <div>
                 <label htmlFor="password" className="fluent-label block text-sm font-medium text-content-primary mb-1">
                   Password
@@ -147,9 +167,9 @@ export function AuthForm() {
               </div>
             )}
 
-            {error && (
+            {(error || magicLinkError) && (
               <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-fluent-sm text-red-500 text-sm">
-                <span role="alert">{error}</span>
+                <span role="alert">{error || magicLinkError}</span>
               </div>
             )}
 
@@ -170,6 +190,13 @@ export function AuthForm() {
 
           {mode === 'signIn' && (
             <div className="mt-3 text-center">
+              <button type="button" disabled={loading} onClick={() => switchMode('magicLink')} className="text-brand hover:underline text-sm">
+                Sign in with an email link
+              </button>
+            </div>
+          )}
+          {mode === 'signIn' && (
+            <div className="mt-3 text-center">
               <button
                 onClick={() => switchMode('forgotPassword')}
                 className="text-content-secondary hover:text-brand text-sm transition-colors duration-fast"
@@ -180,7 +207,7 @@ export function AuthForm() {
           )}
 
           <div className="mt-4 text-center">
-            {mode === 'forgotPassword' ? (
+            {(mode === 'forgotPassword' || mode === 'magicLink') ? (
               <button
                 onClick={() => switchMode('signIn')}
                 className="text-brand hover:underline text-sm transition-colors duration-fast"

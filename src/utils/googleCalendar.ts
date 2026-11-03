@@ -13,6 +13,7 @@
  */
 
 import { Chore, TeamMember } from '../types';
+import { Capacitor } from '@capacitor/core';
 
 // Google API configuration
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '210936263317-2hrvenu5509i73usg6nvajcemnrkh33s.apps.googleusercontent.com';
@@ -34,13 +35,16 @@ declare global {
  * Check if Google Calendar integration is configured
  */
 export function isGoogleCalendarConfigured(): boolean {
-  return !!GOOGLE_CLIENT_ID;
+  // GIS token-client authorization is for browsers, not the native WKWebView.
+  // Re-enable native access only with a verified native OAuth client and flow.
+  return !Capacitor.isNativePlatform() && !!GOOGLE_CLIENT_ID;
 }
 
 /**
  * Load and initialize Google API client
  */
 export async function initGoogleApi(): Promise<boolean> {
+  if (Capacitor.isNativePlatform()) return false;
   if (!isGoogleCalendarConfigured()) {
     console.log('Google Calendar not configured - missing VITE_GOOGLE_CLIENT_ID');
     return false;
@@ -91,6 +95,7 @@ function maybeEnableButtons(resolve: (value: boolean) => void) {
  * Check if user is signed in to Google
  */
 export function isGoogleSignedIn(): boolean {
+  if (Capacitor.isNativePlatform()) return false;
   return !!window.gapi?.client?.getToken();
 }
 
@@ -98,6 +103,7 @@ export function isGoogleSignedIn(): boolean {
  * Request access to Google Calendar
  */
 export function signInToGoogle(): Promise<boolean> {
+  if (Capacitor.isNativePlatform()) return Promise.resolve(false);
   return new Promise((resolve) => {
     if (!tokenClient) {
       resolve(false);
@@ -127,6 +133,7 @@ export function signInToGoogle(): Promise<boolean> {
  * Sign out from Google
  */
 export function signOutFromGoogle(): void {
+  if (Capacitor.isNativePlatform()) return;
   const token = window.gapi?.client?.getToken();
   if (token) {
     window.google.accounts.oauth2.revoke(token.access_token, () => {
