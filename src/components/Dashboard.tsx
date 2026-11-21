@@ -1,5 +1,5 @@
 import { memberAvatarStyle } from '../utils/colors';
-import { dateKey } from '../utils/dates';
+import { dateKey, shiftDate } from '../utils/dates';
 import { generateChoreInstances } from '../utils/recurrence';
 import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
@@ -42,12 +42,15 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
   const stats = useMemo(() => {
     const todayDate = new Date();
     const today = dateKey(todayDate);
-    const weekAgo = dateKey(new Date(Date.now() - 7 * 86400000));
+    const weekStart = shiftDate(today, -todayDate.getDay());
+    const weekEnd = shiftDate(weekStart, 6);
     const monthAgo = dateKey(new Date(Date.now() - 30 * 86400000));
 
     // Get completions
     const completedToday = state.completions.filter(c => c.instanceDate === today).length;
-    const completedThisWeek = state.completions.filter(c => c.instanceDate >= weekAgo).length;
+    const completedThisWeek = state.completions.filter(c =>
+      c.instanceDate >= weekStart && c.instanceDate <= weekEnd
+    ).length;
     const completedThisMonth = state.completions.filter(c => c.instanceDate >= monthAgo).length;
 
     const pendingToday = generateChoreInstances(

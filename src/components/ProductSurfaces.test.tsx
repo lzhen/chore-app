@@ -12,6 +12,7 @@ vi.mock('../context/AppContext',()=>({useApp:()=>({state:appState})}));
 vi.mock('./ThemeSelector',()=>({ThemeSelector:()=> <button>Appearance</button>}));
 afterEach(()=>{
  cleanup();
+ vi.useRealTimers();
  appState.chores=[];
  appState.teamMembers=[];
  appState.completions=[];
@@ -28,6 +29,8 @@ describe('shared product surfaces',()=>{
   }
  });
  it('shows household totals and recent completions without ranking members',()=>{
+  vi.useFakeTimers({toFake:['Date']});
+  vi.setSystemTime(new Date(2026,1,25,12));
   const today=dateKey();
   const yesterday=shiftDate(today,-1);
   const defaults={recurrence:'none',priority:'medium'} as const;
@@ -57,6 +60,22 @@ describe('shared product surfaces',()=>{
   expect(recent.getByText('by Alex')).toBeInTheDocument();
   expect(recent.getByText('Wash dishes')).toBeInTheDocument();
   expect(recent.getByText('by Robin')).toBeInTheDocument();
+ });
+ it('counts completed occurrences scheduled from local Sunday through Saturday',()=>{
+  vi.useFakeTimers({toFake:['Date']});
+  vi.setSystemTime(new Date(2026,10,22,0,30));
+  const previousSaturday=new Date(2026,10,21,18).toISOString();
+  const sunday=new Date().toISOString();
+  appState.completions=[
+   {id:'prior-week',choreId:'dishes',instanceDate:'2026-11-21',completedBy:'alex',completedAt:previousSaturday},
+   {id:'first-day',choreId:'dishes',instanceDate:'2026-11-22',completedBy:'alex',completedAt:sunday},
+   {id:'last-day',choreId:'dishes',instanceDate:'2026-11-28',completedBy:'alex',completedAt:previousSaturday},
+   {id:'next-week',choreId:'dishes',instanceDate:'2026-11-29',completedBy:'alex',completedAt:sunday},
+  ];
+
+  render(<Dashboard embedded onClose={vi.fn()}/>);
+
+  expect(within(screen.getByText('This Week').parentElement!).getByText('2')).toBeInTheDocument();
  });
  it('counts only unfinished chore occurrences scheduled for today',()=>{
   vi.useFakeTimers({toFake:['Date']});
