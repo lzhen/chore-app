@@ -37,3 +37,12 @@ not change the product flow or deploy a new build.
 - GitHub Pages deployment is limited to main/master pushes or manual dispatch;
   keep this change on a draft task branch. Native/device/store checks remain
   separate from lint, unit tests and web build success.
+
+## Browser runner compatibility
+
+The first candidate CI failed before browser tests: ubuntu-latest had moved to
+Ubuntu26.04, which the locked Playwright1.58.2 browser/dependency installer
+rejected. Its own hostPlatform/nativeDeps tables support Ubuntu24.04. Only the
+three Playwright jobs in e2e.yml and chorely-ux-check.yml are pinned to
+ubuntu-24.04. Dependencies, test selection, assertions and production/native
+release jobs are unchanged. A browser-install failure is not a product test pass.
