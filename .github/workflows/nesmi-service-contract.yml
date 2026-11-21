@@ -8,6 +8,8 @@ on:
       - 'supabase/functions/nesmi-service/**'
       - 'scripts/nesmi-mcp-contract.test.mjs'
       - 'scripts/nesmi-service-contract.test.mjs'
+      - 'scripts/nesmi-agent-authorization.test.mjs'
+      - 'supabase/functions/_shared/agentAuthorization.ts'
       - '.github/workflows/nesmi-service-contract.yml'
   workflow_dispatch:
 
