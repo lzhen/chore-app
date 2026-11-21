@@ -1,0 +1,39 @@
+name: Nesmi Service Contract Tests
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'supabase/functions/nesmi-mcp-prototype/**'
+      - 'supabase/functions/nesmi-service/**'
+      - 'scripts/nesmi-mcp-contract.test.mjs'
+      - 'scripts/nesmi-service-contract.test.mjs'
+      - 'scripts/nesmi-agent-authorization.test.mjs'
+      - 'scripts/nesmi-oauth-schema.test.mjs'
+      - 'scripts/nesmi-pkce.test.mjs'
+      - 'supabase/functions/_shared/pkce.ts'
+      - 'supabase/functions/_shared/authorizationCode.ts'
+      - 'scripts/nesmi-authorization-code.test.mjs'
+      - 'docs/sql/agent-oauth-grants.draft.sql'
+      - 'docs/sql/agent-oauth-codes.draft.sql'
+      - 'scripts/nesmi-oauth-codes-schema.test.mjs'
+      - 'scripts/nesmi-oauth-code-crypto.test.mjs'
+      - 'supabase/functions/_shared/oauthCodeCrypto.ts'
+      - 'supabase/functions/_shared/agentAuthorization.ts'
+      - '.github/workflows/nesmi-service-contract.yml'
+  workflow_dispatch:
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Offline MCP contract tests
+        run: node --test scripts/nesmi-mcp-contract.test.mjs scripts/nesmi-service-contract.test.mjs scripts/nesmi-agent-authorization.test.mjs scripts/nesmi-oauth-schema.test.mjs scripts/nesmi-pkce.test.mjs scripts/nesmi-authorization-code.test.mjs scripts/nesmi-oauth-codes-schema.test.mjs scripts/nesmi-oauth-code-crypto.test.mjs
