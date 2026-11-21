@@ -10,6 +10,8 @@ on:
       - 'scripts/nesmi-service-contract.test.mjs'
       - 'scripts/nesmi-agent-authorization.test.mjs'
       - 'scripts/nesmi-oauth-schema.test.mjs'
+      - 'scripts/nesmi-pkce.test.mjs'
+      - 'supabase/functions/_shared/pkce.ts'
       - 'docs/sql/agent-oauth-grants.draft.sql'
       - 'supabase/functions/_shared/agentAuthorization.ts'
       - '.github/workflows/nesmi-service-contract.yml'
