@@ -1,0 +1,25 @@
+name: Nesmi Service Contract Tests
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'supabase/functions/nesmi-mcp-prototype/**'
+      - 'scripts/nesmi-mcp-contract.test.mjs'
+      - '.github/workflows/nesmi-service-contract.yml'
+  workflow_dispatch:
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Offline MCP contract tests
+        run: node --test scripts/nesmi-mcp-contract.test.mjs
