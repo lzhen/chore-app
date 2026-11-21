@@ -10,7 +10,7 @@ export function generateChoreInstances(chores:Chore[], members:TeamMember[], com
   if(chore.recurrence==='none'){emit(chore.date);continue;}
   const origin=parseDate(chore.date);if(!Number.isFinite(origin.getTime()))continue;
   if(!['daily','weekly','monthly'].includes(chore.recurrence))continue;
-  let current=new Date(origin); let offset=0;
+  let current:Date; let offset:number;
   if(chore.recurrence==='monthly'){
    const start=parseDate(from);offset=Math.max(0,(start.getFullYear()-origin.getFullYear())*12+start.getMonth()-origin.getMonth());
   } else {

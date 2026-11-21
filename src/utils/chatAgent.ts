@@ -85,7 +85,7 @@ function parseDate(text: string): string | null {
   }
 
   // Try to parse explicit date formats
-  const dateMatch = text.match(/(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?/);
+  const dateMatch = text.match(/(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?/);
   if (dateMatch) {
     const month = parseInt(dateMatch[1]);
     const day = parseInt(dateMatch[2]);
@@ -381,7 +381,7 @@ export function parseUserInput(input: string, teamMembers: TeamMember[]): ChatAc
     const priority = parsePriority(input);
 
     // Clean up the title
-    let title = input
+    const title = input
       .replace(
         /\b(today|tomorrow|next week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi,
         ''
@@ -415,7 +415,7 @@ export function generateResponse(
   const { chores, teamMembers, completions } = context;
 
   switch (action.type) {
-    case 'greeting':
+    case 'greeting': {
       const greetings = [
         "Hello! I'm your chore assistant. How can I help you today?",
         "Hi there! Ready to help you manage your chores.",
@@ -430,6 +430,7 @@ export function generateResponse(
         ],
       };
 
+    }
     case 'help':
       return {
         text: `Here's what I can help you with:

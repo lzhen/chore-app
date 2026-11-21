@@ -86,7 +86,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
 
       // Calculate streak (consecutive days with completions)
       const completionDates = [...new Set(memberCompletions.map(c => c.instanceDate))].sort().reverse();
-      let currentStreak = 0;
+      let currentStreak: number;
       let longestStreak = 0;
       let tempStreak = 0;
       let prevDate: Date | null = null;
