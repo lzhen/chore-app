@@ -58,6 +58,35 @@ describe('shared product surfaces',()=>{
   expect(recent.getByText('Wash dishes')).toBeInTheDocument();
   expect(recent.getByText('by Robin')).toBeInTheDocument();
  });
+ it('counts only unfinished chore occurrences scheduled for today',()=>{
+  vi.useFakeTimers({toFake:['Date']});
+  try {
+   vi.setSystemTime(new Date(2026,1,28,12));
+   const today=dateKey();
+   const yesterday=shiftDate(today,-1);
+   const defaults={priority:'medium',assigneeId:'alex'} as const;
+   appState.chores=[
+    {...defaults,id:'daily',title:'Wash dishes',date:yesterday,recurrence:'daily'},
+    {...defaults,id:'weekly',title:'Do laundry',date:shiftDate(today,-7),recurrence:'weekly'},
+    {...defaults,id:'monthly',title:'Check filters',date:'2026-01-31',recurrence:'monthly'},
+    {...defaults,id:'done',title:'Feed pets',date:yesterday,recurrence:'daily'},
+    {...defaults,id:'off-cycle',title:'Water plants',date:yesterday,recurrence:'weekly'},
+    {...defaults,id:'future',title:'Buy groceries',date:shiftDate(today,1),recurrence:'daily'},
+    {...defaults,id:'once',title:'Fold towels',date:today,recurrence:'none'},
+    {...defaults,id:'past',title:'Sort mail',date:yesterday,recurrence:'none'},
+   ];
+   appState.completions=[
+    {id:'prior',choreId:'daily',instanceDate:yesterday,completedBy:'alex',completedAt:`${yesterday}T12:00:00`},
+    {id:'current',choreId:'done',instanceDate:today,completedBy:'alex',completedAt:`${today}T12:00:00`},
+   ];
+
+   render(<Dashboard embedded onClose={vi.fn()}/>);
+
+   expect(within(screen.getByText('Pending Today').parentElement!).getByText('4')).toBeInTheDocument();
+  } finally {
+   vi.useRealTimers();
+  }
+ });
  it('keeps account actions behind explicit activation, with cancellable deletion',async()=>{
   const {container}=render(<AccountSettings embedded isOpen onClose={vi.fn()}/>);
   expect(container.querySelector('.nesmi-page-content')).toBeInTheDocument();

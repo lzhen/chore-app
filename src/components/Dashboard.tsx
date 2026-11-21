@@ -1,5 +1,6 @@
 import { memberAvatarStyle } from '../utils/colors';
 import { dateKey } from '../utils/dates';
+import { generateChoreInstances } from '../utils/recurrence';
 import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BADGES } from '../data/badges';
@@ -39,7 +40,8 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
 
   // Calculate stats
   const stats = useMemo(() => {
-    const today = dateKey();
+    const todayDate = new Date();
+    const today = dateKey(todayDate);
     const weekAgo = dateKey(new Date(Date.now() - 7 * 86400000));
     const monthAgo = dateKey(new Date(Date.now() - 30 * 86400000));
 
@@ -48,13 +50,13 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
     const completedThisWeek = state.completions.filter(c => c.instanceDate >= weekAgo).length;
     const completedThisMonth = state.completions.filter(c => c.instanceDate >= monthAgo).length;
 
-    // Get pending today
-    const pendingToday = state.chores.filter(c => {
-      if (c.date === today && !state.completions.some(comp => comp.choreId === c.id && comp.instanceDate === today)) {
-        return true;
-      }
-      return false;
-    }).length;
+    const pendingToday = generateChoreInstances(
+      state.chores,
+      state.teamMembers,
+      state.completions,
+      todayDate,
+      todayDate
+    ).filter(instance => !instance.isCompleted).length;
 
     // Get overdue (past due, not completed)
     const overdue = state.chores.filter(c => {
@@ -72,7 +74,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
       pendingToday,
       overdue,
     };
-  }, [state.chores, state.completions]);
+  }, [state.chores, state.teamMembers, state.completions]);
 
   return (
     <div className={embedded?"chore-insights-page":"fixed inset-0 bg-overlay flex items-center justify-center z-50 p-4"}>
