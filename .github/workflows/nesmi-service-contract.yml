@@ -9,6 +9,8 @@ on:
       - 'scripts/nesmi-mcp-contract.test.mjs'
       - 'scripts/nesmi-service-contract.test.mjs'
       - 'scripts/nesmi-agent-authorization.test.mjs'
+      - 'scripts/nesmi-oauth-schema.test.mjs'
+      - 'docs/sql/agent-oauth-grants.draft.sql'
       - 'supabase/functions/_shared/agentAuthorization.ts'
       - '.github/workflows/nesmi-service-contract.yml'
   workflow_dispatch:
