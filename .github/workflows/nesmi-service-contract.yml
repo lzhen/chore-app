@@ -5,7 +5,9 @@ on:
     branches: [main, master]
     paths:
       - 'supabase/functions/nesmi-mcp-prototype/**'
+      - 'supabase/functions/nesmi-service/**'
       - 'scripts/nesmi-mcp-contract.test.mjs'
+      - 'scripts/nesmi-service-contract.test.mjs'
       - '.github/workflows/nesmi-service-contract.yml'
   workflow_dispatch:
 
@@ -22,4 +24,4 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Offline MCP contract tests
-        run: node --test scripts/nesmi-mcp-contract.test.mjs
+        run: node --test scripts/nesmi-mcp-contract.test.mjs scripts/nesmi-service-contract.test.mjs
