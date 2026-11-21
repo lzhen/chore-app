@@ -1,9 +1,8 @@
 import { memberAvatarStyle } from '../utils/colors';
-import { dateKey, parseDate } from '../utils/dates';
+import { dateKey } from '../utils/dates';
 import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { MemberStats } from '../types';
-import { BADGES, getBadgeById } from '../data/badges';
+import { BADGES } from '../data/badges';
 import { WorkloadChart } from './WorkloadChart';
 
 // Format relative time (e.g., "2 hours ago", "3 days ago")
@@ -74,74 +73,6 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
       overdue,
     };
   }, [state.chores, state.completions]);
-
-  // Calculate member stats
-  const memberStats: MemberStats[] = useMemo(() => {
-    const weekAgo = dateKey(new Date(Date.now() - 7 * 86400000));
-    const monthAgo = dateKey(new Date(Date.now() - 30 * 86400000));
-
-    return state.teamMembers.map(member => {
-      const memberCompletions = state.completions.filter(c => c.completedBy === member.id);
-      const assignedChores = state.chores.filter(c => c.assigneeId === member.id);
-
-      // Calculate streak (consecutive days with completions)
-      const completionDates = [...new Set(memberCompletions.map(c => c.instanceDate))].sort().reverse();
-      let currentStreak = 0;
-      let longestStreak = 0;
-      let tempStreak = 0;
-      let prevDate: Date | null = null;
-
-      for (const dateStr of completionDates) {
-        const date = parseDate(dateStr);
-        if (prevDate === null) {
-          tempStreak = 1;
-        } else {
-          const diff = (prevDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24);
-          if (diff === 1) {
-            tempStreak++;
-          } else {
-            longestStreak = Math.max(longestStreak, tempStreak);
-            tempStreak = 1;
-          }
-        }
-        prevDate = date;
-      }
-      longestStreak = Math.max(longestStreak, tempStreak);
-
-      // Current streak (from today going back)
-      const today = new Date();
-      let checkDate = today;
-      currentStreak = 0;
-      for (let i = 0; i < 365; i++) {
-        const dateStr = checkDate.toISOString().split('T')[0];
-        if (completionDates.includes(dateStr)) {
-          currentStreak++;
-          checkDate = new Date(checkDate.getTime() - 24 * 60 * 60 * 1000);
-        } else {
-          break;
-        }
-      }
-
-      return {
-        memberId: member.id,
-        memberName: member.name,
-        memberColor: member.color,
-        memberAvatar: member.avatarUrl,
-        totalCompleted: memberCompletions.length,
-        completedThisWeek: memberCompletions.filter(c => c.instanceDate >= weekAgo).length,
-        completedThisMonth: memberCompletions.filter(c => c.instanceDate >= monthAgo).length,
-        currentStreak,
-        longestStreak,
-        completionRate: assignedChores.length > 0
-          ? Math.round((memberCompletions.length / Math.max(assignedChores.length, 1)) * 100)
-          : 0,
-        totalAssigned: assignedChores.length,
-        points: member.points || 0,
-        badges: member.badges || [],
-        workloadMinutes: assignedChores.reduce((sum, c) => sum + (c.estimatedMinutes || 0), 0),
-      };
-    }).sort((a, b) => b.totalCompleted - a.totalCompleted);
-  }, [state.teamMembers, state.completions, state.chores]);
 
   return (
     <div className={embedded?"chore-insights-page":"fixed inset-0 bg-overlay flex items-center justify-center z-50 p-4"}>
@@ -224,87 +155,6 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                 <div className="fluent-surface p-4 rounded-fluent-md border border-border">
                   <div className="text-2xl font-bold text-content-primary">{stats.completedThisWeek}</div>
                   <div className="text-sm text-content-secondary">This Week</div>
-                </div>
-              </div>
-
-              {/* Leaderboard */}
-              <div className="mb-6">
-                <h3 className="fluent-title text-lg font-semibold text-content-primary mb-4">Leaderboard</h3>
-                <div className="space-y-2">
-                  {memberStats.map((member, index) => (
-                    <div
-                      key={member.memberId}
-                      className="nesmi-member-row flex items-center gap-4"
-                    >
-                      {/* Rank */}
-                      <div className="nesmi-member-rank">
-                        {index + 1}
-                      </div>
-
-                      {/* Member info */}
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        {member.memberAvatar ? (
-                          <img
-                            src={member.memberAvatar}
-                            alt={member.memberName}
-                            className="w-8 h-8 rounded-fluent-circle object-cover flex-shrink-0"
-                          />
-                        ) : (
-                          <div
-                            className="w-8 h-8 rounded-fluent-circle flex-shrink-0 flex items-center justify-center text-white text-sm font-bold"
-                            style={memberAvatarStyle(member.memberColor)}
-                          >
-                            {member.memberName.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <span className="font-medium text-content-primary truncate block">{member.memberName}</span>
-                          {/* Top badges */}
-                          {member.badges.length > 0 && (
-                            <div className="flex gap-1 mt-0.5">
-                              {member.badges.slice(0, 3).map(badgeId => {
-                                const badge = getBadgeById(badgeId);
-                                return badge ? (
-                                  <span key={badgeId} title={badge.name} className="text-xs">
-                                    {badge.icon}
-                                  </span>
-                                ) : null;
-                              })}
-                              {member.badges.length > 3 && (
-                                <span className="text-xs text-content-secondary">+{member.badges.length - 3}</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Stats */}
-                      <div className="flex items-center gap-4 text-sm">
-                        <div className="text-center">
-                          <div className="font-bold text-brand-primary">{member.points}</div>
-                          <div className="text-xs text-content-secondary">Points</div>
-                        </div>
-                        <div className="text-center hidden sm:block">
-                          <div className="font-bold text-content-primary">{member.totalCompleted}</div>
-                          <div className="text-xs text-content-secondary">Total</div>
-                        </div>
-                        <div className="text-center hidden md:block">
-                          <div className="font-bold text-content-primary">{member.completedThisWeek}</div>
-                          <div className="text-xs text-content-secondary">Week</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-medium text-content-primary">{member.currentStreak}</div>
-                          <div className="text-xs text-content-secondary">Streak</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {memberStats.length === 0 && (
-                    <p className="text-content-secondary text-center py-8">
-                      No team members yet. Add team members to see stats.
-                    </p>
-                  )}
                 </div>
               </div>
 

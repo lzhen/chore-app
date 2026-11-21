@@ -1,13 +1,21 @@
-import {cleanup, render, screen} from '@testing-library/react';
+import {cleanup, render, screen, within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {Dashboard} from './Dashboard';
 import {AccountSettings} from './AccountSettings';
+import type {Chore, ChoreCompletion, TeamMember} from '../types';
+import {dateKey, shiftDate} from '../utils/dates';
 const auth=vi.hoisted(()=>({user:{email:'sample@example.test'},signOut:vi.fn(),deleteAccount:vi.fn()}));
+const appState=vi.hoisted(()=>({chores:[] as Chore[],teamMembers:[] as TeamMember[],completions:[] as ChoreCompletion[]}));
 vi.mock('../context/AuthContext',()=>({useAuth:()=>auth}));
-vi.mock('../context/AppContext',()=>({useApp:()=>({state:{chores:[],teamMembers:[],completions:[]}})}));
+vi.mock('../context/AppContext',()=>({useApp:()=>({state:appState})}));
 vi.mock('./ThemeSelector',()=>({ThemeSelector:()=> <button>Appearance</button>}));
-afterEach(cleanup);
+afterEach(()=>{
+ cleanup();
+ appState.chores=[];
+ appState.teamMembers=[];
+ appState.completions=[];
+});
 describe('shared product surfaces',()=>{
  it('renders embedded insights as a page and keeps every section available',async()=>{
   const {container}=render(<Dashboard embedded onClose={vi.fn()}/>);
@@ -18,6 +26,37 @@ describe('shared product surfaces',()=>{
    await user.click(screen.getByRole('button',{name}));
    expect(screen.getByRole('button',{name})).toHaveAttribute('aria-pressed','true');
   }
+ });
+ it('shows household totals and recent completions without ranking members',()=>{
+  const today=dateKey();
+  const yesterday=shiftDate(today,-1);
+  const defaults={recurrence:'none',priority:'medium'} as const;
+  appState.teamMembers=[
+   {id:'alex',name:'Alex',color:'#448844',points:30,badges:[]},
+   {id:'robin',name:'Robin',color:'#444488',points:10,badges:[]},
+  ];
+  appState.chores=[
+   {...defaults,id:'plants',title:'Water plants',date:today,assigneeId:'alex'},
+   {...defaults,id:'dishes',title:'Wash dishes',date:yesterday,assigneeId:'robin'},
+   {...defaults,id:'towels',title:'Fold towels',date:today,assigneeId:'robin'},
+   {...defaults,id:'mail',title:'Sort mail',date:yesterday,assigneeId:'alex'},
+  ];
+  appState.completions=[
+   {id:'c1',choreId:'plants',instanceDate:today,completedBy:'alex',completedAt:new Date().toISOString()},
+   {id:'c2',choreId:'dishes',instanceDate:yesterday,completedBy:'robin',completedAt:new Date(Date.now()-86400000).toISOString()},
+  ];
+
+  render(<Dashboard embedded onClose={vi.fn()}/>);
+
+  expect(screen.queryByRole('heading',{name:'Leaderboard'})).not.toBeInTheDocument();
+  for(const [label,value] of [['Completed Today','1'],['Pending Today','1'],['Overdue','1'],['This Week','2']]) {
+   expect(within(screen.getByText(label).parentElement!).getByText(value)).toBeInTheDocument();
+  }
+  const recent=within(screen.getByRole('heading',{name:'Recent Completions'}).parentElement!);
+  expect(recent.getByText('Water plants')).toBeInTheDocument();
+  expect(recent.getByText('by Alex')).toBeInTheDocument();
+  expect(recent.getByText('Wash dishes')).toBeInTheDocument();
+  expect(recent.getByText('by Robin')).toBeInTheDocument();
  });
  it('keeps account actions behind explicit activation, with cancellable deletion',async()=>{
   const {container}=render(<AccountSettings embedded isOpen onClose={vi.fn()}/>);
