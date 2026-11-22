@@ -1,7 +1,7 @@
 import { memberAvatarStyle } from '../utils/colors';
 import { dateKey, parseDate, shiftDate } from '../utils/dates';
 import { generateChoreInstances, getCalendarRange } from '../utils/recurrence';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BADGES } from '../data/badges';
 import { WorkloadChart } from './WorkloadChart';
@@ -32,6 +32,28 @@ interface DashboardProps {
 export function Dashboard({ onClose, embedded=false }: DashboardProps) {
   const { state } = useApp();
   const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'workload' | 'achievements'>('overview');
+  const [today, setToday] = useState(dateKey);
+
+  useEffect(() => {
+    let timer: number | undefined;
+    const refreshDay = () => {
+      window.clearTimeout(timer);
+      const now = new Date();
+      setToday(dateKey(now));
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      timer = window.setTimeout(refreshDay, nextMidnight.getTime() - now.getTime());
+    };
+    refreshDay();
+    document.addEventListener('visibilitychange', refreshDay);
+    window.addEventListener('focus', refreshDay);
+    window.addEventListener('pageshow', refreshDay);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', refreshDay);
+      window.removeEventListener('focus', refreshDay);
+      window.removeEventListener('pageshow', refreshDay);
+    };
+  }, []);
 
   // Sort completions by completedAt (most recent first)
   const sortedCompletions = useMemo(() => {
@@ -42,8 +64,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
 
   // Calculate stats
   const stats = useMemo(() => {
-    const todayDate = new Date();
-    const today = dateKey(todayDate);
+    const todayDate = parseDate(today);
     const weekStart = shiftDate(today, -todayDate.getDay());
     const weekEnd = shiftDate(weekStart, 6);
     const monthAgo = dateKey(new Date(Date.now() - 30 * 86400000));
@@ -84,7 +105,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
       pendingToday,
       overdue: overdueOneOff + overdueRecurring,
     };
-  }, [state.chores, state.teamMembers, state.completions]);
+  }, [today, state.chores, state.teamMembers, state.completions]);
 
   return (
     <div className={embedded?"chore-insights-page":"fixed inset-0 bg-overlay flex items-center justify-center z-50 p-4"}>

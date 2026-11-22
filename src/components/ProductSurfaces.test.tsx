@@ -1,4 +1,4 @@
-import {cleanup, render, screen, within} from '@testing-library/react';
+import {act, cleanup, render, screen, within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {Dashboard} from './Dashboard';
@@ -137,6 +137,41 @@ describe('shared product surfaces',()=>{
   render(<Dashboard embedded onClose={vi.fn()}/>);
 
   expect(within(screen.getByText('This Week').parentElement!).getByText('2')).toBeInTheDocument();
+ });
+ it.each(['midnight', 'visibilitychange', 'focus', 'pageshow'])('refreshes open Insights at the local week boundary on %s', trigger=>{
+  vi.stubEnv('TZ','America/Los_Angeles');
+  vi.useFakeTimers({toFake:['Date','setTimeout','clearTimeout']});
+  vi.setSystemTime(new Date('2026-11-22T07:59:59.900Z'));
+  expect(dateKey()).toBe('2026-11-21');
+
+  const defaults={recurrence:'none',priority:'medium',assigneeId:'alex'} as const;
+  appState.chores=[
+   {...defaults,id:'completed',title:'Wash dishes',date:'2026-11-21'},
+   {...defaults,id:'missed',title:'Sort mail',date:'2026-11-21'},
+   {...defaults,id:'today-once',title:'Fold towels',date:'2026-11-22'},
+   {...defaults,id:'today-daily',title:'Feed pets',date:'2026-11-22',recurrence:'daily'},
+  ];
+  appState.completions=[
+   {id:'done',choreId:'completed',instanceDate:'2026-11-21',completedBy:'alex',completedAt:'2026-11-22T01:00:00Z'},
+  ];
+  const count=(label:string)=>screen.getByText(label).previousElementSibling?.textContent;
+  const labels=['Completed Today','Pending Today','Overdue','This Week'];
+  const view=render(<Dashboard embedded onClose={vi.fn()}/>);
+  expect(labels.map(count)).toEqual(['1','1','0','1']);
+
+  act(()=>{
+   if(trigger==='midnight') {
+    vi.advanceTimersByTime(100);
+   } else {
+    vi.setSystemTime(new Date('2026-11-22T16:00:00Z'));
+    const target=trigger==='visibilitychange'?document:window;
+    target.dispatchEvent(new Event(trigger));
+   }
+  });
+
+  expect(labels.map(count)).toEqual(['0','2','1','0']);
+  view.unmount();
+  expect(vi.getTimerCount()).toBe(0);
  });
  it('counts only unfinished chore occurrences scheduled for today',()=>{
   vi.useFakeTimers({toFake:['Date']});
