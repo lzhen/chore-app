@@ -1,6 +1,6 @@
 import { memberAvatarStyle } from '../utils/colors';
-import { dateKey, shiftDate } from '../utils/dates';
-import { generateChoreInstances } from '../utils/recurrence';
+import { dateKey, parseDate, shiftDate } from '../utils/dates';
+import { generateChoreInstances, getCalendarRange } from '../utils/recurrence';
 import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BADGES } from '../data/badges';
@@ -61,13 +61,18 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
       todayDate
     ).filter(instance => !instance.isCompleted).length;
 
-    // Get overdue (past due, not completed)
-    const overdue = state.chores.filter(c => {
-      if (c.date < today && c.recurrence === 'none') {
-        return !state.completions.some(comp => comp.choreId === c.id && comp.instanceDate === c.date);
-      }
-      return false;
-    }).length;
+    // Match the Today list's recurrence window and keep older one-off chores.
+    const overdueOneOff = state.chores.filter(chore =>
+      chore.recurrence === 'none' && chore.date < today &&
+      !state.completions.some(completion => completion.choreId === chore.id && completion.instanceDate === chore.date)
+    ).length;
+    const overdueRecurring = generateChoreInstances(
+      state.chores.filter(chore => chore.recurrence !== 'none'),
+      state.teamMembers,
+      state.completions,
+      getCalendarRange().start,
+      parseDate(shiftDate(today, -1))
+    ).filter(instance => !instance.isCompleted).length;
 
     return {
       totalChores: state.chores.length,
@@ -75,7 +80,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
       completedThisWeek,
       completedThisMonth,
       pendingToday,
-      overdue,
+      overdue: overdueOneOff + overdueRecurring,
     };
   }, [state.chores, state.teamMembers, state.completions]);
 

@@ -2,11 +2,12 @@ import {cleanup, render, screen, within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {Dashboard} from './Dashboard';
+import {ListView} from './ListView';
 import {AccountSettings} from './AccountSettings';
 import type {Chore, ChoreCompletion, TeamMember} from '../types';
 import {dateKey, shiftDate} from '../utils/dates';
 const auth=vi.hoisted(()=>({user:{email:'sample@example.test'},signOut:vi.fn(),deleteAccount:vi.fn()}));
-const appState=vi.hoisted(()=>({chores:[] as Chore[],teamMembers:[] as TeamMember[],completions:[] as ChoreCompletion[]}));
+const appState=vi.hoisted(()=>({chores:[] as Chore[],teamMembers:[] as TeamMember[],completions:[] as ChoreCompletion[],categories:[]}));
 vi.mock('../context/AuthContext',()=>({useAuth:()=>auth}));
 vi.mock('../context/AppContext',()=>({useApp:()=>({state:appState})}));
 vi.mock('./ThemeSelector',()=>({ThemeSelector:()=> <button>Appearance</button>}));
@@ -105,6 +106,34 @@ describe('shared product surfaces',()=>{
   } finally {
    vi.useRealTimers();
   }
+ });
+ it('matches the overdue occurrences shown on the unfiltered Today list',()=>{
+  vi.useFakeTimers({toFake:['Date']});
+  vi.setSystemTime(new Date(2026,2,8,0,30));
+  const defaults={priority:'medium',assigneeId:null} as const;
+  appState.chores=[
+   {...defaults,id:'old-once',title:'Repair the shelf',date:'2000-01-01',recurrence:'none'},
+   {...defaults,id:'daily',title:'Feed pets',date:'2026-03-06',recurrence:'daily'},
+   {...defaults,id:'weekly',title:'Take bins out',date:'2026-01-25',recurrence:'weekly'},
+   {...defaults,id:'monthly',title:'Check filters',date:'2026-01-31',recurrence:'monthly'},
+   {...defaults,id:'today',title:'Fold towels',date:'2026-03-08',recurrence:'none'},
+   {...defaults,id:'future',title:'Buy groceries',date:'2026-03-09',recurrence:'none'},
+  ];
+  const complete=(choreId:string,instanceDate:string)=>({
+   id:`${choreId}-${instanceDate}`,choreId,instanceDate,completedBy:'alex',completedAt:new Date().toISOString(),
+  });
+  appState.completions=[
+   complete('daily','2026-03-07'),
+   ...['2026-02-08','2026-02-15','2026-02-22','2026-03-01'].map(date=>complete('weekly',date)),
+  ];
+
+  render(<><ListView todayView onAddClick={vi.fn()} onEventClick={vi.fn()}/><Dashboard embedded onClose={vi.fn()}/></>);
+
+  const overdueGroup=within(screen.getByRole('heading',{name:/^Overdue\s+4$/}).parentElement!);
+  for(const title of ['Repair the shelf','Feed pets','Take bins out','Check filters']) {
+   expect(overdueGroup.getByRole('button',{name:`Edit ${title}`})).toBeInTheDocument();
+  }
+  expect(within(screen.getByText('Overdue',{selector:'div.text-sm'}).parentElement!).getByText('4')).toBeInTheDocument();
  });
  it('keeps account actions behind explicit activation, with cancellable deletion',async()=>{
   const {container}=render(<AccountSettings embedded isOpen onClose={vi.fn()}/>);
