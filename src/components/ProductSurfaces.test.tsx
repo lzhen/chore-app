@@ -62,6 +62,39 @@ describe('shared product surfaces',()=>{
   expect(recent.getByText('Wash dishes')).toBeInTheDocument();
   expect(recent.getByText('by Robin')).toBeInTheDocument();
  });
+ it('shows the five newest completions in Overview and links to the full Activity feed',async()=>{
+  vi.useFakeTimers({toFake:['Date']});
+  vi.setSystemTime(new Date(2026,10,19,12));
+  const today=dateKey();
+  const tasks=[2,5,1,7,4,3,6];
+  appState.chores=tasks.map(number=>({
+   id:`chore-${number}`,title:`Household chore ${number}`,date:today,
+   priority:'medium',recurrence:'none',assigneeId:'alex',
+  }));
+  appState.teamMembers=[{id:'alex',name:'Alex',color:'#448844',points:0,badges:[]}];
+  appState.completions=tasks.map(number=>({
+   id:`done-${number}`,choreId:`chore-${number}`,instanceDate:today,
+   completedBy:'alex',completedAt:`${today}T00:00:0${number}Z`,
+  }));
+
+  render(<Dashboard embedded onClose={vi.fn()}/>);
+
+  const recent=within(screen.getByRole('heading',{name:'Recent Completions'}).parentElement!);
+  const choreTitles=/^Household chore \d$/;
+  expect(recent.getAllByText(choreTitles).map(title=>title.textContent)).toEqual(
+   [7,6,5,4,3].map(number=>`Household chore ${number}`),
+  );
+  expect(recent.getAllByText('by Alex')).toHaveLength(5);
+  expect(within(screen.getByText('Completed Today').parentElement!).getByText('7')).toBeInTheDocument();
+
+  await userEvent.setup().click(recent.getByRole('button',{name:/view all activity/i}));
+
+  expect(screen.getByRole('button',{name:'Activity'})).toHaveAttribute('aria-pressed','true');
+  expect(screen.getByRole('heading',{name:'Activity Feed (7 completions)'})).toBeInTheDocument();
+  expect(screen.getAllByText(choreTitles).map(title=>title.textContent)).toEqual(
+   [7,6,5,4,3,2,1].map(number=>`Household chore ${number}`),
+  );
+ });
  it('counts completed occurrences scheduled from local Sunday through Saturday',()=>{
   vi.useFakeTimers({toFake:['Date']});
   vi.setSystemTime(new Date(2026,10,22,0,30));

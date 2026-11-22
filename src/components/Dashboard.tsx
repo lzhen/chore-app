@@ -6,6 +6,8 @@ import { useApp } from '../context/AppContext';
 import { BADGES } from '../data/badges';
 import { WorkloadChart } from './WorkloadChart';
 
+const RECENT_COMPLETION_LIMIT = 5;
+
 // Format relative time (e.g., "2 hours ago", "3 days ago")
 function formatRelativeTime(dateString: string): string {
   const date = new Date(dateString);
@@ -172,7 +174,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
               <div>
                 <h3 className="fluent-title text-lg font-semibold text-content-primary mb-4">Recent Completions</h3>
                 <div className="space-y-2 nesmi-recent-completions">
-                  {sortedCompletions.map((completion) => {
+                  {sortedCompletions.slice(0, RECENT_COMPLETION_LIMIT).map((completion) => {
                     const chore = state.chores.find(c => c.id === completion.choreId);
                     const member = state.teamMembers.find(m => m.id === completion.completedBy);
                     return (
@@ -202,7 +204,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                     </p>
                   )}
 
-                  {state.completions.length > 5 && (
+                  {sortedCompletions.length > RECENT_COMPLETION_LIMIT && (
                     <button
                       onClick={() => setActiveTab('activity')}
                       className="w-full text-center text-sm text-brand-primary hover:text-brand-primary/80 py-2"
