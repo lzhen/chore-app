@@ -403,12 +403,13 @@ export async function createCompletion(completion: Omit<ChoreCompletion, 'id'>):
 }
 
 export async function deleteCompletion(id: string): Promise<boolean> {
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('chore_completions')
     .delete()
     .eq('id', id).select('id');
 
-  if (error || !data?.length) {
+  // A retry can find no matching row when the first delete reached the server.
+  if (error) {
     throw new Error('Could not delete completion. Please try again.');
   }
 
