@@ -44,6 +44,15 @@ for(const width of [320,1440]) for(const theme of ['light','dark']) test(`logo o
  if(await page.locator('html').getAttribute('data-theme')!==theme) await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
  await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
  const brand=page.locator('.chore-brand .nesmi-logo');
+ await page.evaluate(async()=>{await document.fonts.ready;});
+ await expect(brand).toBeVisible();
+ await expect.poll(()=>brand.evaluate(async el=>{
+  const before=el.getBoundingClientRect();
+  await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
+  const after=el.getBoundingClientRect();
+  return el.isConnected && before.width>0 && before.height>0 &&
+   before.x===after.x && before.y===after.y && before.width===after.width && before.height===after.height;
+ }).catch(()=>false),{message:'Wait for the rendered logo to settle before capturing'}).toBe(true);
  await brand.screenshot({path:info.outputPath(`brand-${width}-${theme}.png`)});
  await page.screenshot({path:info.outputPath(`header-${width}-${theme}.png`)});
  const bounds=await brand.boundingBox(); const header=await page.getByRole('banner',{name:'Nesmi'}).boundingBox();
