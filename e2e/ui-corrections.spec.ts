@@ -15,25 +15,83 @@ async function fixture(page:Page,width=390,empty=false){
   {id:'33333333-3333-4333-8333-333333333333',title:'Vacuum common areas',date:'2026-09-27',assignee_id:null,recurrence:'none',priority:'high'},
   {id:'44444444-4444-4444-8444-444444444444',title:'Water the plants',date:TODAY,assignee_id:null,recurrence:'daily',priority:'medium'},
  ]};
- const calls:{method:string;table:string;body:any}[]=[];let fail=false;let readsFail=false;
+ const calls:{method:string;table:string;body:any;id?:string}[]=[];let fail=false;let readsFail=false;
+ let loseCompletionDeleteResponse = false;
  await page.route('**/*.supabase.co/**',async route=>{
   const req=route.request(),url=new URL(req.url());const table=url.pathname.split('/').pop()!;const method=req.method();
   if(url.pathname.includes('/auth/'))return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(user)});
   if(!url.pathname.includes('/rest/v1/'))return route.fulfill({status:200,contentType:'application/json',body:'{}'});
-  const body=req.postDataJSON();calls.push({method,table,body});
+  const body=req.postDataJSON(),id=url.searchParams.get('id')?.replace(/^eq\./,'');
+  calls.push({method,table,body,id});
   if((fail&&method!=='GET')||(readsFail&&method==='GET'))return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Synthetic network failure',code:'TEST_ONLY'})});
-  const id=url.searchParams.get('id')?.replace(/^eq\./,'');let result:any;
+  let result:any;
   if(method==='GET')result=id?(db[table]||[]).filter(r=>r.id===id):(db[table]||[]);
   else if(method==='POST'){const item={id:crypto.randomUUID(),created_at:TODAY,...body};db[table]??=[];db[table].push(item);result=item;}
   else if(method==='PATCH'){const item=db[table]?.find(r=>r.id===id);if(item)Object.assign(item,body);result=item?[item]:[];}
-  else if(method==='DELETE'){result=(db[table]||[]).filter(r=>r.id===id);db[table]=(db[table]||[]).filter(r=>r.id!==id);}
+  else if(method==='DELETE'){
+   result=(db[table]||[]).filter(r=>r.id===id);
+   db[table]=(db[table]||[]).filter(r=>r.id!==id);
+   if (table === 'chore_completions' && loseCompletionDeleteResponse) {
+    loseCompletionDeleteResponse = false;
+    return route.abort('failed');
+   }
+  }
   else result=[];
   const single=req.headers().accept?.includes('vnd.pgrst.object');if(single&&Array.isArray(result))result=result[0]||null;
   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(result)});
  });
  await page.goto('/chore-app/');await expect(page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Today',exact:true})).toHaveAttribute('aria-current','page');
- return {db,calls,failWrites:()=>{fail=true;},failReads:()=>{readsFail=true;},recover:()=>{fail=false;readsFail=false;}};
+ return {
+  db,calls,failWrites:()=>{fail=true;},failReads:()=>{readsFail=true;},recover:()=>{fail=false;readsFail=false;},
+  loseNextCompletionDeleteResponse: () => { loseCompletionDeleteResponse = true; },
+ };
 }
+
+test('undo retries after a lost response without changing other completions', async ({page}) => {
+ const f = await fixture(page);
+ const [target,,,sibling] = f.db.chores;
+ const completions = [target, sibling].map((chore, i) => ({
+  id: `completion-${i}`,
+  chore_id: chore.id,
+  completed_by: A,
+  completed_at: `${TODAY}T12:00:00Z`,
+  instance_date: TODAY,
+ }));
+ const [targetCompletion, siblingCompletion] = completions;
+ f.db.chore_completions = completions;
+ const choresTab = page.getByRole('navigation', {name:'Primary navigation'}).getByRole('button', {name:'Chores', exact:true});
+ const undoTarget = page.getByRole('button', {name:`Undo completion: ${target.title}`, exact:true});
+ const todoTarget = page.getByRole('button', {name:`Complete: ${target.title}`, exact:true});
+ const undoSibling = page.getByRole('button', {name:`Undo completion: ${sibling.title}`, exact:true});
+ const deleteIds = () => f.calls.filter(call => call.method === 'DELETE' && call.table === 'chore_completions').map(call => call.id);
+
+ await page.reload();
+ await choresTab.click();
+ await expect(undoSibling).toBeVisible();
+ await undoTarget.click();
+ const dialog = page.getByRole('dialog', {name:'Undo completion', exact:true});
+ const confirmUndo = dialog.getByRole('button', {name:'Mark not done', exact:true});
+ f.loseNextCompletionDeleteResponse();
+ await confirmUndo.click();
+
+ await expect(dialog.getByRole('alert')).toHaveText('Could not delete completion. Please try again.');
+ await expect(confirmUndo).toBeEnabled();
+ expect(deleteIds()).toEqual([targetCompletion.id]);
+ expect(f.db.chore_completions).toEqual([siblingCompletion]);
+
+ await confirmUndo.click();
+ await expect(dialog).toHaveCount(0);
+ await expect(todoTarget).toBeVisible();
+ await expect(undoSibling).toBeVisible();
+ expect(deleteIds()).toEqual([targetCompletion.id, targetCompletion.id]);
+ expect(f.db.chore_completions).toEqual([siblingCompletion]);
+
+ await page.reload();
+ await choresTab.click();
+ await expect(todoTarget).toBeVisible();
+ await expect(undoSibling).toBeVisible();
+ expect(deleteIds()).toEqual([targetCompletion.id, targetCompletion.id]);
+});
 
 
 for(const width of [320,390,1440])for(const theme of ['light','dark'])test(`inline validation ${width} ${theme}`,async({page},info)=>{
