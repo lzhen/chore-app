@@ -258,7 +258,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                         <div className="flex items-center gap-3 mt-1 text-xs text-content-secondary">
                           <span>{formatRelativeTime(completion.completedAt)}</span>
                           <span>•</span>
-                          <span>{new Date(completion.instanceDate).toLocaleDateString()}</span>
+                          <span>{parseDate(completion.instanceDate).toLocaleDateString()}</span>
                           {pointsEarned > 0 && (
                             <>
                               <span>•</span>

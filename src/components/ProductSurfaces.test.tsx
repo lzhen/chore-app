@@ -14,6 +14,7 @@ vi.mock('./ThemeSelector',()=>({ThemeSelector:()=> <button>Appearance</button>})
 afterEach(()=>{
  cleanup();
  vi.useRealTimers();
+ vi.unstubAllEnvs();
  appState.chores=[];
  appState.teamMembers=[];
  appState.completions=[];
@@ -94,6 +95,32 @@ describe('shared product surfaces',()=>{
   expect(screen.getAllByText(choreTitles).map(title=>title.textContent)).toEqual(
    [7,6,5,4,3,2,1].map(number=>`Household chore ${number}`),
   );
+ });
+ it('keeps the scheduled calendar date in Activity west of UTC',async()=>{
+  vi.stubEnv('TZ','America/Los_Angeles');
+  vi.useFakeTimers({toFake:['Date']});
+  vi.setSystemTime(new Date('2026-11-23T18:00:00Z'));
+  const scheduledDate=new Date(2026,10,22);
+  expect(scheduledDate.getTimezoneOffset()).toBe(480);
+
+  appState.chores=[{
+   id:'dishes',title:'Wash dishes',date:'2026-11-22',
+   recurrence:'none',priority:'medium',assigneeId:'alex',
+  }];
+  appState.teamMembers=[{id:'alex',name:'Alex',color:'#448844',points:0,badges:[]}];
+  appState.completions=[{
+   id:'done-dishes',choreId:'dishes',instanceDate:'2026-11-22',
+   completedBy:'alex',completedAt:'2026-11-23T16:00:00Z',
+  }];
+
+  render(<Dashboard embedded onClose={vi.fn()}/>);
+  await userEvent.setup().click(screen.getByRole('button',{name:'Activity'}));
+
+  const activity=within(screen.getByRole('heading',{name:'Activity Feed (1 completions)'}).parentElement!);
+  expect(activity.getByText('Wash dishes')).toBeInTheDocument();
+  expect(activity.getByText('Alex')).toBeInTheDocument();
+  expect(activity.getByText('2h ago')).toBeInTheDocument();
+  expect(activity.getByText(scheduledDate.toLocaleDateString())).toBeInTheDocument();
  });
  it('counts completed occurrences scheduled from local Sunday through Saturday',()=>{
   vi.useFakeTimers({toFake:['Date']});
