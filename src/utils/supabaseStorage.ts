@@ -382,7 +382,10 @@ export async function fetchCompletions(): Promise<ChoreCompletion[]> {
   return (data || []).map(dbToCompletion);
 }
 
-export async function createCompletion(completion: Omit<ChoreCompletion, 'id'>): Promise<ChoreCompletion | null> {
+export async function createCompletion(completion: Omit<ChoreCompletion, 'id'>): Promise<{
+  completion: ChoreCompletion;
+  created: boolean;
+}> {
   const { data, error } = await supabase
     .from('chore_completions')
     .insert({
@@ -395,11 +398,25 @@ export async function createCompletion(completion: Omit<ChoreCompletion, 'id'>):
     .select()
     .single();
 
-  if (error) {
-    throw new Error('Could not save completion. Please try again.');
+  if (!error && data) {
+    return { completion: dbToCompletion(data), created: true };
   }
 
-  return dbToCompletion(data);
+  if (error?.code === '23505') {
+    // A previous request may have saved the occurrence before losing its response.
+    const { data: existing, error: lookupError } = await supabase
+      .from('chore_completions')
+      .select('id, chore_id, instance_date, completed_by, completed_at, notes')
+      .eq('chore_id', completion.choreId)
+      .eq('instance_date', completion.instanceDate)
+      .maybeSingle();
+
+    if (!lookupError && existing) {
+      return { completion: dbToCompletion(existing), created: false };
+    }
+  }
+
+  throw new Error('Could not save completion. Please try again.');
 }
 
 export async function deleteCompletion(id: string): Promise<boolean> {

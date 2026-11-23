@@ -156,7 +156,9 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_COMPLETIONS':
       return { ...state, completions: action.payload };
     case 'ADD_COMPLETION':
-      return { ...state, completions: [...state.completions, action.payload] };
+      return state.completions.some(completion => completion.id === action.payload.id)
+        ? state
+        : { ...state, completions: [...state.completions, action.payload] };
     case 'DELETE_COMPLETION':
       return {
         ...state,
@@ -296,16 +298,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (completionInFlight.current.has(key) || isChoreCompleted(choreId, instanceDate)) return;
     completionInFlight.current.add(key);
     try {
-    const completion = await dbCreateCompletion({
-      choreId,
-      instanceDate,
-      completedBy,
-      completedAt: new Date().toISOString(),
-      notes,
-    });
-    if (!completion) throw new Error('Completion was not saved. Please try again.');
-    if (completion) {
+      const { completion, created } = await dbCreateCompletion({
+        choreId,
+        instanceDate,
+        completedBy,
+        completedAt: new Date().toISOString(),
+        notes,
+      });
       dispatch({ type: 'ADD_COMPLETION', payload: completion });
+      if (!created) return;
 
       // Award points and check badges
       const chore = state.chores.find(c => c.id === choreId);
@@ -362,8 +363,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }
         }
       }
+    } finally {
+      completionInFlight.current.delete(key);
     }
-    } finally { completionInFlight.current.delete(key); }
   };
 
   const uncompleteChore = async (completionId: string) => {

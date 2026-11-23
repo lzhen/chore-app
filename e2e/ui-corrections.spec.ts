@@ -15,18 +15,34 @@ async function fixture(page:Page,width=390,empty=false){
   {id:'33333333-3333-4333-8333-333333333333',title:'Vacuum common areas',date:'2026-09-27',assignee_id:null,recurrence:'none',priority:'high'},
   {id:'44444444-4444-4444-8444-444444444444',title:'Water the plants',date:TODAY,assignee_id:null,recurrence:'daily',priority:'medium'},
  ]};
- const calls:{method:string;table:string;body:any;id?:string}[]=[];let fail=false;let readsFail=false;
+ const calls:{method:string;table:string;body:any;id?:string;choreId?:string;instanceDate?:string}[]=[];let fail=false;let readsFail=false;
+ let loseCompletionInsertResponse = false;
  let loseCompletionDeleteResponse = false;
  await page.route('**/*.supabase.co/**',async route=>{
   const req=route.request(),url=new URL(req.url());const table=url.pathname.split('/').pop()!;const method=req.method();
   if(url.pathname.includes('/auth/'))return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(user)});
   if(!url.pathname.includes('/rest/v1/'))return route.fulfill({status:200,contentType:'application/json',body:'{}'});
   const body=req.postDataJSON(),id=url.searchParams.get('id')?.replace(/^eq\./,'');
-  calls.push({method,table,body,id});
+  const choreId=url.searchParams.get('chore_id')?.replace(/^eq\./,'');
+  const instanceDate=url.searchParams.get('instance_date')?.replace(/^eq\./,'');
+  calls.push({method,table,body,id,choreId,instanceDate});
   if((fail&&method!=='GET')||(readsFail&&method==='GET'))return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Synthetic network failure',code:'TEST_ONLY'})});
   let result:any;
-  if(method==='GET')result=id?(db[table]||[]).filter(r=>r.id===id):(db[table]||[]);
-  else if(method==='POST'){const item={id:crypto.randomUUID(),created_at:TODAY,...body};db[table]??=[];db[table].push(item);result=item;}
+  if(method==='GET')result=(db[table]||[]).filter(row =>
+   (!id || row.id === id) && (!choreId || row.chore_id === choreId) && (!instanceDate || row.instance_date === instanceDate));
+  else if(method==='POST'){
+   if (table === 'chore_completions' && db[table].some(row =>
+    row.chore_id === body.chore_id && row.instance_date === body.instance_date)) {
+    return route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({
+     code:'23505',message:'duplicate key value violates unique constraint "chore_completions_chore_id_instance_date_key"',
+    })});
+   }
+   const item={id:crypto.randomUUID(),created_at:TODAY,...body};db[table]??=[];db[table].push(item);result=item;
+   if (table === 'chore_completions' && loseCompletionInsertResponse) {
+    loseCompletionInsertResponse = false;
+    return route.abort('failed');
+   }
+  }
   else if(method==='PATCH'){const item=db[table]?.find(r=>r.id===id);if(item)Object.assign(item,body);result=item?[item]:[];}
   else if(method==='DELETE'){
    result=(db[table]||[]).filter(r=>r.id===id);
@@ -43,9 +59,64 @@ async function fixture(page:Page,width=390,empty=false){
  await page.goto('/chore-app/');await expect(page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Today',exact:true})).toHaveAttribute('aria-current','page');
  return {
   db,calls,failWrites:()=>{fail=true;},failReads:()=>{readsFail=true;},recover:()=>{fail=false;readsFail=false;},
+  loseNextCompletionInsertResponse: () => { loseCompletionInsertResponse = true; },
   loseNextCompletionDeleteResponse: () => { loseCompletionDeleteResponse = true; },
  };
 }
+
+test('completion retry restores the saved occurrence and its original attribution', async ({page}) => {
+ const f = await fixture(page);
+ const [otherChore,,,target] = f.db.chores;
+ const [alex, jamie] = f.db.team_members;
+ const start = page.getByRole('button', {name:`Complete: ${target.title}`, exact:true});
+ await start.click();
+ const dialog = page.getByRole('dialog', {name:'Complete chore', exact:true});
+ const member = dialog.getByRole('combobox', {name:'Who completed it?'});
+ const markDone = dialog.getByRole('button', {name:'Mark done', exact:true});
+ const error = dialog.getByRole('alert');
+ await member.click();
+ await dialog.getByRole('option', {name:alex.name, exact:true}).click();
+
+ const siblings = [
+  {id:'other-chore', chore_id:otherChore.id, instance_date:TODAY},
+  {id:'next-occurrence', chore_id:target.id, instance_date:'2026-09-26'},
+ ].map(row => ({...row, completed_by:B, completed_at:`${TODAY}T18:00:00Z`}));
+ f.db.chore_completions.push(...siblings);
+ f.loseNextCompletionInsertResponse();
+ await markDone.click();
+ await expect(error).toHaveText('Could not save completion. Please try again.');
+ await expect(member).toHaveText(alex.name);
+ await expect(markDone).toBeEnabled();
+ const original = f.db.chore_completions.find(row => row.chore_id === target.id && row.instance_date === TODAY);
+ expect(original).toMatchObject({completed_by:A});
+
+ await member.click();
+ await dialog.getByRole('option', {name:jamie.name, exact:true}).click();
+ f.failReads();
+ await markDone.click();
+ await expect(error).toHaveText('Could not save completion. Please try again.');
+ await expect(member).toHaveText(jamie.name);
+ await expect(markDone).toBeEnabled();
+ f.recover();
+ await markDone.click();
+
+ await expect(dialog).toHaveCount(0);
+ await expect(start).toHaveCount(0);
+ const completionCalls = f.calls.filter(call => call.table === 'chore_completions');
+ expect(completionCalls.filter(call => call.method === 'POST').map(call => call.body.completed_by)).toEqual([A, B, B]);
+ expect(completionCalls.filter(call => call.method === 'GET').slice(1).map(({choreId, instanceDate}) =>
+  [choreId, instanceDate])).toEqual([[target.id, TODAY], [target.id, TODAY]]);
+ expect(f.db.chore_completions).toEqual([...siblings, original]);
+ expect(f.calls.filter(call => call.table === 'team_members' && call.method === 'PATCH')).toHaveLength(0);
+
+ const insights = page.getByRole('navigation', {name:'Primary navigation'}).getByRole('button', {name:'Insights', exact:true});
+ await insights.click();
+ const activity = page.locator('.nesmi-recent-row').filter({hasText:target.title}).filter({hasText:`by ${alex.name}`});
+ await expect(activity).toHaveCount(1);
+ await page.reload();
+ await insights.click();
+ await expect(activity).toHaveCount(1);
+});
 
 test('undo retries after a lost response without changing other completions', async ({page}) => {
  const f = await fixture(page);
