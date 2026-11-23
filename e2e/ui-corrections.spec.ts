@@ -164,6 +164,60 @@ test('undo retries after a lost response without changing other completions', as
  expect(deleteIds()).toEqual([targetCompletion.id, targetCompletion.id]);
 });
 
+test.describe('Calendar pointer moves', () => {
+ test.use({timezoneId:'America/Los_Angeles'});
+
+ test('moving a timed chore keeps its 90-minute duration after reload', async ({page, isMobile}) => {
+  test.skip(isMobile, 'Requires a desktop mouse');
+  const {db, calls} = await fixture(page, 1440);
+  const [chore] = db.chores;
+  Object.assign(chore, {due_time:'09:00:00', end_time:'10:30:00'});
+  await page.reload();
+
+  const calendar = page.getByRole('navigation', {name:'Primary navigation'})
+   .getByRole('button', {name:'Calendar', exact:true});
+  const day = page.locator('.fc-timeGridDay-button');
+  const event = page.locator('.fc-timegrid-event').filter({hasText:chore.title});
+  const details = page.locator('.event-popover');
+  await calendar.click();
+  await day.click();
+  await event.click();
+  await expect(details.getByText('09:00 - 10:30', {exact:true})).toBeVisible();
+  await details.getByRole('button', {name:'Close task details'}).click();
+
+  const slot = (time: string) => page.locator(`.fc-timegrid-slot-lane[data-time="${time}:00"]`);
+  const original = slot('09:00');
+  const destination = slot('11:00');
+  await expect(event).toHaveClass(/fc-event-draggable/);
+  await expect(original).toBeInViewport();
+  await expect(destination).toBeInViewport();
+  const eventBox = await event.boundingBox();
+  const originalBox = await original.boundingBox();
+  const destinationBox = await destination.boundingBox();
+  if (!eventBox || !originalBox || !destinationBox) throw new Error('Calendar drag bounds unavailable');
+
+  // Start in the first slot of the event, clear of the resize handle.
+  const x = eventBox.x + eventBox.width / 2;
+  await page.mouse.move(x, originalBox.y + originalBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(x, destinationBox.y + destinationBox.height / 2, {steps:12});
+  await page.mouse.up();
+
+  const patches = () => calls.filter(call => call.method === 'PATCH' && call.table === 'chores');
+  await expect.poll(patches).toEqual([expect.objectContaining({
+   id:chore.id,
+   body:expect.objectContaining({date:TODAY, due_time:'11:00', end_time:'12:30'}),
+  })]);
+
+  await page.reload();
+  await calendar.click();
+  await day.click();
+  await event.click();
+  await expect(details.getByText('11:00 - 12:30', {exact:true})).toBeVisible();
+  expect(patches()).toHaveLength(1);
+ });
+});
+
 
 for(const width of [320,390,1440])for(const theme of ['light','dark'])test(`inline validation ${width} ${theme}`,async({page},info)=>{
  const {calls}=await fixture(page,width);if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
