@@ -237,13 +237,20 @@ test.describe('Calendar touch moves', () => {
   await day.tap();
   await expect(event).toHaveClass(/fc-event-draggable/);
   await event.scrollIntoViewIfNeeded();
+  const destination = slot('10:00');
+  await expect(destination).toBeInViewport();
   const [eventBox, originalBox, destinationBox] = await Promise.all([
-   event.boundingBox(), slot('09:00').boundingBox(), slot('11:00').boundingBox(),
+   event.boundingBox(), slot('09:00').boundingBox(), destination.boundingBox(),
   ]);
   if (!eventBox || !originalBox || !destinationBox) throw new Error('Calendar touch drag bounds unavailable');
   const x = eventBox.x + eventBox.width / 2;
   const startY = originalBox.y + originalBox.height / 2;
   const endY = destinationBox.y + destinationBox.height / 2;
+  const hits = await event.evaluate((element, {x, startY, endY}) => ({
+   startsOnChore:element.contains(document.elementFromPoint(x, startY)),
+   endsInTimeGrid:Boolean(document.elementFromPoint(x, endY)?.closest('.fc-timegrid-body')),
+  }), {x, startY, endY});
+  expect(hits).toEqual({startsOnChore:true, endsInTimeGrid:true});
 
   await test.step('Long-press and drag with Chromium touch input', async () => {
    const cdp = await context.newCDPSession(page);
@@ -259,14 +266,14 @@ test.describe('Calendar touch moves', () => {
   const patches = () => calls.filter(call => call.method === 'PATCH' && call.table === 'chores');
   await expect.poll(patches).toEqual([expect.objectContaining({
    id:chore.id,
-   body:expect.objectContaining({date:TODAY, due_time:'11:00', end_time:'12:30'}),
+   body:expect.objectContaining({date:TODAY, due_time:'10:00', end_time:'11:30'}),
   })]);
 
   await page.reload();
   await calendar.tap();
   await day.tap();
   await event.tap();
-  await expect(page.locator('.event-popover').getByText('11:00 - 12:30', {exact:true})).toBeVisible();
+  await expect(page.locator('.event-popover').getByText('10:00 - 11:30', {exact:true})).toBeVisible();
   expect(patches()).toHaveLength(1);
  });
 });
