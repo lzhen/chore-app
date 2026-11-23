@@ -218,6 +218,59 @@ test.describe('Calendar pointer moves', () => {
  });
 });
 
+test.describe('Calendar touch moves', () => {
+ test.use({hasTouch:true, timezoneId:'America/Los_Angeles'});
+ test.skip(({browserName, isMobile}) => browserName !== 'chromium' || isMobile, 'Requires the Chromium touch protocol');
+
+ test('long-pressing and moving a timed chore keeps its 90-minute duration after reload', async ({page, context}) => {
+  const {db, calls} = await fixture(page, 390);
+  const [chore] = db.chores;
+  Object.assign(chore, {due_time:'09:00:00', end_time:'10:30:00'});
+  await page.reload();
+
+  const calendar = page.getByRole('navigation', {name:'Primary navigation'})
+   .getByRole('button', {name:'Calendar', exact:true});
+  const day = page.locator('.fc-timeGridDay-button');
+  const event = page.locator('.fc-timegrid-event:not(.fc-event-mirror):not(.fc-event-dragging)').filter({hasText:chore.title});
+  const slot = (time: string) => page.locator(`.fc-timegrid-slot-lane[data-time="${time}:00"]`);
+  await calendar.tap();
+  await day.tap();
+  await expect(event).toHaveClass(/fc-event-draggable/);
+  await event.scrollIntoViewIfNeeded();
+  const [eventBox, originalBox, destinationBox] = await Promise.all([
+   event.boundingBox(), slot('09:00').boundingBox(), slot('11:00').boundingBox(),
+  ]);
+  if (!eventBox || !originalBox || !destinationBox) throw new Error('Calendar touch drag bounds unavailable');
+  const x = eventBox.x + eventBox.width / 2;
+  const startY = originalBox.y + originalBox.height / 2;
+  const endY = destinationBox.y + destinationBox.height / 2;
+
+  await test.step('Long-press and drag with Chromium touch input', async () => {
+   const cdp = await context.newCDPSession(page);
+   await cdp.send('Input.dispatchTouchEvent', {type:'touchStart', touchPoints:[{x, y:startY}]});
+   await expect(event).toHaveClass(/fc-event-selected/);
+   for (let step = 1; step <= 12; step++) {
+    const y = startY + (endY - startY) * step / 12;
+    await cdp.send('Input.dispatchTouchEvent', {type:'touchMove', touchPoints:[{x, y}]});
+   }
+   await cdp.send('Input.dispatchTouchEvent', {type:'touchEnd', touchPoints:[]});
+  });
+
+  const patches = () => calls.filter(call => call.method === 'PATCH' && call.table === 'chores');
+  await expect.poll(patches).toEqual([expect.objectContaining({
+   id:chore.id,
+   body:expect.objectContaining({date:TODAY, due_time:'11:00', end_time:'12:30'}),
+  })]);
+
+  await page.reload();
+  await calendar.tap();
+  await day.tap();
+  await event.tap();
+  await expect(page.locator('.event-popover').getByText('11:00 - 12:30', {exact:true})).toBeVisible();
+  expect(patches()).toHaveLength(1);
+ });
+});
+
 
 for(const width of [320,390,1440])for(const theme of ['light','dark'])test(`inline validation ${width} ${theme}`,async({page},info)=>{
  const {calls}=await fixture(page,width);if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();
