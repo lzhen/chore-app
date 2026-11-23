@@ -74,7 +74,7 @@ test('creating an assigned chore keeps ownership and completion on reload', asyn
  const complete = page.getByRole('button', {name:`Complete: ${title}`, exact:true});
  const done = page.getByRole('button', {name:`Undo completion: ${title}`, exact:true});
 
- await page.getByRole('button', {name:'Add new chore', exact:true}).click();
+ await page.getByRole('button', {name:'Add your first chore', exact:true}).click();
  const form = page.getByRole('dialog', {name:'Add a chore', exact:true});
  await form.getByLabel('What needs doing?').fill(title);
  await form.getByLabel('When?').fill(TODAY);
