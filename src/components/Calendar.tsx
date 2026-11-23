@@ -28,6 +28,12 @@ export interface CalendarRef {
   prev: () => void;
 }
 
+function minutesFromTime(time?: string): number {
+  if (!time || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time)) return NaN;
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
 export const Calendar = forwardRef<CalendarRef, CalendarProps>(
   ({ onAddClick, onEventClick, searchQuery, hiddenMembers = new Set() }, ref) => {
     const { state, updateChore } = useApp();
@@ -182,45 +188,43 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
       const choreId = info.event.extendedProps.choreId;
       const isRecurring = info.event.extendedProps.isRecurring;
       const chore = state.chores.find(c => c.id === choreId);
+      const { start, allDay } = info.event;
 
-      if (!chore) {
+      if (!chore || !start) {
         info.revert();
         return;
       }
 
-      // For recurring events, we would need to ask user if they want to update all or just this instance
-      // For now, we update all occurrences
-      if (isRecurring && !confirm('Move the entire repeating series? This changes all occurrences.')) {info.revert();return;}
-      try {
-      if (isRecurring) {
-        const newDate = info.event.start;
-        if (newDate) {
-          const newDateStr = dateKey(newDate);
-          const newTime = info.event.allDay ? undefined : newDate.toTimeString().slice(0, 5);
-
-          await updateChore({
-            ...chore,
-            date: newDateStr,
-            dueTime: newTime,
-            endTime: undefined,
-          });
-        }
-      } else {
-        // Single event - update directly
-        const newDate = info.event.start;
-        if (newDate) {
-          const newDateStr = dateKey(newDate);
-          const newTime = info.event.allDay ? undefined : newDate.toTimeString().slice(0, 5);
-
-          await updateChore({
-            ...chore,
-            date: newDateStr,
-            dueTime: newTime,
-            endTime: undefined,
-          });
-        }
+      if (isRecurring && !confirm('Move the entire repeating series? This changes all occurrences.')) {
+        info.revert();
+        return;
       }
-      } catch(e) {info.revert();setOperationError(e instanceof Error?e.message:'Could not move chore.');}
+
+      try {
+        if (Number.isNaN(start.getTime())) throw new Error('Could not move chore.');
+        const dueTime = allDay ? undefined : start.toTimeString().slice(0, 5);
+        let endTime: string | undefined;
+
+        // FullCalendar also supplies a display-only end for timed chores.
+        if (!allDay && !info.oldEvent.allDay && chore.endTime) {
+          const duration = minutesFromTime(chore.endTime) - minutesFromTime(chore.dueTime);
+          if (!(duration > 0)) {
+            throw new Error('Set a valid start and end time before moving this chore.');
+          }
+          const endMinutes = start.getHours() * 60 + start.getMinutes() + duration;
+          if (endMinutes >= 24 * 60) {
+            throw new Error('End times must be on the same day.');
+          }
+          const hours = String(Math.floor(endMinutes / 60)).padStart(2, '0');
+          const minutes = String(endMinutes % 60).padStart(2, '0');
+          endTime = `${hours}:${minutes}`;
+        }
+
+        await updateChore({ ...chore, date: dateKey(start), dueTime, endTime });
+      } catch (error) {
+        info.revert();
+        setOperationError(error instanceof Error ? error.message : 'Could not move chore.');
+      }
     };
 
     // Handle event resize
