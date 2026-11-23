@@ -64,6 +64,61 @@ async function fixture(page:Page,width=390,empty=false){
  };
 }
 
+test('creating an assigned chore keeps ownership and completion on reload', async ({page, isMobile}) => {
+ test.skip(isMobile, 'Uses the desktop household views');
+ const {db, calls} = await fixture(page, 1440, true);
+ const [alex, jamie] = db.team_members;
+ const title = 'Put away the clean dishes';
+ const navigation = page.getByRole('navigation', {name:'Primary navigation'});
+ const choreRow = page.getByRole('button', {name:`Edit ${title}`, exact:true});
+ const complete = page.getByRole('button', {name:`Complete: ${title}`, exact:true});
+ const done = page.getByRole('button', {name:`Undo completion: ${title}`, exact:true});
+
+ await page.getByRole('button', {name:'Add new chore', exact:true}).click();
+ const form = page.getByRole('dialog', {name:'Add a chore', exact:true});
+ await form.getByLabel('What needs doing?').fill(title);
+ await form.getByLabel('When?').fill(TODAY);
+ await form.getByRole('combobox', {name:'Who’s responsible?', exact:true}).click();
+ await form.getByRole('option', {name:alex.name, exact:true}).click();
+ await form.getByRole('button', {name:'Add chore', exact:true}).click();
+ await expect(form).toHaveCount(0);
+ expect(db.chores).toHaveLength(1);
+ const [created] = db.chores;
+
+ await page.reload();
+ await expect(choreRow).toContainText(alex.name);
+ await complete.click();
+ const completion = page.getByRole('dialog', {name:'Complete chore', exact:true});
+ const completedBy = completion.getByRole('combobox', {name:'Who completed it?', exact:true});
+ await expect(completedBy).toHaveText(alex.name);
+ await completedBy.click();
+ await completion.getByRole('option', {name:jamie.name, exact:true}).click();
+ await completion.getByRole('button', {name:'Mark done', exact:true}).click();
+ await expect(completion).toHaveCount(0);
+
+ await page.reload();
+ await navigation.getByRole('button', {name:'Chores', exact:true}).click();
+ await expect(done).toHaveAttribute('aria-pressed', 'true');
+ await expect(choreRow).toContainText(alex.name);
+ await navigation.getByRole('button', {name:'Insights', exact:true}).click();
+ const activity = page.locator('.nesmi-recent-row').filter({hasText:title});
+ await expect(activity).toHaveCount(1);
+ await expect(activity).toContainText(`by ${jamie.name}`);
+
+ const recorded = {chore_id:created.id, instance_date:TODAY, completed_by:B};
+ expect(db.chore_completions).toEqual([expect.objectContaining(recorded)]);
+ const taskWrites = calls.filter(({method, table}) =>
+  method !== 'GET' && ['chores', 'chore_completions'].includes(table));
+ expect(taskWrites).toEqual([
+  expect.objectContaining({
+   method:'POST', table:'chores', body:expect.objectContaining({title, date:TODAY, assignee_id:A}),
+  }),
+  expect.objectContaining({
+   method:'POST', table:'chore_completions', body:expect.objectContaining(recorded),
+  }),
+ ]);
+});
+
 test('completion retry restores the saved occurrence and its original attribution', async ({page}) => {
  const f = await fixture(page);
  const [otherChore,,,target] = f.db.chores;
