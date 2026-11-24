@@ -24,16 +24,28 @@ async function fixture(page:Page,width=390,empty=false){
   {id:'33333333-3333-4333-8333-333333333333',title:'Vacuum common areas',date:'2026-09-27',assignee_id:null,recurrence:'none',priority:'high'},
   {id:'44444444-4444-4444-8444-444444444444',title:'Water the plants',date:TODAY,assignee_id:null,recurrence:'none',priority:'medium'},
  ]};
- const calls:{method:string;table:string;body:any}[]=[];let fail=false;let readsFail=false;
+ const calls:{method:string;table:string;body:any;id?:string}[]=[];
+ let fail=false;let readsFail=false;let loseChoreResponse=false;
  await page.route('**/*.supabase.co/**',async route=>{
   const req=route.request(),url=new URL(req.url());const table=url.pathname.split('/').pop()!;const method=req.method();
   if(url.pathname.includes('/auth/'))return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(user)});
   if(!url.pathname.includes('/rest/v1/'))return route.fulfill({status:200,contentType:'application/json',body:'{}'});
-  const body=req.postDataJSON();calls.push({method,table,body});
+  const id=url.searchParams.get('id')?.replace(/^eq\./,'');
+  const body=req.postDataJSON();calls.push({method,table,body,id});
   if((fail&&method!=='GET')||(readsFail&&method==='GET'))return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Synthetic network failure',code:'TEST_ONLY'})});
-  const id=url.searchParams.get('id')?.replace(/^eq\./,'');let result:any;
-  if(method==='GET')result=id?(db[table]||[]).filter(r=>r.id===id):(db[table]||[]);
-  else if(method==='POST'){const item={id:crypto.randomUUID(),created_at:TODAY,...body};db[table]??=[];db[table].push(item);result=item;}
+  let result:any;
+  if(method==='GET'){
+   if(table==='chores'&&id&&loseChoreResponse)return route.abort('failed');
+   result=id?(db[table]||[]).filter(r=>r.id===id):(db[table]||[]);
+  }
+  else if(method==='POST'){
+   if(table==='chores'&&body?.id&&db.chores.some(chore=>chore.id===body.id))return route.fulfill({
+    status:409, json:{code:'23505',message:'Synthetic duplicate chore ID'},
+   });
+   const item={id:crypto.randomUUID(),created_at:TODAY,...body};
+   db[table]??=[];db[table].push(item);result=item;
+   if(table==='chores'&&loseChoreResponse)return route.abort('failed');
+  }
   else if(method==='PATCH'){const item=db[table]?.find(r=>r.id===id);if(item)Object.assign(item,body);result=item?[item]:[];}
   else if(method==='DELETE'){result=(db[table]||[]).filter(r=>r.id===id);db[table]=(db[table]||[]).filter(r=>r.id!==id);}
   else result=[];
@@ -41,7 +53,7 @@ async function fixture(page:Page,width=390,empty=false){
   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(result)});
  });
  await page.goto('/chore-app/');await expect(page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Today',exact:true})).toHaveAttribute('aria-current','page');
- return {db,calls,failWrites:()=>{fail=true;},failReads:()=>{readsFail=true;},recover:()=>{fail=false;readsFail=false;}};
+ return {db,calls,failWrites:()=>{fail=true;},failReads:()=>{readsFail=true;},loseChoreResponse:()=>{loseChoreResponse=true;},recover:()=>{fail=false;readsFail=false;loseChoreResponse=false;}};
 }
 for(const width of [375,390,430])test(`normal save reachable; time and date survive reload at ${width}px`,async({page},info)=>{
  const {db,calls}=await fixture(page,width);
@@ -67,6 +79,32 @@ test('failed save retains draft, reports error and allows retry',async({page})=>
  const f=await fixture(page);f.failWrites();await page.getByRole('button',{name:'Add new chore'}).click();await page.getByLabel('What needs doing?').fill('Keep this draft');await page.getByRole('dialog').getByRole('button',{name:'Add chore',exact:true}).click();
  await expect(page.getByRole('alert')).toContainText('Your entries are still here');await expect(page.getByLabel('What needs doing?')).toHaveValue('Keep this draft');expect(f.db.chores.some(c=>c.title==='Keep this draft')).toBe(false);
  f.recover();await page.getByRole('dialog').getByRole('button',{name:'Add chore',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+test('retrying a first chore after a lost save response shows one saved chore', async ({page}) => {
+  const f = await fixture(page, 390, true);
+  const title = 'Put away the dishes';
+  await page.getByRole('button', {name: 'Add your first chore', exact: true}).click();
+  const dialog = page.getByRole('dialog', {name: 'Add a chore'});
+  const titleInput = dialog.getByLabel('What needs doing?');
+  const save = dialog.getByRole('button', {name: 'Add chore', exact: true});
+  await titleInput.fill(title);
+
+  f.loseChoreResponse();
+  await save.click();
+  await expect(dialog.getByRole('alert')).toContainText('Your entries are still here');
+  await expect(titleInput).toHaveValue(title);
+  expect(f.db.chores).toHaveLength(1);
+  const id = f.db.chores[0].id;
+
+  f.recover();
+  await save.click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('button', {name: `Edit ${title}`, exact: true})).toHaveCount(1);
+  expect(f.db.chores).toHaveLength(1);
+  const writes = f.calls.filter(call => call.table === 'chores' && call.method !== 'GET');
+  expect(writes.map(call => [call.method, call.body.id])).toEqual([['POST', id], ['POST', id]]);
+  expect(f.calls.filter(call => call.table === 'chores' && call.method === 'GET' && call.id)
+    .map(call => call.id)).toEqual([id, id]);
 });
 test('search filters the Chores view and exposes an empty state',async({page})=>{
  await fixture(page);await page.getByRole('navigation').getByRole('button',{name:'Chores',exact:true}).click();await page.getByRole('button',{name:'Search chores',exact:true}).click();await page.getByLabel('Search chores',{exact:true}).fill('nothing-matches');await expect(page.getByText('No matching chores')).toBeVisible();await expect(page.locator('.chore-task')).toHaveCount(0);await page.getByLabel('Search chores',{exact:true}).fill('Vacuum');await expect(page.locator('.chore-task')).toHaveCount(1);

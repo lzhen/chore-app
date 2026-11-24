@@ -69,7 +69,7 @@ interface AppContextType {
   state: AppState;
   reload: () => void;
   // Chore operations
-  addChore: (chore: Omit<Chore, 'id'>) => Promise<void>;
+  addChore: (chore: Omit<Chore, 'id'>, id?: string) => Promise<void>;
   updateChore: (chore: Chore) => Promise<void>;
   deleteChore: (id: string) => Promise<void>;
   // Team member operations
@@ -114,7 +114,9 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_CHORES':
       return { ...state, chores: action.payload };
     case 'ADD_CHORE':
-      return { ...state, chores: [...state.chores, action.payload] };
+      return state.chores.some(chore => chore.id === action.payload.id)
+        ? state
+        : { ...state, chores: [...state.chores, action.payload] };
     case 'UPDATE_CHORE':
       return {
         ...state,
@@ -212,11 +214,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Chore operations
   // ============================================
 
-  const addChore = async (choreData: Omit<Chore, 'id'>) => {
-    const newChore = await dbCreateChore(choreData);
-    if (!newChore) throw new Error('Your chore could not be saved. Please try again.');
-    if (newChore) {
-      dispatch({ type: 'ADD_CHORE', payload: newChore });
+  const addChore = async (choreData: Omit<Chore, 'id'>, id?: string) => {
+    const { chore, matchesDraft } = await dbCreateChore(choreData, id);
+    dispatch({ type: 'ADD_CHORE', payload: chore });
+    if (!matchesDraft) {
+      throw new Error('An earlier save already added this chore with different details. Check your chore list or restore the earlier entries and try again.');
     }
   };
 

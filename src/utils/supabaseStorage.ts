@@ -146,46 +146,64 @@ export async function fetchChores(): Promise<Chore[]> {
   return (data || []).map(dbToChore);
 }
 
-export async function createChore(chore: Omit<Chore, 'id'>): Promise<Chore | null> {
-  const { data, error } = await supabase
+function choreWriteFields(chore: Omit<Chore, 'id'>) {
+  return {
+    title: chore.title,
+    description: chore.description || null,
+    date: chore.date,
+    due_time: chore.dueTime || null,
+    end_time: chore.endTime || null,
+    assignee_id: chore.assigneeId,
+    recurrence: chore.recurrence,
+    priority: chore.priority || 'medium',
+    category_id: chore.categoryId || null,
+    estimated_minutes: chore.estimatedMinutes || null,
+  };
+}
+
+function normalizeChoreTime(value?: string | null) {
+  return value?.replace(/^(\d{2}:\d{2}):00(?:\.0+)?$/, '$1') ?? null;
+}
+
+export async function createChore(chore: Omit<Chore, 'id'>, id?: string) {
+  const fields = choreWriteFields(chore);
+  const { data, error, status } = await supabase
     .from('chores')
-    .insert({
-      title: chore.title,
-      description: chore.description || null,
-      date: chore.date,
-      due_time: chore.dueTime || null,
-      end_time: chore.endTime || null,
-      assignee_id: chore.assigneeId,
-      recurrence: chore.recurrence,
-      priority: chore.priority || 'medium',
-      category_id: chore.categoryId || null,
-      estimated_minutes: chore.estimatedMinutes || null,
-    })
+    .insert(id ? { id, ...fields } : fields)
     .select()
     .single();
 
-  if (error) {
-    throw new Error('Could not save chore. Please try again.');
+  if (!error && data) {
+    return { chore: dbToChore(data), matchesDraft: true };
   }
 
-  return dbToChore(data);
+  if (id && (!error || status === 0 || status === 408 || status >= 500 || error.code === '23505')) {
+    // The insert may have committed before its response was lost.
+    const { data: existing, error: lookupError } = await supabase
+      .from('chores')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle<DbChore>();
+
+    if (!lookupError && existing?.id === id) {
+      const persisted = {
+        ...existing,
+        due_time: normalizeChoreTime(existing.due_time),
+        end_time: normalizeChoreTime(existing.end_time),
+      };
+      const matchesDraft = (Object.keys(fields) as (keyof typeof fields)[])
+        .every(field => persisted[field] === fields[field]);
+      return { chore: dbToChore(existing), matchesDraft };
+    }
+  }
+
+  throw new Error('Could not save chore. Please try again.');
 }
 
 export async function updateChore(chore: Chore): Promise<boolean> {
   const { data, error } = await supabase
     .from('chores')
-    .update({
-      title: chore.title,
-      description: chore.description || null,
-      date: chore.date,
-      due_time: chore.dueTime || null,
-      end_time: chore.endTime || null,
-      assignee_id: chore.assigneeId,
-      recurrence: chore.recurrence,
-      priority: chore.priority || 'medium',
-      category_id: chore.categoryId || null,
-      estimated_minutes: chore.estimatedMinutes || null,
-    })
+    .update(choreWriteFields(chore))
     .eq('id', chore.id).select('id');
 
   if (error || !data?.length) {
