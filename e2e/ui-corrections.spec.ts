@@ -64,6 +64,34 @@ async function fixture(page:Page,width=390,empty=false){
  };
 }
 
+test.describe('Today’s local day', () => {
+ test.use({timezoneId: 'America/Los_Angeles'});
+
+ test('resumes on the new day and keeps an explicitly selected date', async ({page}) => {
+  await fixture(page);
+  const dateButton = (name: string) => page.getByRole('button', {name, exact: true});
+  const resumeOn = async (time: string) => {
+   await page.clock.setFixedTime(new Date(time));
+   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  };
+
+  await expect(dateButton('Friday, September 25')).toHaveAttribute('aria-pressed', 'true');
+  await resumeOn('2026-09-26T07:02:00Z');
+  await expect(dateButton('Saturday, September 26')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('heading', {name: 'Today', exact: true})).toBeVisible();
+  await expect(page.getByRole('progressbar', {name: '0 of 1 chores completed on Today'})).toBeVisible();
+
+  await dateButton('Friday, September 25').click();
+  await resumeOn('2026-09-27T07:02:00Z');
+  await expect(dateButton('Friday, September 25')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('heading', {name: 'Overdue', exact: false})).toHaveCount(0);
+
+  await page.locator('.chore-week').getByRole('button', {name: 'Today', exact: true}).click();
+  await expect(dateButton('Sunday, September 27')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('progressbar', {name: '0 of 2 chores completed on Today'})).toBeVisible();
+ });
+});
+
 test('creating an assigned chore keeps ownership and completion on reload', async ({page, isMobile}) => {
  test.skip(isMobile, 'Uses the desktop household views');
  const {db, calls} = await fixture(page, 1440, true);

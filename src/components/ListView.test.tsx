@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ListView } from './ListView';
@@ -29,7 +29,10 @@ describe('ListView day scope and progress', () => {
     app.state.completions = [{id: 'completion-1', choreId: 'done', instanceDate: today, completedBy: 'member-1', completedAt: new Date().toISOString()}];
     app.completeChore.mockResolvedValue(undefined);
   });
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
 
   it('keeps overdue out of the selected-day denominator and estimates only pending day chores', () => {
     render(<ListView todayView onAddClick={vi.fn()} onEventClick={vi.fn()}/>);
@@ -66,6 +69,63 @@ describe('ListView day scope and progress', () => {
     expect(screen.getByText('~30 min')).toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Edit Laundry next week'})).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'Edit Laundry backlog'})).not.toBeInTheDocument();
+  });
+
+  it.each(['midnight', 'visibilitychange', 'focus', 'pageshow'])('updates the open Today view on %s', trigger => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 10, 21, 23, 59, 59, 900));
+    const onEventClick = vi.fn();
+    const nextChore = chore('next', 'Set the table', '2026-11-22');
+    app.state.chores = [
+      chore('previous', 'Tidy up', '2026-11-21'),
+      nextChore,
+      chore('hidden', 'Feed the cat', '2026-11-22', {assigneeId: null}),
+    ];
+    app.state.completions = [];
+    render(<ListView todayView searchQuery="table" onAddClick={vi.fn()} onEventClick={onEventClick}/>);
+    expect(screen.getByRole('button', {name: 'Saturday, November 21'})).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('button', {name: 'Edit Set the table'})).not.toBeInTheDocument();
+
+    act(() => {
+      if (trigger === 'midnight') {
+        vi.advanceTimersByTime(100);
+      } else {
+        vi.setSystemTime(new Date(2026, 10, 22, 8));
+        const target = trigger === 'visibilitychange' ? document : window;
+        target.dispatchEvent(new Event(trigger));
+      }
+    });
+
+    expect(screen.getByRole('button', {name: 'Sunday, November 22'})).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('heading', {name: 'Today'})).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', {name: '0 of 2 chores completed on Today'})).toHaveAttribute('max', '2');
+    expect(screen.queryByRole('button', {name: 'Edit Feed the cat'})).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', {name: 'Edit Set the table'}));
+    expect(onEventClick).toHaveBeenCalledExactlyOnceWith(nextChore, '2026-11-22');
+  });
+
+  it('keeps an explicitly selected day and follows the clock again after returning to Today', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 10, 21, 12));
+    const pinnedChore = chore('pinned', 'Deep clean', '2026-11-28');
+    const onEventClick = vi.fn();
+    app.state.chores = [pinnedChore];
+    app.state.completions = [];
+    render(<ListView todayView onAddClick={vi.fn()} onEventClick={onEventClick}/>);
+    fireEvent.click(screen.getByRole('button', {name: 'Next week'}));
+
+    act(() => {
+      vi.setSystemTime(new Date(2026, 10, 22, 23, 59, 59, 900));
+      window.dispatchEvent(new Event('pageshow'));
+    });
+    expect(screen.getByRole('button', {name: 'Saturday, November 28'})).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', {name: 'Edit Deep clean'}));
+    expect(onEventClick).toHaveBeenCalledExactlyOnceWith(pinnedChore, '2026-11-28');
+
+    fireEvent.click(screen.getByRole('button', {name: 'Today'}));
+    expect(screen.getByRole('button', {name: 'Sunday, November 22'})).toHaveAttribute('aria-pressed', 'true');
+    act(() => vi.advanceTimersByTime(100));
+    expect(screen.getByRole('button', {name: 'Monday, November 23'})).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('clears member and parent-owned search/visibility filters from an empty result', async () => {

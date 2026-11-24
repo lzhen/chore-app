@@ -1,8 +1,9 @@
 import { memberAvatarStyle } from '../utils/colors';
 import { dateKey, parseDate, shiftDate } from '../utils/dates';
 import { generateChoreInstances, getCalendarRange } from '../utils/recurrence';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useLocalDay } from '../hooks/useLocalDay';
 import { BADGES } from '../data/badges';
 import { WorkloadChart } from './WorkloadChart';
 
@@ -32,28 +33,7 @@ interface DashboardProps {
 export function Dashboard({ onClose, embedded=false }: DashboardProps) {
   const { state } = useApp();
   const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'workload' | 'achievements'>('overview');
-  const [today, setToday] = useState(dateKey);
-
-  useEffect(() => {
-    let timer: number | undefined;
-    const refreshDay = () => {
-      window.clearTimeout(timer);
-      const now = new Date();
-      setToday(dateKey(now));
-      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-      timer = window.setTimeout(refreshDay, nextMidnight.getTime() - now.getTime());
-    };
-    refreshDay();
-    document.addEventListener('visibilitychange', refreshDay);
-    window.addEventListener('focus', refreshDay);
-    window.addEventListener('pageshow', refreshDay);
-    return () => {
-      window.clearTimeout(timer);
-      document.removeEventListener('visibilitychange', refreshDay);
-      window.removeEventListener('focus', refreshDay);
-      window.removeEventListener('pageshow', refreshDay);
-    };
-  }, []);
+  const today = useLocalDay();
 
   // Sort completions by completedAt (most recent first)
   const sortedCompletions = useMemo(() => {
