@@ -78,7 +78,7 @@ async function findOccurrence(date: string) {
   });
 }
 
-async function drop(date: string, destination: Pick<EventInput, 'start' | 'end' | 'allDay'>) {
+async function gesture(date: string, destination: Pick<EventInput, 'start' | 'end' | 'allDay'>) {
   const original = await findOccurrence(date);
   const el = document.createElement('div');
   const calendar = new FullCalendarCore(el, {
@@ -87,17 +87,29 @@ async function drop(date: string, destination: Pick<EventInput, 'start' | 'end' 
   });
   const oldEvent = calendar.addEvent(original);
   const event = calendar.addEvent({ ...original, ...destination });
-  if (!event || !oldEvent) throw new Error('Could not create the calendar drop fixture.');
+  if (!event || !oldEvent) throw new Error('Could not create the calendar event fixture.');
   const revert = vi.fn();
+  const details = {
+    event, oldEvent, revert, el, view: calendar.view, relatedEvents: [],
+    jsEvent: new MouseEvent('mouseup'),
+  };
+  const zeroDelta = { years: 0, months: 0, days: 0, milliseconds: 0 };
+  return { details, zeroDelta, revert };
+}
 
+async function drop(date: string, destination: Pick<EventInput, 'start' | 'end' | 'allDay'>) {
+  const { details, zeroDelta, revert } = await gesture(date, destination);
   await act(async () => {
-    await options.eventDrop!({
-      event, oldEvent, revert, el, view: calendar.view, relatedEvents: [],
-      jsEvent: new MouseEvent('mouseup'),
-      delta: { years: 0, months: 0, days: 0, milliseconds: 0 },
-    });
+    await options.eventDrop!({ ...details, delta: zeroDelta });
   });
+  return revert;
+}
 
+async function resize(date: string, destination: Pick<EventInput, 'start' | 'end' | 'allDay'>) {
+  const { details, zeroDelta, revert } = await gesture(date, destination);
+  await act(async () => {
+    await options.eventResize!({ ...details, startDelta: zeroDelta, endDelta: zeroDelta });
+  });
   return revert;
 }
 
@@ -183,4 +195,69 @@ it('reverts a timed drop with a saved end before its start', async () => {
   expect(revert).toHaveBeenCalledOnce();
   expect(update).not.toHaveBeenCalled();
   expect(screen.getByRole('alert')).toHaveTextContent('Set a valid start and end time before moving this chore.');
+});
+
+it('keeps an all-day chore movable without offering a duration handle', async () => {
+  const { date, update, mount } = fixture({ due_time: null, end_time: null });
+  mount();
+
+  const original = await findOccurrence(date);
+  expect(original).toMatchObject({ allDay: true, durationEditable: false });
+  expect(options.editable).toBe(true);
+
+  const moved = shiftDate(date, 1);
+  const revert = await drop(date, { start: moved, end: shiftDate(moved, 1), allDay: true });
+  expect(revert).not.toHaveBeenCalled();
+  expect(update).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+    date: moved, due_time: null, end_time: null,
+  }));
+});
+
+it('reverts a stale all-day resize without writing midnight times or prompting', async () => {
+  const { date, update, mount } = fixture({ recurrence: 'weekly', due_time: null, end_time: null });
+  const confirmResize = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  mount();
+
+  const revert = await resize(date, { start: date, end: shiftDate(date, 2), allDay: true });
+
+  expect(revert).toHaveBeenCalledOnce();
+  expect(confirmResize).not.toHaveBeenCalled();
+  expect(update).not.toHaveBeenCalled();
+  expect(await findOccurrence(date)).toMatchObject({ start: date, end: shiftDate(date, 1), allDay: true });
+});
+
+it.each([
+  { label: 'extends beyond midnight', nextDay: true, start: '22:00:00', end: '23:00:00', message: 'End times must be on the same day.' },
+  { label: 'would save equal minutes', nextDay: false, start: '09:30:15', end: '09:30:45', message: 'Choose an end time after the start time.' },
+])('reverts a resize that $label without saving', async ({ nextDay, start, end, message }) => {
+  const { date, update, mount } = fixture();
+  mount();
+
+  const endDate = nextDay ? shiftDate(date, 1) : date;
+  const revert = await resize(date, { start: `${date}T${start}`, end: `${endDate}T${end}`, allDay: false });
+
+  expect(revert).toHaveBeenCalledOnce();
+  expect(update).not.toHaveBeenCalled();
+  expect(screen.getByRole('alert')).toHaveTextContent(message);
+});
+
+it('keeps recurring resize confirmation and persists valid same-day times', async () => {
+  const { date, update, mount } = fixture({ recurrence: 'weekly' });
+  const occurrence = shiftDate(date, 7);
+  const destination = { start: `${occurrence}T08:17:00`, end: `${occurrence}T10:30:00`, allDay: false };
+  const confirmResize = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+  const original = mount();
+  expect(await findOccurrence(occurrence)).toMatchObject({ allDay: false, durationEditable: true });
+
+  expect(await resize(occurrence, destination)).toHaveBeenCalledOnce();
+  expect(update).not.toHaveBeenCalled();
+  expect(await resize(occurrence, destination)).not.toHaveBeenCalled();
+  expect(confirmResize).toHaveBeenCalledTimes(2);
+  expect(update).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+    date, due_time: '08:17', end_time: '10:30', recurrence: 'weekly',
+  }));
+
+  original.unmount();
+  mount();
+  expect(await findOccurrence(occurrence)).toMatchObject(destination);
 });

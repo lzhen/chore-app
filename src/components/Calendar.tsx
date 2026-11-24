@@ -132,6 +132,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
           start,
           end,
           allDay,
+          durationEditable: !allDay,
           backgroundColor: 'var(--surface-tertiary)',
           borderColor: 'var(--border-subtle)',
           textColor: 'var(--text-primary)',
@@ -229,20 +230,37 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
 
     // Handle event resize
     const handleEventResize = async (info: EventResizeDoneArg) => {
-      const choreId = info.event.extendedProps.choreId;
+      const { allDay, start, end, extendedProps: { choreId } } = info.event;
       const chore = state.chores.find(c => c.id === choreId);
 
-      if (!chore || !info.event.start || !info.event.end) {
+      if (!chore?.dueTime || allDay || !start || !end) {
         info.revert();
         return;
       }
 
-      const startTime = info.event.start.toTimeString().slice(0, 5);
-      const endTime = info.event.end.toTimeString().slice(0, 5);
+      try {
+        if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) {
+          throw new Error('Could not save time.');
+        }
+        if (dateKey(start) !== dateKey(end)) {
+          throw new Error('End times must be on the same day.');
+        }
 
-      if (chore.recurrence!=='none'&&!confirm('Change the time for the entire repeating series?')) {info.revert();return;}
-      try {await updateChore({...chore,dueTime:startTime,endTime});}
-      catch(e){info.revert();setOperationError(e instanceof Error?e.message:'Could not save time.');}
+        const dueTime = start.toTimeString().slice(0, 5);
+        const endTime = end.toTimeString().slice(0, 5);
+        if (endTime <= dueTime) {
+          throw new Error('Choose an end time after the start time.');
+        }
+
+        if (chore.recurrence !== 'none' && !confirm('Change the time for the entire repeating series?')) {
+          info.revert();
+          return;
+        }
+        await updateChore({ ...chore, dueTime, endTime });
+      } catch (error) {
+        info.revert();
+        setOperationError(error instanceof Error ? error.message : 'Could not save time.');
+      }
     };
 
     // Popover actions

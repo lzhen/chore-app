@@ -222,6 +222,23 @@ test('undo retries after a lost response without changing other completions', as
 test.describe('Calendar pointer moves', () => {
  test.use({timezoneId:'America/Los_Angeles'});
 
+ test('all-day chores can move but only timed chores show a resize handle', async ({page, isMobile}) => {
+  test.skip(isMobile, 'Uses the desktop calendar');
+  const {calls} = await fixture(page, 1440);
+  await page.getByRole('navigation', {name:'Primary navigation'})
+   .getByRole('button', {name:'Calendar', exact:true}).click();
+  await page.locator('.fc-timeGridDay-button').click();
+
+  const allDay = page.locator('.fc-daygrid-event').filter({hasText:'Water the plants'});
+  const timed = page.locator('.fc-timegrid-event').filter({hasText:'Take out the recycling'});
+  await expect(allDay).toBeVisible();
+  await expect(allDay).toHaveClass(/\bfc-event-draggable\b/);
+  await expect(allDay.locator('.fc-event-resizer')).toHaveCount(0);
+  await expect(timed).toBeVisible();
+  await expect(timed.locator('.fc-event-resizer-end')).toHaveCount(1);
+  expect(calls.filter(call => call.method === 'PATCH' && call.table === 'chores')).toHaveLength(0);
+ });
+
  test('moving a timed chore keeps its 90-minute duration after reload', async ({page, isMobile}) => {
   test.skip(isMobile, 'Requires a desktop mouse');
   const {db, calls} = await fixture(page, 1440);
