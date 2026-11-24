@@ -165,6 +165,17 @@ function normalizeChoreTime(value?: string | null) {
   return value?.replace(/^(\d{2}:\d{2}):00(?:\.0+)?$/, '$1') ?? null;
 }
 
+function choreMatchesWriteFields(chore: DbChore, fields: ReturnType<typeof choreWriteFields>) {
+  const persisted = {
+    ...chore,
+    due_time: normalizeChoreTime(chore.due_time),
+    end_time: normalizeChoreTime(chore.end_time),
+  };
+
+  return (Object.keys(fields) as (keyof typeof fields)[])
+    .every(field => persisted[field] === fields[field]);
+}
+
 export async function createChore(chore: Omit<Chore, 'id'>, id?: string) {
   const fields = choreWriteFields(chore);
   const { data, error, status } = await supabase
@@ -186,14 +197,7 @@ export async function createChore(chore: Omit<Chore, 'id'>, id?: string) {
       .maybeSingle<DbChore>();
 
     if (!lookupError && existing?.id === id) {
-      const persisted = {
-        ...existing,
-        due_time: normalizeChoreTime(existing.due_time),
-        end_time: normalizeChoreTime(existing.end_time),
-      };
-      const matchesDraft = (Object.keys(fields) as (keyof typeof fields)[])
-        .every(field => persisted[field] === fields[field]);
-      return { chore: dbToChore(existing), matchesDraft };
+      return { chore: dbToChore(existing), matchesDraft: choreMatchesWriteFields(existing, fields) };
     }
   }
 
@@ -201,16 +205,30 @@ export async function createChore(chore: Omit<Chore, 'id'>, id?: string) {
 }
 
 export async function updateChore(chore: Chore): Promise<boolean> {
-  const { data, error } = await supabase
+  const fields = choreWriteFields(chore);
+  const { data, error, status } = await supabase
     .from('chores')
-    .update(choreWriteFields(chore))
+    .update(fields)
     .eq('id', chore.id).select('id');
 
-  if (error || !data?.length) {
-    throw new Error('Could not update chore. Please try again.');
+  if (!error && data?.length) {
+    return true;
   }
 
-  return true;
+  if (error && (status === 0 || status === 408 || status >= 500)) {
+    // The update may have committed before the client received its response.
+    const { data: existing, error: lookupError } = await supabase
+      .from('chores')
+      .select('*')
+      .eq('id', chore.id)
+      .maybeSingle<DbChore>();
+
+    if (!lookupError && existing?.id === chore.id && choreMatchesWriteFields(existing, fields)) {
+      return true;
+    }
+  }
+
+  throw new Error('Could not update chore. Please try again.');
 }
 
 export async function deleteChore(id: string): Promise<boolean> {

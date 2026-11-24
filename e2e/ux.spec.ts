@@ -25,7 +25,7 @@ async function fixture(page:Page,width=390,empty=false){
   {id:'44444444-4444-4444-8444-444444444444',title:'Water the plants',date:TODAY,assignee_id:null,recurrence:'none',priority:'medium'},
  ]};
  const calls:{method:string;table:string;body:any;id?:string}[]=[];
- let fail=false;let readsFail=false;let loseChoreResponse=false;
+ let fail=false;let readsFail=false;let loseChoreResponse=false;let loseNextChoreUpdateResponse=false;
  await page.route('**/*.supabase.co/**',async route=>{
   const req=route.request(),url=new URL(req.url());const table=url.pathname.split('/').pop()!;const method=req.method();
   if(url.pathname.includes('/auth/'))return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(user)});
@@ -46,14 +46,32 @@ async function fixture(page:Page,width=390,empty=false){
    db[table]??=[];db[table].push(item);result=item;
    if(table==='chores'&&loseChoreResponse)return route.abort('failed');
   }
-  else if(method==='PATCH'){const item=db[table]?.find(r=>r.id===id);if(item)Object.assign(item,body);result=item?[item]:[];}
+  else if (method === 'PATCH') {
+   const item = db[table]?.find(r => r.id === id);
+   if (item) {
+    Object.assign(item, body);
+    if (table === 'chores' && loseNextChoreUpdateResponse) {
+     loseNextChoreUpdateResponse = false;
+     for (const key of ['due_time', 'end_time']) {
+      if (/^\d{2}:\d{2}$/.test(item[key] ?? '')) item[key] += ':00';
+     }
+     return route.abort('failed');
+    }
+   }
+   result = item ? [item] : [];
+  }
   else if(method==='DELETE'){result=(db[table]||[]).filter(r=>r.id===id);db[table]=(db[table]||[]).filter(r=>r.id!==id);}
   else result=[];
   const single=req.headers().accept?.includes('vnd.pgrst.object');if(single&&Array.isArray(result))result=result[0]||null;
   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(result)});
  });
  await page.goto('/chore-app/');await expect(page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Today',exact:true})).toHaveAttribute('aria-current','page');
- return {db,calls,failWrites:()=>{fail=true;},failReads:()=>{readsFail=true;},loseChoreResponse:()=>{loseChoreResponse=true;},recover:()=>{fail=false;readsFail=false;loseChoreResponse=false;}};
+ return {
+  db,calls,failWrites:()=>{fail=true;},failReads:()=>{readsFail=true;},
+  loseChoreResponse:()=>{loseChoreResponse=true;},
+  loseChoreUpdateResponse:()=>{loseNextChoreUpdateResponse=true;},
+  recover:()=>{fail=false;readsFail=false;loseChoreResponse=false;loseNextChoreUpdateResponse=false;},
+ };
 }
 for(const width of [375,390,430])test(`normal save reachable; time and date survive reload at ${width}px`,async({page},info)=>{
  const {db,calls}=await fixture(page,width);
@@ -105,6 +123,33 @@ test('retrying a first chore after a lost save response shows one saved chore', 
   expect(writes.map(call => [call.method, call.body.id])).toEqual([['POST', id], ['POST', id]]);
   expect(f.calls.filter(call => call.table === 'chores' && call.method === 'GET' && call.id)
     .map(call => call.id)).toEqual([id, id]);
+});
+test('a saved chore reassignment is confirmed after its response is lost', async ({page}) => {
+  const f = await fixture(page);
+  const [chore] = f.db.chores;
+  const [alex, jamie] = f.db.team_members;
+  const row = page.getByRole('button', {name: `Edit ${chore.title}`, exact: true});
+  await expect(row).toContainText(alex.name);
+  await row.click();
+
+  const dialog = page.getByRole('dialog', {name: 'Edit chore', exact: true});
+  await dialog.getByRole('combobox', {name: 'Who’s responsible?', exact: true}).click();
+  await dialog.getByRole('option', {name: jamie.name, exact: true}).click();
+  f.loseChoreUpdateResponse();
+  await dialog.getByRole('button', {name: 'Save changes', exact: true}).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(row).toContainText(jamie.name);
+  await page.reload();
+  await expect(row).toContainText(jamie.name);
+
+  expect(f.db.chores.filter(item => item.id === chore.id)).toEqual([
+    expect.objectContaining({assignee_id: B, due_time: '18:00:00', end_time: '19:00:00'}),
+  ]);
+  expect(f.calls.filter(call => call.table === 'chores' && call.method !== 'GET')).toEqual([
+    expect.objectContaining({method: 'PATCH', id: chore.id, body: expect.objectContaining({assignee_id: B})}),
+  ]);
+  expect(f.calls.filter(call => call.table === 'chores' && call.method === 'GET' && call.id)
+    .map(call => call.id)).toEqual([chore.id]);
 });
 test('search filters the Chores view and exposes an empty state',async({page})=>{
  await fixture(page);await page.getByRole('navigation').getByRole('button',{name:'Chores',exact:true}).click();await page.getByRole('button',{name:'Search chores',exact:true}).click();await page.getByLabel('Search chores',{exact:true}).fill('nothing-matches');await expect(page.getByText('No matching chores')).toBeVisible();await expect(page.locator('.chore-task')).toHaveCount(0);await page.getByLabel('Search chores',{exact:true}).fill('Vacuum');await expect(page.locator('.chore-task')).toHaveCount(1);
