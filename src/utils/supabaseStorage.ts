@@ -261,27 +261,38 @@ export async function fetchTeamMembers(): Promise<TeamMember[]> {
   return (data || []).map(dbToMember);
 }
 
-export async function createTeamMember(member: Omit<TeamMember, 'id'>): Promise<TeamMember | null> {
-  // Start with essential fields that definitely exist
-  const insertData: Record<string, unknown> = {
+export async function createTeamMember(member: Omit<TeamMember, 'id'>, id?: string): Promise<TeamMember | null> {
+  const fields = {
     name: member.name,
     color: member.color,
   };
 
-  // Add optional fields if they have values (these may or may not exist in the DB)
-  // Only known columns are sent to the database.
   try {
-    const { data, error } = await supabase
+    const { data, error, status } = await supabase
       .from('team_members')
-      .insert(insertData)
+      .insert(id ? { id, ...fields } : fields)
       .select()
       .single();
 
-    if (error) {
-      throw new Error('Could not save team member. Please try again.');
+    if (!error && data) {
+      return dbToMember(data);
     }
 
-    return dbToMember(data);
+    if (id && (!error || status === 0 || status === 408 || status >= 500 || error.code === '23505')) {
+      // Recover an insert that may have committed before its response was lost.
+      const { data: existing, error: lookupError } = await supabase
+        .from('team_members')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle<DbTeamMember>();
+
+      if (!lookupError && existing?.id === id) {
+        if (existing.name === member.name) return dbToMember(existing);
+        throw new Error('An earlier save added a family member with a different name. Restore the earlier name and try again.');
+      }
+    }
+
+    throw new Error('Could not save team member. Please try again.');
   } catch (err) {
     throw err instanceof Error ? err : new Error('Could not save family member. Please try again.');
   }

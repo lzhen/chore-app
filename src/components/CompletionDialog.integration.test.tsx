@@ -14,6 +14,116 @@ vi.mock('../utils/supabase', () => ({ supabase: { from } }));
 
 afterEach(cleanup);
 
+async function openFirstMemberDialog(firstSaveOutcome: 'denied' | 'response-lost') {
+  const today = dateKey();
+  const memberRows: { id: string; name: string; color: string }[] = [];
+  const chores = [{ id: 'dishes', title: 'Wash dishes', date: today, assignee_id: null, recurrence: 'none' }];
+  let finishFirstSave!: () => void;
+  const firstSave = new Promise<void>(resolve => { finishFirstSave = resolve; });
+
+  const insertMember = vi.fn((member: (typeof memberRows)[number]) => ({
+    select: () => ({
+      single: async () => {
+        if (insertMember.mock.calls.length === 1) {
+          await firstSave;
+          if (firstSaveOutcome === 'denied') {
+            return { data: null, error: { code: '42501' }, status: 403 };
+          }
+          memberRows.push(member);
+          return { data: null, error: { message: 'Failed to fetch' }, status: 0 };
+        }
+        if (memberRows.some(row => row.id === member.id)) {
+          return { data: null, error: { code: '23505' }, status: 409 };
+        }
+        memberRows.push(member);
+        return { data: member, error: null, status: 201 };
+      },
+    }),
+  }));
+  const lookupMember = vi.fn((_column: string, id: string) => ({
+    maybeSingle: async () => insertMember.mock.calls.length === 1
+      ? { data: null, error: { message: 'Failed to fetch' } }
+      : { data: memberRows.find(row => row.id === id) ?? null, error: null },
+  }));
+  const insertCompletion = vi.fn((completion: Record<string, unknown>) => ({
+    select: () => ({
+      single: async () => ({ data: { id: 'completion', ...completion }, error: null }),
+    }),
+  }));
+  from.mockImplementation((table: string) => ({
+    select: () => ({
+      order: async () => ({ data: table === 'chores' ? chores : table === 'team_members' ? memberRows : [], error: null }),
+      eq: table === 'team_members' ? lookupMember : undefined,
+    }),
+    insert: table === 'team_members' ? insertMember : insertCompletion,
+  }));
+
+  const user = userEvent.setup();
+  render(
+    <AppProvider>
+      <ListView onAddClick={vi.fn()} onEventClick={vi.fn()} />
+    </AppProvider>,
+  );
+  await user.click(await screen.findByRole('button', { name: 'Complete: Wash dishes' }));
+  const dialog = within(screen.getByRole('dialog', { name: 'Complete chore' }));
+  return { user, dialog, finishFirstSave, memberRows, insertMember, lookupMember, insertCompletion };
+}
+
+it.each(['denied', 'response-lost'] as const)(
+  'retries first-member setup after a %s save and requires explicit completion credit',
+  async outcome => {
+    const { user, dialog, finishFirstSave, memberRows, insertMember, lookupMember, insertCompletion } =
+      await openFirstMemberDialog(outcome);
+    const name = dialog.getByRole('textbox', { name: 'Family member name' });
+    const add = dialog.getByRole('button', { name: 'Add member' });
+    const markDone = dialog.getByRole('button', { name: 'Mark done' });
+    expect(add).toBeDisabled();
+    expect(markDone).toBeDisabled();
+    await user.type(name, '  Alex  ');
+    await user.click(add);
+
+    expect(dialog.getByRole('button', { name: 'Adding…' })).toBeDisabled();
+    expect(dialog.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+    expect(dialog.getByRole('button', { name: 'Close dialog' })).toBeDisabled();
+    expect(name).toBeDisabled();
+    await user.keyboard('{Escape}{Enter}');
+    expect(insertMember).toHaveBeenCalledTimes(1);
+    expect(insertCompletion).not.toHaveBeenCalled();
+    finishFirstSave();
+
+    expect(await dialog.findByRole('alert')).toHaveTextContent('Please try again.');
+    expect(name).toHaveValue('  Alex  ');
+    expect(name).toHaveFocus();
+    expect(add).toBeEnabled();
+    expect(markDone).toBeDisabled();
+    expect(memberRows).toHaveLength(outcome === 'response-lost' ? 1 : 0);
+    const [{ id }] = insertMember.mock.calls[0];
+    expect(lookupMember.mock.calls).toEqual(outcome === 'response-lost' ? [['id', id]] : []);
+
+    await user.keyboard('{Enter}');
+    const picker = await dialog.findByRole('combobox', { name: 'Who completed it?' });
+    expect(picker).toHaveFocus();
+    expect(picker).toHaveTextContent('Choose a family member');
+    expect(dialog.queryByRole('alert')).not.toBeInTheDocument();
+    expect(markDone).toBeDisabled();
+    expect(insertCompletion).not.toHaveBeenCalled();
+    expect(insertMember.mock.calls.map(([member]) => [member.id, member.name])).toEqual([[id, 'Alex'], [id, 'Alex']]);
+    expect(memberRows).toHaveLength(1);
+    expect(lookupMember.mock.calls).toEqual(outcome === 'response-lost' ? [['id', id], ['id', id]] : []);
+
+    await user.keyboard('{Enter}');
+    expect(dialog.getAllByRole('option')).toHaveLength(1);
+    expect(dialog.getByRole('option', { name: 'Alex' })).toHaveAttribute('aria-selected', 'false');
+    await user.keyboard('{Enter}');
+    expect(markDone).toBeEnabled();
+    expect(insertCompletion).not.toHaveBeenCalled();
+    await user.click(markDone);
+    expect(await screen.findByRole('button', { name: 'Undo completion: Wash dishes' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Complete chore' })).not.toBeInTheDocument();
+    expect(insertCompletion.mock.calls).toEqual([[expect.objectContaining({ chore_id: 'dishes', completed_by: id })]]);
+  },
+);
+
 async function openUndoDialog(deleteOutcome: 'response-lost' | 'permission-denied') {
   const today = dateKey();
   const chores = [

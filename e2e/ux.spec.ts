@@ -13,17 +13,21 @@ async function selectAppearance(page: Page, theme: 'light' | 'dark') {
 
 const TODAY='2026-09-25';
 const OWNER='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', A='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', B='cccccccc-cccc-4ccc-8ccc-cccccccccccc';
-async function fixture(page:Page,width=390,empty=false){
+async function fixture(page:Page,width=390,{emptyChores=false,emptyFamily=false}={}){
  await page.setViewportSize({width,height:844});await page.clock.setFixedTime(new Date('2026-09-25T19:00:00Z'));
  const user={id:OWNER,email:'release-test@example.test',aud:'authenticated',role:'authenticated',app_metadata:{},user_metadata:{},created_at:'2026-01-01T00:00:00Z'};
  const token='eyJhbGciOiJIUzI1NiJ9.'+Buffer.from(JSON.stringify({sub:OWNER,exp:2000000000,role:'authenticated'})).toString('base64url')+'.test-only';
  await page.addInitScript(({user,token})=>{localStorage.setItem('sb-rosofbnimiothwxsabyr-auth-token',JSON.stringify({access_token:token,refresh_token:'mock-only',expires_at:2000000000,expires_in:999999,user,token_type:'bearer'}));},{user,token});
- const db:Record<string,any[]>={team_members:[{id:A,name:'Alex',color:'#075db8',points:0,badges:[],created_at:TODAY},{id:B,name:'Jamie',color:'#8759bb',points:0,badges:[],created_at:TODAY}],categories:[],chore_completions:[],member_availability:[],chores:empty?[]:[
+ const db:Record<string,any[]>={team_members:[{id:A,name:'Alex',color:'#075db8',points:0,badges:[],created_at:TODAY},{id:B,name:'Jamie',color:'#8759bb',points:0,badges:[],created_at:TODAY}],categories:[],chore_completions:[],member_availability:[],chores:emptyChores?[]:[
   {id:'11111111-1111-4111-8111-111111111111',title:'Take out the recycling',date:TODAY,due_time:'18:00:00',end_time:'19:00:00',assignee_id:A,recurrence:'none',priority:'medium'},
   {id:'22222222-2222-4222-8222-222222222222',title:'Clean the kitchen counters',date:'2026-09-24',assignee_id:B,recurrence:'none',priority:'medium'},
   {id:'33333333-3333-4333-8333-333333333333',title:'Vacuum common areas',date:'2026-09-27',assignee_id:null,recurrence:'none',priority:'high'},
   {id:'44444444-4444-4444-8444-444444444444',title:'Water the plants',date:TODAY,assignee_id:null,recurrence:'none',priority:'medium'},
  ]};
+ if(emptyFamily){
+  db.team_members=[];
+  for(const chore of db.chores)chore.assignee_id=null;
+ }
  const calls:{method:string;table:string;body:any;id?:string}[]=[];
  let fail=false;let readsFail=false;let loseChoreResponse=false;let loseNextChoreUpdateResponse=false;
  await page.route('**/*.supabase.co/**',async route=>{
@@ -99,7 +103,7 @@ test('failed save retains draft, reports error and allows retry',async({page})=>
  f.recover();await page.getByRole('dialog').getByRole('button',{name:'Add chore',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 test('retrying a first chore after a lost save response shows one saved chore', async ({page}) => {
-  const f = await fixture(page, 390, true);
+  const f = await fixture(page, 390, { emptyChores: true });
   const title = 'Put away the dishes';
   await page.getByRole('button', {name: 'Add your first chore', exact: true}).click();
   const dialog = page.getByRole('dialog', {name: 'Add a chore'});
@@ -156,6 +160,40 @@ test('search filters the Chores view and exposes an empty state',async({page})=>
 });
 test('unassigned completion requires explicit member; selection determines credit',async({page})=>{
  const f=await fixture(page);await page.getByRole('button',{name:'Complete: Water the plants',exact:true}).click();await expect(page.getByLabel('Who completed it?')).toContainText('Choose a family member');await expect(page.getByRole('button',{name:'Mark done',exact:true})).toBeDisabled();expect(f.db.chore_completions).toHaveLength(0);await page.getByLabel('Who completed it?').click();await page.getByRole('dialog').getByRole('option',{name:'Jamie',exact:true}).click();await page.getByRole('button',{name:'Mark done',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);expect(f.db.chore_completions[0].completed_by).toBe(B);
+});
+test('first family member can be added and selected inside completion after a failed save', async ({page}) => {
+  const f = await fixture(page, 390, { emptyFamily: true });
+  await page.getByRole('button', {name: 'Complete: Water the plants', exact: true}).click();
+  const dialog = page.getByRole('dialog', {name: 'Complete chore', exact: true});
+  const name = dialog.getByRole('textbox', {name: 'Family member name'});
+  const add = dialog.getByRole('button', {name: 'Add member', exact: true});
+  const markDone = dialog.getByRole('button', {name: 'Mark done', exact: true});
+  await expect(add).toBeDisabled();
+  await expect(markDone).toBeDisabled();
+  await name.fill('Alex');
+
+  f.failWrites();
+  await add.click();
+  await expect(dialog.getByRole('alert')).toContainText('Please try again.');
+  await expect(name).toHaveValue('Alex');
+  await expect(name).toBeFocused();
+  expect(f.db.team_members).toHaveLength(0);
+  expect(f.db.chore_completions).toHaveLength(0);
+
+  f.recover();
+  await name.press('Enter');
+  const picker = dialog.getByRole('combobox', {name: 'Who completed it?'});
+  await expect(picker).toHaveText('Choose a family member');
+  await expect(picker).toBeFocused();
+  await expect(markDone).toBeDisabled();
+  expect(f.db.team_members).toHaveLength(1);
+  expect(f.db.chore_completions).toHaveLength(0);
+
+  await picker.click();
+  await dialog.getByRole('option', {name: 'Alex', exact: true}).click();
+  await markDone.click();
+  await expect(dialog).toHaveCount(0);
+  expect(f.db.chore_completions[0].completed_by).toBe(f.db.team_members[0].id);
 });
 test('Insights and Account are top-level pages, with the correct selected tab',async({page})=>{
  await fixture(page);const nav=page.getByRole('navigation',{name:'Primary navigation'});for(const name of ['Insights','Account','Calendar','Today']){await nav.getByRole('button',{name,exact:true}).click();await expect(nav.getByRole('button',{name,exact:true})).toHaveAttribute('aria-current','page');await expect(page.getByRole('dialog')).toHaveCount(0);}
@@ -225,7 +263,7 @@ test('direct dark appearance respects later choices and styles the browser chrom
 });
 
 test('starter suggestion waits for an edited explicit save', async ({page}, info) => {
-  const f = await fixture(page, 390, true);
+  const f = await fixture(page, 390, { emptyChores: true });
   const nav = page.getByRole('navigation', {name: 'Primary navigation'});
   await nav.getByRole('button', {name: 'Insights', exact: true}).click();
   await expect(page.getByRole('heading', {name: 'Small wins will show up here.'})).toBeVisible();

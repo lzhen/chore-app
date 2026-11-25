@@ -73,7 +73,7 @@ interface AppContextType {
   updateChore: (chore: Chore) => Promise<void>;
   deleteChore: (id: string) => Promise<void>;
   // Team member operations
-  addMember: (name: string) => Promise<void>;
+  addMember: (name: string, id?: string) => Promise<void>;
   updateMember: (member: TeamMember) => Promise<void>;
   removeMember: (id: string) => Promise<void>;
   // Category operations
@@ -130,7 +130,9 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_MEMBERS':
       return { ...state, teamMembers: action.payload };
     case 'ADD_MEMBER':
-      return { ...state, teamMembers: [...state.teamMembers, action.payload] };
+      return state.teamMembers.some(member => member.id === action.payload.id)
+        ? state
+        : { ...state, teamMembers: [...state.teamMembers, action.payload] };
     case 'UPDATE_MEMBER':
       return {
         ...state,
@@ -242,10 +244,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Team member operations
   // ============================================
 
-  const addMember = async (name: string) => {
+  const addMember = async (name: string, id?: string) => {
     const usedColors = state.teamMembers.map(m => m.color);
     const color = getNextColor(usedColors);
-    const newMember = await dbCreateTeamMember({ name, color, points: 0, badges: [] });
+    const newMember = await dbCreateTeamMember({ name, color, points: 0, badges: [] }, id);
     if (newMember) {
       dispatch({ type: 'ADD_MEMBER', payload: newMember });
     }
