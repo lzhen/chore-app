@@ -14,6 +14,7 @@ import { Chore, ChoreInstance } from '../types';
 import { EventPopover } from './EventPopover';
 
 interface CalendarProps {
+  initialDate?: Date;
   onAddClick: (defaultValues?: { date?: string; startTime?: string; endTime?: string; allDay?: boolean }) => void;
   onEventClick: (chore: Chore, instanceDate: string) => void;
   searchQuery?: string;
@@ -35,7 +36,7 @@ function minutesFromTime(time?: string): number {
 }
 
 export const Calendar = forwardRef<CalendarRef, CalendarProps>(
-  ({ onAddClick, onEventClick, searchQuery, hiddenMembers = new Set() }, ref) => {
+  ({ initialDate, onAddClick, onEventClick, searchQuery, hiddenMembers = new Set() }, ref) => {
     const { state, updateChore } = useApp();
     const [completionInstance,setCompletionInstance] = useState<ChoreInstance|null>(null);
     const [operationError,setOperationError] = useState('');
@@ -301,6 +302,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
               ref={calendarRef}
               plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
               initialView="dayGridMonth"
+              initialDate={initialDate}
               datesSet={handleDatesSet}
               events={events}
               eventClick={handleEventClick}

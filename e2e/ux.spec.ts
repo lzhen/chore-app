@@ -223,6 +223,35 @@ test('calendar navigation reveals a chore months ahead and returns to the curren
   await expect(calendar.getByText('Water the plants', {exact: true})).toBeVisible();
   expect(calls.filter(call => call.method !== 'GET')).toHaveLength(0);
 });
+test('family menu opens the selected Calendar date from Today', async ({page}) => {
+  const {db, calls} = await fixture(page, 1280);
+  const title = 'Change the air filter';
+  const date = '2026-10-12';
+  db.chores.push({
+    id: '66666666-6666-4666-8666-666666666666', title, date,
+    assignee_id: A, recurrence: 'none', priority: 'medium',
+  });
+  await page.reload();
+  const navigation = page.getByRole('navigation', {name: 'Primary navigation'});
+  await expect(navigation.getByRole('button', {name: 'Today', exact: true})).toHaveAttribute('aria-current', 'page');
+
+  await page.getByRole('button', {name: 'Open family menu'}).click();
+  const family = page.getByRole('complementary', {name: 'Family'});
+  await family.getByRole('button', {name: 'Next month'}).click();
+  await family.getByRole('button', {name: '12', exact: true}).click();
+  await expect(family).toHaveCount(0);
+  await expect(navigation.getByRole('button', {name: 'Calendar', exact: true})).toHaveAttribute('aria-current', 'page');
+
+  const calendar = page.locator('.calendar-container');
+  await expect(calendar.getByRole('heading', {name: 'Oct 2026', exact: true})).toBeVisible();
+  await calendar.getByRole('button', {name: 'Day', exact: true}).click();
+  await expect(calendar.getByText(title, {exact: true})).toBeVisible();
+
+  await navigation.getByRole('button', {name: 'Today', exact: true}).click();
+  await navigation.getByRole('button', {name: 'Calendar', exact: true}).click();
+  await expect(calendar.getByRole('heading', {name: 'Sep 2026', exact: true})).toBeVisible();
+  expect(calls.filter(call => call.method !== 'GET')).toHaveLength(0);
+});
 test('dialog isolates background controls, keeps focus and confirms draft discard',async({page})=>{
  await fixture(page);await page.getByRole('button',{name:'Add new chore'}).click();expect(await page.locator('#root').evaluate(el=>(el as HTMLElement).inert)).toBe(true);await page.getByLabel('What needs doing?').fill('Do not silently discard');await page.keyboard.press('Escape');await expect(page.getByRole('dialog',{name:'Discard changes?'})).toBeVisible();await page.getByRole('button',{name:'Keep editing'}).click();await expect(page.getByLabel('What needs doing?')).toHaveValue('Do not silently discard');
 });
