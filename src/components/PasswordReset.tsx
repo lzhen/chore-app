@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Logo } from './Logo';
 import { ThemeSelector } from './ThemeSelector';
 import { supabase } from '../utils/supabase';
@@ -14,10 +14,16 @@ export function PasswordReset({ onComplete }: PasswordResetProps) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [exitError, setExitError] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const signOutInFlight = useRef(false);
+  const busy = status === 'loading' || signingOut;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (status === 'loading' || signOutInFlight.current) return;
     setErrorMessage(null);
+    setExitError(false);
 
     if (password !== confirmPassword) {
       setErrorMessage('Passwords do not match');
@@ -42,7 +48,20 @@ export function PasswordReset({ onComplete }: PasswordResetProps) {
   };
 
   const handleContinue = async () => {
-    await supabase.auth.signOut();
+    if (status === 'loading' || signOutInFlight.current) return;
+    signOutInFlight.current = true;
+    setSigningOut(true);
+    setExitError(false);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch {
+      setExitError(true);
+      return;
+    } finally {
+      signOutInFlight.current = false;
+      setSigningOut(false);
+    }
     window.history.replaceState(null, '', window.location.pathname);
     onComplete();
   };
@@ -85,10 +104,12 @@ export function PasswordReset({ onComplete }: PasswordResetProps) {
                 Your password has been successfully reset. You can now sign in with your new password.
               </p>
               <button
+                type="button"
                 onClick={handleContinue}
                 className="fluent-button w-full py-2.5"
+                disabled={signingOut}
               >
-                Continue to Sign In
+                {signingOut ? 'Signing out…' : 'Continue to Sign In'}
               </button>
             </div>
           ) : (
@@ -114,7 +135,7 @@ export function PasswordReset({ onComplete }: PasswordResetProps) {
                     required
                     minLength={6}
                     placeholder="Enter new password"
-                    disabled={status === 'loading'}
+                    disabled={busy}
                   />
                 </div>
 
@@ -131,7 +152,7 @@ export function PasswordReset({ onComplete }: PasswordResetProps) {
                     required
                     minLength={6}
                     placeholder="Confirm new password"
-                    disabled={status === 'loading'}
+                    disabled={busy}
                   />
                 </div>
 
@@ -143,7 +164,7 @@ export function PasswordReset({ onComplete }: PasswordResetProps) {
 
                 <button
                   type="submit"
-                  disabled={status === 'loading'}
+                  disabled={busy}
                   className="fluent-button w-full py-2.5"
                 >
                   {status === 'loading' ? 'Updating...' : 'Reset Password'}
@@ -152,14 +173,20 @@ export function PasswordReset({ onComplete }: PasswordResetProps) {
 
               <div className="mt-4 text-center">
                 <button
+                  type="button"
                   onClick={handleContinue}
                   className="text-content-secondary hover:text-brand text-sm transition-colors duration-fast"
-                  disabled={status === 'loading'}
+                  disabled={busy}
                 >
-                  Cancel and return to sign in
+                  {signingOut ? 'Signing out…' : 'Cancel and return to sign in'}
                 </button>
               </div>
             </>
+          )}
+          {exitError && (
+            <p role="alert" className="mt-3 text-sm text-red-500">
+              Could not sign out. Please try again.
+            </p>
           )}
         </div>
       </div>

@@ -250,6 +250,70 @@ test.describe('Password Reset Request Flow', () => {
   });
 });
 
+test.describe('Password Recovery Exit', () => {
+  test.use({ serviceWorkers: 'block' });
+
+  test('offers a sign-out retry after updating the password during recovery', async ({ page }) => {
+    const user = {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      email: 'recovery@example.test',
+      aud: 'authenticated',
+      role: 'authenticated',
+      app_metadata: {},
+      user_metadata: {},
+      created_at: '2026-01-01T00:00:00Z',
+    };
+    const token = 'eyJhbGciOiJIUzI1NiJ9.' + Buffer.from(JSON.stringify({
+      sub: user.id, exp: 2000000000, role: 'authenticated',
+    })).toString('base64url') + '.test-only';
+    const storageKey = 'sb-rosofbnimiothwxsabyr-auth-token';
+    await page.addInitScript(({ storageKey, user, token }) => {
+      localStorage.setItem(storageKey, JSON.stringify({
+        access_token: token, refresh_token: 'mock-only', expires_at: 2000000000,
+        expires_in: 999999, token_type: 'bearer', user,
+      }));
+    }, { storageKey, user, token });
+
+    let updates = 0;
+    const logoutScopes: (string | null)[] = [];
+    await page.route('**/*.supabase.co/**', async route => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.pathname === '/auth/v1/user') {
+        if (request.method() === 'PUT') updates++;
+        return route.fulfill({ json: user });
+      }
+      if (url.pathname === '/auth/v1/logout' && request.method() === 'POST') {
+        logoutScopes.push(url.searchParams.get('scope'));
+        return logoutScopes.length === 1
+          ? route.fulfill({ status: 503, json: { message: 'Synthetic transport failure' } })
+          : route.fulfill({ status: 204 });
+      }
+      return route.abort('blockedbyclient');
+    });
+
+    await page.goto('/chore-app/#type=recovery');
+    await page.getByLabel('New Password', { exact: true }).fill('synthetic-password');
+    await page.getByLabel('Confirm Password', { exact: true }).fill('synthetic-password');
+    await page.getByRole('button', { name: 'Reset Password', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Password Updated!' })).toBeVisible();
+
+    const continueButton = page.getByRole('button', { name: 'Continue to Sign In', exact: true });
+    await continueButton.click();
+    await expect(page.getByRole('alert')).toHaveText('Could not sign out. Please try again.');
+    await expect(page.getByRole('heading', { name: 'Password Updated!' })).toBeVisible();
+    await expect(page).toHaveURL(/#type=recovery$/);
+    expect(await page.evaluate(key => localStorage.getItem(key) !== null, storageKey)).toBe(true);
+
+    await continueButton.click();
+    await new AuthPage(page).expectSignInPage();
+    await expect(page).toHaveURL(/\/chore-app\/$/);
+    expect(await page.evaluate(key => localStorage.getItem(key), storageKey)).toBeNull();
+    expect(logoutScopes).toEqual(['global', 'global']);
+    expect(updates).toBe(1);
+  });
+});
+
 test.describe('Form Validation', () => {
   let authPage: AuthPage;
 

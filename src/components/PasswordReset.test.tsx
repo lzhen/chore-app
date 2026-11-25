@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PasswordReset } from './PasswordReset';
@@ -150,6 +150,85 @@ describe('PasswordReset', () => {
     await waitFor(() => {
       expect(mockOnComplete).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('keeps the recovery form and URL when cancelling fails, then exits after a retry', async () => {
+    vi.mocked(supabase.auth.signOut)
+      .mockResolvedValueOnce({ error: new Error('Synthetic transport failure') as any })
+      .mockResolvedValueOnce({ error: null });
+    window.location.hash = '#type=recovery';
+
+    const user = userEvent.setup();
+    render(<PasswordReset onComplete={mockOnComplete} />);
+    await user.type(screen.getByLabelText(/new password/i), 'unfinished-entry');
+    const cancel = screen.getByRole('button', { name: 'Cancel and return to sign in' });
+    await user.click(cancel);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not sign out. Please try again.');
+    expect(screen.getByLabelText(/new password/i)).toHaveValue('unfinished-entry');
+    expect(window.location.hash).toBe('#type=recovery');
+    expect(window.history.replaceState).not.toHaveBeenCalled();
+    expect(mockOnComplete).not.toHaveBeenCalled();
+
+    await user.click(cancel);
+    expect(window.history.replaceState).toHaveBeenCalledWith(null, '', '/chore-app/');
+    expect(mockOnComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the password-updated confirmation when signing out fails, then retries just sign-out', async () => {
+    vi.mocked(supabase.auth.updateUser).mockResolvedValue({
+      data: { user: null },
+      error: null,
+    } as any);
+    vi.mocked(supabase.auth.signOut)
+      .mockResolvedValueOnce({ error: new Error('Synthetic transport failure') as any })
+      .mockResolvedValueOnce({ error: null });
+    window.location.hash = '#type=recovery';
+
+    const user = userEvent.setup();
+    render(<PasswordReset onComplete={mockOnComplete} />);
+    await user.type(screen.getByLabelText(/new password/i), 'new-password');
+    await user.type(screen.getByLabelText(/confirm password/i), 'new-password');
+    await user.click(screen.getByRole('button', { name: 'Reset Password' }));
+    const continueButton = await screen.findByRole('button', { name: 'Continue to Sign In' });
+    await user.click(continueButton);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not sign out. Please try again.');
+    expect(screen.getByRole('heading', { name: 'Password Updated!' })).toBeVisible();
+    expect(window.history.replaceState).not.toHaveBeenCalled();
+    expect(mockOnComplete).not.toHaveBeenCalled();
+
+    await user.click(continueButton);
+    expect(supabase.auth.updateUser).toHaveBeenCalledTimes(1);
+    expect(supabase.auth.signOut).toHaveBeenCalledTimes(2);
+    expect(window.history.replaceState).toHaveBeenCalledWith(null, '', '/chore-app/');
+    expect(mockOnComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks duplicate exits while signing out and recovers from a rejected request', async () => {
+    let rejectSignOut!: (error: Error) => void;
+    vi.mocked(supabase.auth.signOut)
+      .mockImplementationOnce(() => new Promise((_, reject) => { rejectSignOut = reject; }))
+      .mockResolvedValueOnce({ error: null });
+
+    const user = userEvent.setup();
+    render(<PasswordReset onComplete={mockOnComplete} />);
+    const cancel = screen.getByRole('button', { name: 'Cancel and return to sign in' });
+    await user.dblClick(cancel);
+
+    expect(supabase.auth.signOut).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Signing out…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Reset Password' })).toBeDisabled();
+
+    await act(async () => {
+      rejectSignOut(new Error('Synthetic rejected request'));
+    });
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not sign out. Please try again.');
+    expect(window.history.replaceState).not.toHaveBeenCalled();
+    expect(mockOnComplete).not.toHaveBeenCalled();
+
+    await user.click(cancel);
+    expect(mockOnComplete).toHaveBeenCalledTimes(1);
   });
 
   it('disables form inputs while loading', async () => {
