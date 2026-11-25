@@ -61,6 +61,52 @@ describe('App first chore and Today entry', () => {
     }
   });
 
+  it('marks the chore’s local calendar date in the Family menu', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 8, 25, 12));
+    try {
+      const user = userEvent.setup();
+      app.state.chores = [{
+        id: 'local-chore', title: 'Sweep the porch', date: '2026-09-12',
+        assigneeId: null, recurrence: 'none', priority: 'medium',
+      }];
+      render(<App/>);
+      await user.click(screen.getByRole('button', { name: 'Open family menu' }));
+      const family = within(screen.getByRole('complementary', { name: 'Family' }));
+
+      expect(family.getByRole('button', { name: /^12$/ }).querySelector('span')).toBeInTheDocument();
+      expect(family.getByRole('button', { name: /^13$/ }).querySelector('span')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('marks chores throughout the visible grid when browsing distant months', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 8, 25, 12));
+    try {
+      const user = userEvent.setup();
+      app.state.chores = [
+        { id: 'future-chore', title: 'Change the air filter', date: '2027-02-12', assigneeId: null, recurrence: 'none', priority: 'medium' },
+        { id: 'weekly-chore', title: 'Plan the week', date: '2026-09-27', assigneeId: null, recurrence: 'weekly', priority: 'medium' },
+      ];
+      render(<App/>);
+      await user.click(screen.getByRole('button', { name: 'Open family menu' }));
+      const family = within(screen.getByRole('complementary', { name: 'Family' }));
+      for (let step = 0; step < 5; step++) {
+        await user.click(family.getByRole('button', { name: 'Next month' }));
+      }
+
+      expect(family.getByRole('button', { name: 'Feb 2027' })).toBeInTheDocument();
+      for (const day of [/^12$/, /^7$/, /^31$/]) {
+        expect(family.getByRole('button', { name: day }).querySelector('span')).toBeInTheDocument();
+      }
+      expect(family.getByRole('button', { name: /^13$/ }).querySelector('span')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('opens a familiar chore as a draft and waits for an explicit save', async () => {
     const user = userEvent.setup();
     render(<App/>);

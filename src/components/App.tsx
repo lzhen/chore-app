@@ -1,5 +1,5 @@
 import { LoadingScreen } from './LoadingScreen';
-import { useState, useRef, useMemo, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Header } from './Header';
 import { TeamMemberList } from './TeamMemberList';
 import { Calendar, CalendarRef } from './Calendar';
@@ -19,7 +19,6 @@ import { PasswordReset } from './PasswordReset';
 import { Chore, ViewMode, TeamMember } from '../types';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import { generateChoreInstances, getCalendarRange } from '../utils/recurrence';
 
 const starterChores: {label:string;detail:string;draft:ChoreDefaultValues}[] = [
   {label:'Wash dishes',detail:'Every day · 15 min',draft:{title:'Wash dishes',recurrence:'daily',estimatedMinutes:15}},
@@ -46,19 +45,6 @@ export function App() {
   const [profileMember, setProfileMember] = useState<TeamMember | null>(null);
   const [availabilityMember, setAvailabilityMember] = useState<TeamMember | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-
-  // Compute event dates for mini calendar
-  const eventDates = useMemo(() => {
-    const { start, end } = getCalendarRange();
-    const instances = generateChoreInstances(
-      state.chores,
-      state.teamMembers,
-      state.completions,
-      start,
-      end
-    );
-    return new Set(instances.map(i => i.date));
-  }, [state.chores, state.teamMembers, state.completions]);
 
   // Navigate calendar to a specific date
   const handleMiniCalendarDateSelect = useCallback((date: Date) => {
@@ -252,7 +238,7 @@ export function App() {
         </div>
       </div>
     </section>}
-    {sidebarOpen&&<div className="family-overlay"><button className="family-backdrop" aria-label="Close family menu" onClick={()=>setSidebarOpen(false)}/><aside id="nesmi-family-panel" className="family-panel" aria-label="Family"><TeamMemberList onClose={()=>setSidebarOpen(false)} onDateSelect={handleMiniCalendarDateSelect} eventDates={eventDates} hiddenMembers={hiddenMembers} onToggleMemberVisibility={handleToggleMemberVisibility} onProfileOpen={m=>{setSidebarOpen(false);setProfileMember(m);}} onAvailabilityOpen={m=>{setSidebarOpen(false);setAvailabilityMember(m);}}/></aside></div>}
+    {sidebarOpen&&<div className="family-overlay"><button className="family-backdrop" aria-label="Close family menu" onClick={()=>setSidebarOpen(false)}/><aside id="nesmi-family-panel" className="family-panel" aria-label="Family"><TeamMemberList onClose={()=>setSidebarOpen(false)} onDateSelect={handleMiniCalendarDateSelect} hiddenMembers={hiddenMembers} onToggleMemberVisibility={handleToggleMemberVisibility} onProfileOpen={m=>{setSidebarOpen(false);setProfileMember(m);}} onAvailabilityOpen={m=>{setSidebarOpen(false);setAvailabilityMember(m);}}/></aside></div>}
     {state.chores.length>0&&viewMode==='calendar'&&<Calendar ref={calendarRef} initialDate={initialCalendarDate} onAddClick={handleAddClick} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers}/>}
     {state.chores.length>0&&(viewMode==='today'||viewMode==='list')&&<ListView key={viewMode} todayView={viewMode==='today'} onAddClick={()=>handleAddClick()} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers} onClearFilters={()=>{setSearchQuery('');setHiddenMembers(new Set());}}/>}
     {viewMode==='dashboard'&&(state.chores.length>0?<Dashboard embedded onClose={()=>setViewMode('today')}/>:<section className="chore-list-page"><div className="chore-empty"><h2>Small wins will show up here.</h2><p>Add your first chore to start seeing your household’s progress.</p><button className="chore-button primary" onClick={()=>handleAddClick()}>Add your first chore</button></div></section>)}
