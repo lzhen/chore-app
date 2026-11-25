@@ -13,8 +13,8 @@ async function selectAppearance(page: Page, theme: 'light' | 'dark') {
 
 const TODAY='2026-09-25';
 const OWNER='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', A='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', B='cccccccc-cccc-4ccc-8ccc-cccccccccccc';
-async function fixture(page:Page,width=390,{emptyChores=false,emptyFamily=false}={}){
- await page.setViewportSize({width,height:844});await page.clock.setFixedTime(new Date('2026-09-25T19:00:00Z'));
+async function fixture(page:Page,width=390,{emptyChores=false,emptyFamily=false,now=new Date('2026-09-25T19:00:00Z')}={}){
+ await page.setViewportSize({width,height:844});await page.clock.setFixedTime(now);
  const user={id:OWNER,email:'release-test@example.test',aud:'authenticated',role:'authenticated',app_metadata:{},user_metadata:{},created_at:'2026-01-01T00:00:00Z'};
  const token='eyJhbGciOiJIUzI1NiJ9.'+Buffer.from(JSON.stringify({sub:OWNER,exp:2000000000,role:'authenticated'})).toString('base64url')+'.test-only';
  await page.addInitScript(({user,token})=>{localStorage.setItem('sb-rosofbnimiothwxsabyr-auth-token',JSON.stringify({access_token:token,refresh_token:'mock-only',expires_at:2000000000,expires_in:999999,user,token_type:'bearer'}));},{user,token});
@@ -250,6 +250,29 @@ test('family menu opens the selected Calendar date from Today', async ({page}) =
   await navigation.getByRole('button', {name: 'Today', exact: true}).click();
   await navigation.getByRole('button', {name: 'Calendar', exact: true}).click();
   await expect(calendar.getByRole('heading', {name: 'Sep 2026', exact: true})).toBeVisible();
+  expect(calls.filter(call => call.method !== 'GET')).toHaveLength(0);
+});
+test('Family calendar browses from month end and Today opens the current date', async ({page}) => {
+  const {db, calls} = await fixture(page, 1280, {now: new Date('2026-01-31T20:00:00Z')});
+  const title = 'Replace the furnace filter';
+  db.chores.push({
+    id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', title, date: '2026-01-31',
+    assignee_id: A, recurrence: 'none', priority: 'medium',
+  });
+  await page.reload();
+
+  await page.getByRole('button', {name: 'Open family menu'}).click();
+  const family = page.getByRole('complementary', {name: 'Family'});
+  await expect(family.getByRole('button', {name: 'Jan 2026', exact: true})).toBeVisible();
+  await family.getByRole('button', {name: 'Next month'}).click();
+  await expect(family.getByRole('button', {name: 'Feb 2026', exact: true})).toBeVisible();
+  await family.getByRole('button', {name: 'Today', exact: true}).click();
+  await expect(family).toHaveCount(0);
+
+  const calendar = page.locator('.calendar-container');
+  await expect(calendar.getByRole('heading', {name: 'Jan 2026', exact: true})).toBeVisible();
+  await calendar.getByRole('button', {name: 'Day', exact: true}).click();
+  await expect(calendar.getByText(title, {exact: true})).toBeVisible();
   expect(calls.filter(call => call.method !== 'GET')).toHaveLength(0);
 });
 test.describe('Family calendar markers in a positive UTC offset', () => {

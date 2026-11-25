@@ -61,6 +61,26 @@ describe('App first chore and Today entry', () => {
     }
   });
 
+  it.each([
+    [new Date(2026, 0, 31, 12), 'Next month', 'Feb 2026'],
+    [new Date(2026, 2, 31, 12), 'Previous month', 'Feb 2026'],
+    [new Date(2026, 11, 31, 12), 'Next month', 'Jan 2027'],
+  ])('browses from %s with %s to %s in the Family menu', async (today, arrow, month) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(today);
+    try {
+      const user = userEvent.setup();
+      render(<App/>);
+      await user.click(screen.getByRole('button', { name: 'Open family menu' }));
+      const family = within(screen.getByRole('complementary', { name: 'Family' }));
+
+      await user.click(family.getByRole('button', { name: arrow }));
+      expect(family.getByRole('button', { name: month })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('marks the chore’s local calendar date in the Family menu', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date(2026, 8, 25, 12));

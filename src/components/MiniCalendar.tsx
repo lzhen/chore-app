@@ -52,11 +52,7 @@ export function MiniCalendar({ onDateSelect, chores }: MiniCalendarProps) {
   }, [viewDate, chores]);
 
   const navigateMonth = (delta: number) => {
-    setViewDate(prev => {
-      const newDate = new Date(prev);
-      newDate.setMonth(newDate.getMonth() + delta);
-      return newDate;
-    });
+    setViewDate(previous => new Date(previous.getFullYear(), previous.getMonth() + delta, 1));
   };
 
   const goToToday = () => {
