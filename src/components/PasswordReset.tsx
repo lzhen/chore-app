@@ -16,12 +16,12 @@ export function PasswordReset({ onComplete }: PasswordResetProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [exitError, setExitError] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-  const signOutInFlight = useRef(false);
+  const recoveryActionInFlight = useRef(false);
   const busy = status === 'loading' || signingOut;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (status === 'loading' || signOutInFlight.current) return;
+    if (recoveryActionInFlight.current) return;
     setErrorMessage(null);
     setExitError(false);
 
@@ -35,21 +35,27 @@ export function PasswordReset({ onComplete }: PasswordResetProps) {
       return;
     }
 
+    recoveryActionInFlight.current = true;
     setStatus('loading');
-
-    const { error } = await supabase.auth.updateUser({ password });
-
-    if (error) {
-      setErrorMessage(error.message);
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) {
+        setErrorMessage(error.message);
+        setStatus('error');
+      } else {
+        setStatus('success');
+      }
+    } catch {
+      setErrorMessage('Could not confirm the password update. Please try again.');
       setStatus('error');
-    } else {
-      setStatus('success');
+    } finally {
+      recoveryActionInFlight.current = false;
     }
   };
 
   const handleContinue = async () => {
-    if (status === 'loading' || signOutInFlight.current) return;
-    signOutInFlight.current = true;
+    if (recoveryActionInFlight.current) return;
+    recoveryActionInFlight.current = true;
     setSigningOut(true);
     setExitError(false);
     try {
@@ -59,7 +65,7 @@ export function PasswordReset({ onComplete }: PasswordResetProps) {
       setExitError(true);
       return;
     } finally {
-      signOutInFlight.current = false;
+      recoveryActionInFlight.current = false;
       setSigningOut(false);
     }
     window.history.replaceState(null, '', window.location.pathname);
@@ -157,7 +163,7 @@ export function PasswordReset({ onComplete }: PasswordResetProps) {
                 </div>
 
                 {errorMessage && (
-                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-fluent-sm text-red-500 text-sm">
+                  <div role="alert" className="p-3 bg-red-500/10 border border-red-500/30 rounded-fluent-sm text-red-500 text-sm">
                     {errorMessage}
                   </div>
                 )}

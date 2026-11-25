@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PasswordReset } from './PasswordReset';
@@ -14,6 +14,13 @@ vi.mock('./ThemeSelector', () => ({
 
 describe('PasswordReset', () => {
   const mockOnComplete = vi.fn();
+  const updatedUser = {
+    id: 'synthetic-user',
+    app_metadata: {},
+    user_metadata: {},
+    aud: 'authenticated',
+    created_at: '2026-01-01T00:00:00Z',
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -111,6 +118,64 @@ describe('PasswordReset', () => {
     await waitFor(() => {
       expect(screen.getByText('Token expired')).toBeInTheDocument();
     });
+  });
+
+  it('keeps both password fields editable and allows retry after a rejected update request', async () => {
+    vi.mocked(supabase.auth.updateUser)
+      .mockRejectedValueOnce(new Error('Synthetic client exception'))
+      .mockResolvedValueOnce({ data: { user: updatedUser }, error: null });
+
+    const user = userEvent.setup();
+    render(<PasswordReset onComplete={mockOnComplete} />);
+    const password = screen.getByLabelText(/new password/i);
+    const confirmation = screen.getByLabelText(/confirm password/i);
+    const reset = screen.getByRole('button', { name: 'Reset Password' });
+    const cancel = screen.getByRole('button', { name: 'Cancel and return to sign in' });
+    await user.type(password, 'synthetic-password');
+    await user.type(confirmation, 'synthetic-password');
+    await user.click(reset);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not confirm the password update. Please try again.');
+    expect(password).toHaveValue('synthetic-password');
+    expect(confirmation).toHaveValue('synthetic-password');
+    expect(password).toBeEnabled();
+    expect(confirmation).toBeEnabled();
+    expect(reset).toBeEnabled();
+    expect(cancel).toBeEnabled();
+    expect(supabase.auth.signOut).not.toHaveBeenCalled();
+    expect(mockOnComplete).not.toHaveBeenCalled();
+
+    await user.click(reset);
+    expect(await screen.findByRole('heading', { name: 'Password Updated!' })).toBeVisible();
+    expect(supabase.auth.updateUser).toHaveBeenCalledTimes(2);
+    expect(supabase.auth.updateUser).toHaveBeenLastCalledWith({ password: 'synthetic-password' });
+  });
+
+  it('accepts only the first recovery action while a password update is pending', async () => {
+    let finishUpdate!: () => void;
+    vi.mocked(supabase.auth.updateUser)
+      .mockImplementation(() => new Promise(resolve => {
+        finishUpdate = () => resolve({ data: { user: updatedUser }, error: null });
+      }));
+
+    const user = userEvent.setup();
+    render(<PasswordReset onComplete={mockOnComplete} />);
+    await user.type(screen.getByLabelText(/new password/i), 'synthetic-password');
+    await user.type(screen.getByLabelText(/confirm password/i), 'synthetic-password');
+    const form = screen.getByRole('button', { name: 'Reset Password' }).closest('form')!;
+    const cancel = screen.getByRole('button', { name: 'Cancel and return to sign in' });
+    act(() => {
+      fireEvent.submit(form);
+      fireEvent.submit(form);
+      fireEvent.click(cancel);
+    });
+
+    expect(supabase.auth.updateUser).toHaveBeenCalledTimes(1);
+    expect(supabase.auth.signOut).not.toHaveBeenCalled();
+    expect(cancel).toBeDisabled();
+
+    await act(async () => { finishUpdate(); });
+    expect(screen.getByRole('heading', { name: 'Password Updated!' })).toBeVisible();
   });
 
   it('signs out and calls onComplete when clicking continue after success', async () => {
