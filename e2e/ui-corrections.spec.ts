@@ -267,55 +267,66 @@ test.describe('Calendar pointer moves', () => {
   expect(calls.filter(call => call.method === 'PATCH' && call.table === 'chores')).toHaveLength(0);
  });
 
- test('moving a timed chore keeps its 90-minute duration after reload', async ({page, isMobile}) => {
-  test.skip(isMobile, 'Requires a desktop mouse');
-  const {db, calls} = await fixture(page, 1440);
-  const [chore] = db.chores;
-  Object.assign(chore, {due_time:'09:00:00', end_time:'10:30:00'});
-  await page.reload();
+ for (const {label, recurrence, anchor} of [
+  {label:'a one-off chore', recurrence:'none', anchor:TODAY},
+  {label:'a later weekly occurrence', recurrence:'weekly', anchor:'2026-09-18'},
+ ]) {
+  test(`moving ${label} on the same date keeps its start date and duration after reload`, async ({page, isMobile}) => {
+   test.skip(isMobile, 'Requires a desktop mouse');
+   const {db, calls} = await fixture(page, 1440);
+   const [chore] = db.chores;
+   Object.assign(chore, {date:anchor, due_time:'09:00:00', end_time:'10:30:00', recurrence});
+   await page.reload();
 
-  const calendar = page.getByRole('navigation', {name:'Primary navigation'})
-   .getByRole('button', {name:'Calendar', exact:true});
-  const day = page.locator('.fc-timeGridDay-button');
-  const event = page.locator('.fc-timegrid-event').filter({hasText:chore.title});
-  const details = page.locator('.event-popover');
-  await calendar.click();
-  await day.click();
-  await event.click();
-  await expect(details.getByText('09:00 - 10:30', {exact:true})).toBeVisible();
-  await details.getByRole('button', {name:'Close task details'}).click();
+   const calendar = page.getByRole('navigation', {name:'Primary navigation'})
+    .getByRole('button', {name:'Calendar', exact:true});
+   const day = page.locator('.fc-timeGridDay-button');
+   const event = page.locator('.fc-timegrid-event').filter({hasText:chore.title});
+   const details = page.locator('.event-popover');
+   await calendar.click();
+   await day.click();
+   await event.click();
+   await expect(details.getByText('09:00 - 10:30', {exact:true})).toBeVisible();
+   await details.getByRole('button', {name:'Close task details'}).click();
 
-  const slot = (time: string) => page.locator(`.fc-timegrid-slot-lane[data-time="${time}:00"]`);
-  const original = slot('09:00');
-  const destination = slot('11:00');
-  await expect(event).toHaveClass(/fc-event-draggable/);
-  await expect(original).toBeInViewport();
-  await expect(destination).toBeInViewport();
-  const eventBox = await event.boundingBox();
-  const originalBox = await original.boundingBox();
-  const destinationBox = await destination.boundingBox();
-  if (!eventBox || !originalBox || !destinationBox) throw new Error('Calendar drag bounds unavailable');
+   const slot = (time: string) => page.locator(`.fc-timegrid-slot-lane[data-time="${time}:00"]`);
+   const original = slot('09:00');
+   const destination = slot('11:00');
+   await expect(event).toHaveClass(/fc-event-draggable/);
+   await expect(original).toBeInViewport();
+   await expect(destination).toBeInViewport();
+   const eventBox = await event.boundingBox();
+   const originalBox = await original.boundingBox();
+   const destinationBox = await destination.boundingBox();
+   if (!eventBox || !originalBox || !destinationBox) throw new Error('Calendar drag bounds unavailable');
 
-  // Start in the first slot of the event, clear of the resize handle.
-  const x = eventBox.x + eventBox.width / 2;
-  await page.mouse.move(x, originalBox.y + originalBox.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(x, destinationBox.y + destinationBox.height / 2, {steps:12});
-  await page.mouse.up();
+   // Start in the first slot of the event, clear of the resize handle.
+   const x = eventBox.x + eventBox.width / 2;
+   const dialogs: string[] = [];
+   page.on('dialog', async dialog => {
+    dialogs.push(dialog.message());
+    await dialog.accept();
+   });
+   await page.mouse.move(x, originalBox.y + originalBox.height / 2);
+   await page.mouse.down();
+   await page.mouse.move(x, destinationBox.y + destinationBox.height / 2, {steps:12});
+   await page.mouse.up();
 
-  const patches = () => calls.filter(call => call.method === 'PATCH' && call.table === 'chores');
-  await expect.poll(patches).toEqual([expect.objectContaining({
-   id:chore.id,
-   body:expect.objectContaining({date:TODAY, due_time:'11:00', end_time:'12:30'}),
-  })]);
+   const patches = () => calls.filter(call => call.method === 'PATCH' && call.table === 'chores');
+   await expect.poll(patches).toEqual([expect.objectContaining({
+    id:chore.id,
+    body:expect.objectContaining({date:anchor, due_time:'11:00', end_time:'12:30'}),
+   })]);
+   expect(dialogs).toEqual(recurrence === 'weekly' ? ['Move the entire repeating series? This changes all occurrences.'] : []);
 
-  await page.reload();
-  await calendar.click();
-  await day.click();
-  await event.click();
-  await expect(details.getByText('11:00 - 12:30', {exact:true})).toBeVisible();
-  expect(patches()).toHaveLength(1);
- });
+   await page.reload();
+   await calendar.click();
+   await day.click();
+   await event.click();
+   await expect(details.getByText('11:00 - 12:30', {exact:true})).toBeVisible();
+   expect(patches()).toHaveLength(1);
+  });
+ }
 });
 
 test.describe('Calendar touch moves', () => {

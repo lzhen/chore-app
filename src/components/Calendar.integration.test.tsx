@@ -42,7 +42,7 @@ type ChoreSchedule = {
   recurrence: RecurrenceType;
 };
 
-function fixture(schedule: Partial<ChoreSchedule> = {}) {
+function fixture(schedule: Partial<ChoreSchedule> = {}, completedDates: string[] = []) {
   const row = {
     id: 'laundry',
     title: 'Do the laundry',
@@ -62,9 +62,19 @@ function fixture(schedule: Partial<ChoreSchedule> = {}) {
       },
     }),
   }));
+  const completions = completedDates.map(date => ({
+    id: `completion-${date}`,
+    chore_id: row.id,
+    instance_date: date,
+    completed_by: 'test-member',
+    completed_at: `${date}T20:00:00Z`,
+  }));
   from.mockImplementation((table: string) => ({
     select: () => ({
-      order: async () => ({ data: table === 'chores' ? [row] : [], error: null }),
+      order: async () => ({
+        data: table === 'chores' ? [row] : table === 'chore_completions' ? completions : [],
+        error: null,
+      }),
     }),
     update,
   }));
@@ -185,6 +195,46 @@ it.each(['none', 'weekly'] as const)(
     expect(await findOccurrence(moved)).toMatchObject({
       start: `${moved}T12:35:00`, end: `${moved}T14:12:00`,
     });
+  },
+);
+
+it.each([
+  { recurrence: 'daily', anchor: '2026-09-08', occurrence: '2026-09-10' },
+  { recurrence: 'weekly', anchor: '2026-09-03', occurrence: '2026-09-10' },
+  { recurrence: 'monthly', anchor: '2026-08-31', occurrence: '2026-09-30' },
+] as const)(
+  'keeps earlier $recurrence occurrences when a later same-day drop changes the time',
+  async ({ recurrence, anchor, occurrence }) => {
+    const { update, mount } = fixture({ date: anchor, recurrence }, [anchor]);
+    const confirmMove = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const original = mount();
+    expect(await findOccurrence(anchor)).toMatchObject({ extendedProps: { isCompleted: true } });
+
+    const revert = await drop(occurrence, {
+      start: `${occurrence}T12:35:00`, end: `${occurrence}T14:12:00`, allDay: false,
+    });
+
+    expect(confirmMove).toHaveBeenCalledOnce();
+    expect(revert).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      date: anchor, due_time: '12:35', end_time: '14:12', recurrence,
+    }));
+
+    const earlierEvent = {
+      start: `${anchor}T12:35:00`, end: `${anchor}T14:12:00`,
+      extendedProps: { isCompleted: true },
+    };
+    const movedEvent = {
+      start: `${occurrence}T12:35:00`, end: `${occurrence}T14:12:00`,
+      extendedProps: { isCompleted: false },
+    };
+    expect(await findOccurrence(anchor)).toMatchObject(earlierEvent);
+    expect(await findOccurrence(occurrence)).toMatchObject(movedEvent);
+
+    original.unmount();
+    mount();
+    expect(await findOccurrence(anchor)).toMatchObject(earlierEvent);
+    expect(await findOccurrence(occurrence)).toMatchObject(movedEvent);
   },
 );
 

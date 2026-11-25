@@ -235,7 +235,11 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
           endTime = `${hours}:${minutes}`;
         }
 
-        await updateChore({ ...chore, date: dateKey(start), dueTime, endTime });
+        const destinationDate = dateKey(start);
+        const previousDate = info.oldEvent.extendedProps.instanceDate;
+        // A time-only move must keep the series start and its earlier occurrences.
+        const date = isRecurring && destinationDate === previousDate ? chore.date : destinationDate;
+        await updateChore({ ...chore, date, dueTime, endTime });
       } catch (error) {
         info.revert();
         setOperationError(error instanceof Error ? error.message : 'Could not move chore.');
