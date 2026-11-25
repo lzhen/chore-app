@@ -1,6 +1,7 @@
 import { useAuth } from './AuthContext';
 import { parseDate } from '../utils/dates';
-import { createContext, useContext, useReducer, useEffect, useState, useRef, ReactNode } from 'react';
+import { createContext, useContext, useReducer, useEffect, useLayoutEffect, useState, useRef, ReactNode } from 'react';
+import { v4 as uuid } from 'uuid';
 import {
   Chore,
   TeamMember,
@@ -73,7 +74,8 @@ interface AppContextType {
   updateChore: (chore: Chore) => Promise<void>;
   deleteChore: (id: string) => Promise<void>;
   // Team member operations
-  addMember: (name: string, id?: string) => Promise<void>;
+  addMember: (name: string) => Promise<void>;
+  addFirstMember: (name: string) => Promise<void>;
   updateMember: (member: TeamMember) => Promise<void>;
   removeMember: (id: string) => Promise<void>;
   // Category operations
@@ -190,9 +192,24 @@ function reducer(state: AppState, action: Action): AppState {
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { user, loading: authLoading } = useAuth();
+  const userId = user?.id;
   const [revision, setRevision] = useState(0);
   const completionInFlight = useRef(new Set<string>());
+  const firstMemberSession = useRef<{ userId: string; attempt?: { id: string; saving: boolean } }>();
   const reload = () => setRevision(value => value + 1);
+
+  useLayoutEffect(() => {
+    firstMemberSession.current = userId ? { userId } : undefined;
+    return () => { firstMemberSession.current = undefined; };
+  }, [userId]);
+
+  useLayoutEffect(() => {
+    const session = firstMemberSession.current;
+    const attempt = session?.attempt;
+    if (session && attempt && state.teamMembers.some(member => member.id === attempt.id)) {
+      session.attempt = undefined;
+    }
+  }, [state.teamMembers]);
 
   useEffect(() => {
     if (authLoading || !user) { dispatch({type:'SET_LOADING',payload:false}); return; }
@@ -244,12 +261,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Team member operations
   // ============================================
 
-  const addMember = async (name: string, id?: string) => {
+  const createMember = (name: string, id?: string) => {
     const usedColors = state.teamMembers.map(m => m.color);
     const color = getNextColor(usedColors);
-    const newMember = await dbCreateTeamMember({ name, color, points: 0, badges: [] }, id);
+    return dbCreateTeamMember({ name, color, points: 0, badges: [] }, id);
+  };
+
+  const addMember = async (name: string) => {
+    const newMember = await createMember(name);
     if (newMember) {
       dispatch({ type: 'ADD_MEMBER', payload: newMember });
+    }
+  };
+
+  const addFirstMember = async (name: string) => {
+    const session = firstMemberSession.current;
+    if (!session || session.userId !== userId) throw new Error('Sign in to add a family member.');
+    if (state.teamMembers.length > 0) return;
+
+    // A lost response may outlive the completion dialog that started the save.
+    const attempt = session.attempt ??= { id: uuid(), saving: false };
+    if (attempt.saving) throw new Error('A family member is already being saved. Please try again.');
+    attempt.saving = true;
+    try {
+      const newMember = await createMember(name, attempt.id);
+      if (firstMemberSession.current !== session) return;
+      if (!newMember) throw new Error('Could not save family member. Please try again.');
+      dispatch({ type: 'ADD_MEMBER', payload: newMember });
+    } finally {
+      attempt.saving = false;
     }
   };
 
@@ -500,6 +540,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateChore,
         deleteChore,
         addMember,
+        addFirstMember,
         updateMember,
         removeMember,
         addCategory,

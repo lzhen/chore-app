@@ -124,6 +124,32 @@ it.each(['denied', 'response-lost'] as const)(
   },
 );
 
+it('recovers a first member after canceling and reopening the completion dialog', async () => {
+  const { user, dialog, finishFirstSave, memberRows, insertMember, lookupMember, insertCompletion } =
+    await openFirstMemberDialog('response-lost');
+  await user.type(dialog.getByRole('textbox', { name: 'Family member name' }), 'Alex');
+  await user.click(dialog.getByRole('button', { name: 'Add member' }));
+  finishFirstSave();
+  expect(await dialog.findByRole('alert')).toHaveTextContent('Please try again.');
+  const [{ id }] = insertMember.mock.calls[0];
+  expect(memberRows).toHaveLength(1);
+
+  await user.click(dialog.getByRole('button', { name: 'Cancel' }));
+  expect(screen.queryByRole('dialog', { name: 'Complete chore' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Complete: Wash dishes' }));
+  const reopened = within(screen.getByRole('dialog', { name: 'Complete chore' }));
+  await user.type(reopened.getByRole('textbox', { name: 'Family member name' }), 'Alex');
+  await user.click(reopened.getByRole('button', { name: 'Add member' }));
+
+  const picker = await reopened.findByRole('combobox', { name: 'Who completed it?' });
+  expect(picker).toHaveTextContent('Choose a family member');
+  expect(reopened.getByRole('button', { name: 'Mark done' })).toBeDisabled();
+  expect(insertCompletion).not.toHaveBeenCalled();
+  expect(insertMember.mock.calls.map(([member]) => member.id)).toEqual([id, id]);
+  expect(lookupMember.mock.calls).toEqual([['id', id], ['id', id]]);
+  expect(memberRows).toEqual([expect.objectContaining({ id, name: 'Alex' })]);
+});
+
 async function openUndoDialog(deleteOutcome: 'response-lost' | 'permission-denied') {
   const today = dateKey();
   const chores = [

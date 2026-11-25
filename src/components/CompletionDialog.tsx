@@ -1,5 +1,4 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
-import { v4 as uuid } from 'uuid';
 import { useApp } from '../context/AppContext';
 import type { ChoreInstance } from '../types';
 import { formatDay } from '../utils/dates';
@@ -7,14 +6,14 @@ import { ChoicePicker } from './ChoicePicker';
 import { Dialog } from './Dialog';
 
 export function CompletionDialog({ instance, onClose }: { instance: ChoreInstance; onClose: () => void }) {
-  const { state, addMember, completeChore, uncompleteChore } = useApp();
+  const { state, addFirstMember, completeChore, uncompleteChore } = useApp();
   const [member, setMember] = useState(() =>
     state.teamMembers.find(option => option.id === instance.assigneeId)?.id ?? '',
   );
   const [name, setName] = useState('');
   const [pending, setPending] = useState<'member' | 'completion' | null>(null);
   const [error, setError] = useState('');
-  const memberAttemptId = useRef<string>();
+  const triedAddingMember = useRef(false);
   const memberSaveInFlight = useRef(false);
   const memberPickerId = useId();
   const memberNameId = useId();
@@ -24,10 +23,10 @@ export function CompletionDialog({ instance, onClose }: { instance: ChoreInstanc
   const busy = pending !== null;
 
   useEffect(() => {
-    if (busy || !memberAttemptId.current) return;
+    if (busy || !triedAddingMember.current) return;
     if (hasMembers) {
       document.getElementById(memberPickerId)?.focus();
-      memberAttemptId.current = undefined;
+      triedAddingMember.current = false;
     } else if (error) {
       document.getElementById(memberNameId)?.focus();
     }
@@ -38,11 +37,11 @@ export function CompletionDialog({ instance, onClose }: { instance: ChoreInstanc
     const trimmedName = name.trim();
     if (busy || memberSaveInFlight.current || hasMembers || !trimmedName) return;
     memberSaveInFlight.current = true;
+    triedAddingMember.current = true;
     setPending('member');
     setError('');
     try {
-      memberAttemptId.current ??= uuid();
-      await addMember(trimmedName, memberAttemptId.current);
+      await addFirstMember(trimmedName);
       setName('');
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Could not save family member. Please try again.');
