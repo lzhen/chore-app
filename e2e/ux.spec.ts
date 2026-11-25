@@ -198,6 +198,31 @@ test('first family member can be added and selected inside completion after a fa
 test('Insights and Account are top-level pages, with the correct selected tab',async({page})=>{
  await fixture(page);const nav=page.getByRole('navigation',{name:'Primary navigation'});for(const name of ['Insights','Account','Calendar','Today']){await nav.getByRole('button',{name,exact:true}).click();await expect(nav.getByRole('button',{name,exact:true})).toHaveAttribute('aria-current','page');await expect(page.getByRole('dialog')).toHaveCount(0);}
 });
+test('calendar navigation reveals a chore months ahead and returns to the current month', async ({page}) => {
+  const {db, calls} = await fixture(page, 1280);
+  const title = 'Check the smoke alarm batteries';
+  const date = '2027-02-05';
+  db.chores.push({
+    id: '55555555-5555-4555-8555-555555555555', title, date,
+    assignee_id: A, recurrence: 'none', priority: 'medium',
+  });
+  await page.reload();
+  await page.getByRole('navigation', {name: 'Primary navigation'})
+    .getByRole('button', {name: 'Calendar', exact: true}).click();
+  const calendar = page.locator('.calendar-container');
+  await expect(calendar.getByRole('heading', {name: 'Sep 2026', exact: true})).toBeVisible();
+  for (let month = 0; month < 5; month++) {
+    await calendar.getByTitle('Next Month', {exact: true}).click();
+  }
+  await expect(calendar.getByRole('heading', {name: 'Feb 2027', exact: true})).toBeVisible();
+  await calendar.locator(`[data-date="${date}"]`).getByText(title, {exact: true}).click();
+  await expect(page.getByRole('heading', {name: title, exact: true})).toBeVisible();
+  await page.getByRole('button', {name: 'Close task details', exact: true}).click();
+  await calendar.getByRole('button', {name: 'Today', exact: true}).click();
+  await expect(calendar.getByRole('heading', {name: 'Sep 2026', exact: true})).toBeVisible();
+  await expect(calendar.getByText('Water the plants', {exact: true})).toBeVisible();
+  expect(calls.filter(call => call.method !== 'GET')).toHaveLength(0);
+});
 test('dialog isolates background controls, keeps focus and confirms draft discard',async({page})=>{
  await fixture(page);await page.getByRole('button',{name:'Add new chore'}).click();expect(await page.locator('#root').evaluate(el=>(el as HTMLElement).inert)).toBe(true);await page.getByLabel('What needs doing?').fill('Do not silently discard');await page.keyboard.press('Escape');await expect(page.getByRole('dialog',{name:'Discard changes?'})).toBeVisible();await page.getByRole('button',{name:'Keep editing'}).click();await expect(page.getByLabel('What needs doing?')).toHaveValue('Do not silently discard');
 });

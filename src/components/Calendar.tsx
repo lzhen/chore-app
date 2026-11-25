@@ -1,4 +1,4 @@
-import { dateKey, shiftDate } from '../utils/dates';
+import { dateKey, parseDate, shiftDate } from '../utils/dates';
 import { CompletionDialog } from './CompletionDialog';
 import { useMemo, useRef, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import FullCalendar from '@fullcalendar/react';
@@ -6,10 +6,10 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import listPlugin from '@fullcalendar/list';
 import interactionPlugin from '@fullcalendar/interaction';
-import { EventClickArg, DateSelectArg, EventDropArg } from '@fullcalendar/core';
+import { EventClickArg, DateSelectArg, EventDropArg, DatesSetArg } from '@fullcalendar/core';
 import { EventResizeDoneArg } from '@fullcalendar/interaction';
 import { useApp } from '../context/AppContext';
-import { generateChoreInstances, getCalendarRange } from '../utils/recurrence';
+import { generateChoreInstances } from '../utils/recurrence';
 import { Chore, ChoreInstance } from '../types';
 import { EventPopover } from './EventPopover';
 
@@ -40,6 +40,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
     const [completionInstance,setCompletionInstance] = useState<ChoreInstance|null>(null);
     const [operationError,setOperationError] = useState('');
     const calendarRef = useRef<FullCalendar>(null);
+    const [visibleRange, setVisibleRange] = useState<{ start: string; end: string } | null>(null);
 
     // Popover state
     const [popover, setPopover] = useState<{
@@ -70,9 +71,21 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [popover.visible]);
 
-    // Generate calendar events
+    function handleDatesSet({ start, end }: DatesSetArg) {
+      const startDate = dateKey(start);
+      const endDate = dateKey(end);
+      setVisibleRange(previous =>
+        previous?.start === startDate && previous.end === endDate ? previous : { start: startDate, end: endDate },
+      );
+    }
+
     const instances = useMemo(() => {
-      const { start, end } = getCalendarRange();
+      if (!visibleRange) return [];
+
+      // Include the preceding day for timed events that extend past midnight.
+      const start = parseDate(shiftDate(visibleRange.start, -1));
+      // FullCalendar's end is exclusive, while occurrence generation is inclusive.
+      const end = parseDate(shiftDate(visibleRange.end, -1));
       return generateChoreInstances(
         state.chores,
         state.teamMembers,
@@ -80,7 +93,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
         start,
         end
       );
-    }, [state.chores, state.teamMembers, state.completions]);
+    }, [state.chores, state.teamMembers, state.completions, visibleRange]);
 
     // Apply search filter and visibility filter
     const filteredInstances = useMemo(() => {
@@ -288,6 +301,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
               ref={calendarRef}
               plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
               initialView="dayGridMonth"
+              datesSet={handleDatesSet}
               events={events}
               eventClick={handleEventClick}
               select={handleDateSelect}

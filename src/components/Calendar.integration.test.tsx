@@ -1,30 +1,38 @@
 import { Calendar as FullCalendarCore, type CalendarOptions, type EventInput } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
-import { forwardRef } from 'react';
-import { afterEach, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { createRef, forwardRef } from 'react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { AppProvider } from '../context/AppContext';
 import type { RecurrenceType } from '../types';
-import { dateKey, shiftDate } from '../utils/dates';
-import { Calendar } from './Calendar';
+import { dateKey, parseDate, shiftDate } from '../utils/dates';
+import { Calendar, type CalendarRef } from './Calendar';
 
 const { from } = vi.hoisted(() => ({ from: vi.fn() }));
 let options: CalendarOptions;
 
-vi.mock('@fullcalendar/react', () => ({
-  default: forwardRef<unknown, CalendarOptions>((props, _ref) => {
-    options = props;
-    return null;
-  }),
-}));
+vi.mock('@fullcalendar/react', async importOriginal => {
+  const { default: FullCalendar } = await importOriginal<typeof import('@fullcalendar/react')>();
+  return {
+    default: forwardRef<InstanceType<typeof FullCalendar>, CalendarOptions>((props, ref) => {
+      options = props;
+      return <FullCalendar {...props} ref={ref} />;
+    }),
+  };
+});
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'test-user' }, loading: false }),
 }));
 vi.mock('../utils/supabase', () => ({ supabase: { from } }));
 
+beforeEach(() => {
+  vi.setSystemTime(new Date(2026, 8, 10, 12));
+});
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 type ChoreSchedule = {
@@ -60,12 +68,14 @@ function fixture(schedule: Partial<ChoreSchedule> = {}) {
     }),
     update,
   }));
+  const calendar = createRef<CalendarRef>();
+  const onEventClick = vi.fn();
   const mount = () => render(
     <AppProvider>
-      <Calendar onAddClick={vi.fn()} onEventClick={vi.fn()} />
+      <Calendar ref={calendar} onAddClick={vi.fn()} onEventClick={onEventClick} />
     </AppProvider>,
   );
-  return { date: row.date, update, mount };
+  return { date: row.date, update, mount, calendar, onEventClick };
 }
 
 async function findOccurrence(date: string) {
@@ -112,6 +122,44 @@ async function resize(date: string, destination: Pick<EventInput, 'start' | 'end
   });
   return revert;
 }
+
+it('opens a past chore after jumping outside the current month window', async () => {
+  const { date, mount, calendar, onEventClick } = fixture({
+    date: '2026-03-08', due_time: null, end_time: null,
+  });
+  const { container } = mount();
+
+  await act(async () => calendar.current!.gotoDate(parseDate(date)));
+
+  const cell = container.querySelector<HTMLElement>(`[data-date="${date}"].fc-daygrid-day`);
+  expect(cell).not.toBeNull();
+  fireEvent.click(await within(cell!).findByText('Do the laundry'));
+  fireEvent.click(screen.getByRole('button', { name: /^Edit$/ }));
+  expect(onEventClick).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ id: 'laundry' }), date);
+});
+
+it('generates the selected future day, includes overnight carryover, and excludes the end date', async () => {
+  const { mount, calendar } = fixture({
+    date: '2026-09-10', due_time: '23:30:00', end_time: null, recurrence: 'daily',
+  });
+  const { container } = mount();
+  const day = '2027-03-14';
+
+  await act(async () => {
+    calendar.current!.gotoDate(parseDate(day));
+    calendar.current!.changeView('timeGridDay');
+  });
+
+  expect(container.querySelector(`[data-date="${day}"].fc-timegrid-col`)).not.toBeNull();
+  expect(await findOccurrence(day)).toMatchObject({
+    start: `${day}T23:30:00`,
+    end: '2027-03-15T00:30:00',
+  });
+  expect(await findOccurrence('2027-03-13')).toMatchObject({
+    end: `${day}T00:30:00`,
+  });
+  expect((options.events as EventInput[]).some(event => event.start === '2027-03-15T23:30:00')).toBe(false);
+});
 
 it.each(['none', 'weekly'] as const)(
   'persists the exact shifted end time on a timed drop (%s recurrence)',
