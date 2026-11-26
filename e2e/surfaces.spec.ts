@@ -35,6 +35,40 @@ async function fixture(page:Page,width=390,empty=false){
  return {db,calls,failWrites:()=>{fail=true;},failReads:()=>{readsFail=true;},recover:()=>{fail=false;readsFail=false;}};
 }
 
+test('Account keeps its session and offers a retry when Sign Out fails', async ({ page }) => {
+ const { calls } = await fixture(page);
+ let finishFirstRequest!: () => void;
+ const firstRequestGate = new Promise<void>(resolve => { finishFirstRequest = resolve; });
+ const signOutScopes: (string | null)[] = [];
+ await page.route('**/auth/v1/logout**', async route => {
+  signOutScopes.push(new URL(route.request().url()).searchParams.get('scope'));
+  if (signOutScopes.length === 1) {
+   await firstRequestGate;
+   await route.fulfill({ status: 503, json: { message: 'Synthetic sign-out failure' } });
+  } else {
+   await route.fulfill({ status: 204 });
+  }
+ });
+
+ await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Account', exact: true }).click();
+ const signOut = page.getByRole('button', { name: 'Sign Out', exact: true });
+ try {
+  await signOut.click();
+  await expect(page.getByRole('button', { name: 'Signing out…', exact: true })).toBeDisabled();
+ } finally {
+  finishFirstRequest();
+ }
+ await expect(page.getByRole('alert')).toHaveText('We could not sign you out. Please try again.');
+ await expect(page.getByText('release-test@example.test', { exact: true })).toBeVisible();
+ await expect(signOut).toBeEnabled();
+ expect(signOutScopes).toEqual(['global']);
+
+ await signOut.click();
+ await expect(page.getByText('Sign in to your account', { exact: true })).toBeVisible();
+ expect(signOutScopes).toEqual(['global', 'global']);
+ expect(calls.every(call => call.method === 'GET')).toBe(true);
+});
+
 for(const theme of ['light','dark']) for(const width of [390,1440]) test(`unified product surfaces ${theme} ${width}`,async({page},info)=>{
  const {calls}=await fixture(page,width);
  if(await page.locator('html').getAttribute('data-theme')!==theme) await page.getByRole('button',{name:`Switch to ${theme} mode`,exact:true}).click();

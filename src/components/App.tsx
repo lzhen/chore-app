@@ -1,5 +1,5 @@
 import { LoadingScreen } from './LoadingScreen';
-import { useState, useRef, useMemo, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Header } from './Header';
 import { TeamMemberList } from './TeamMemberList';
 import { Calendar, CalendarRef } from './Calendar';
@@ -19,7 +19,6 @@ import { PasswordReset } from './PasswordReset';
 import { Chore, ViewMode, TeamMember } from '../types';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import { generateChoreInstances, getCalendarRange } from '../utils/recurrence';
 
 const starterChores: {label:string;detail:string;draft:ChoreDefaultValues}[] = [
   {label:'Wash dishes',detail:'Every day · 15 min',draft:{title:'Wash dishes',recurrence:'daily',estimatedMinutes:15}},
@@ -29,7 +28,10 @@ const starterChores: {label:string;detail:string;draft:ChoreDefaultValues}[] = [
 
 export function App() {
   const { state, reload } = useApp();
-  const { user, loading: authLoading, isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset } = useAuth();
+  const {
+    user, loading: authLoading, sessionLoadFailed, retrySession,
+    emailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset,
+  } = useAuth();
   const calendarRef = useRef<CalendarRef>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -39,6 +41,7 @@ export function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [viewMode, setViewMode] = useState<ViewMode>('today');
+  const [initialCalendarDate, setInitialCalendarDate] = useState<Date>();
   const [searchQuery, setSearchQuery] = useState('');
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [hiddenMembers, setHiddenMembers] = useState<Set<string>>(new Set());
@@ -46,23 +49,22 @@ export function App() {
   const [availabilityMember, setAvailabilityMember] = useState<TeamMember | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Compute event dates for mini calendar
-  const eventDates = useMemo(() => {
-    const { start, end } = getCalendarRange();
-    const instances = generateChoreInstances(
-      state.chores,
-      state.teamMembers,
-      state.completions,
-      start,
-      end
-    );
-    return new Set(instances.map(i => i.date));
-  }, [state.chores, state.teamMembers, state.completions]);
-
   // Navigate calendar to a specific date
   const handleMiniCalendarDateSelect = useCallback((date: Date) => {
-    calendarRef.current?.gotoDate(date);
+    if (calendarRef.current) {
+      calendarRef.current.gotoDate(date);
+    } else {
+      setInitialCalendarDate(date);
+    }
+    setViewMode('calendar');
+    setSidebarOpen(false);
   }, []);
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    if (mode === 'calendar' && viewMode !== 'calendar') setInitialCalendarDate(undefined);
+    setViewMode(mode);
+    setSidebarOpen(false);
+  };
 
   // Toggle member visibility
   const handleToggleMemberVisibility = useCallback((memberId: string) => {
@@ -197,12 +199,24 @@ export function App() {
     }
   };
 
+  if (emailVerification?.status === 'error') {
+    return <EmailVerification verification={emailVerification} onContinue={clearEmailVerification} />;
+  }
+
   // Show loading while checking auth
   if (authLoading) return <LoadingScreen phase="session" />;
 
+  if (sessionLoadFailed) {
+    return <main className="chore-load-error">
+      <h1>We couldn’t check your session</h1>
+      <p role="alert">Check your connection and try again.</p>
+      <button type="button" className="chore-button primary" onClick={retrySession}>Retry</button>
+    </main>;
+  }
+
   // Show email verification page
-  if (isEmailVerification) {
-    return <EmailVerification onContinue={clearEmailVerification} />;
+  if (emailVerification) {
+    return <EmailVerification verification={emailVerification} onContinue={clearEmailVerification} />;
   }
 
   // Show password reset page
@@ -221,7 +235,7 @@ export function App() {
   if(state.error) return <div className="chore-load-error"><h1>Let’s try that again.</h1><p role="alert">{state.error}</p><button className="chore-button primary" onClick={reload}>Retry</button></div>;
   return <HouseholdToolsProvider><div className="theme-background" aria-hidden="true"/><a className="skip-link" href="#main-content">Skip to main content</a>
    <div className="chore-app" data-view={viewMode} onKeyDown={handleKeyDown} tabIndex={-1}>
-    <Header menuOpen={sidebarOpen} onMenuClick={toggleSidebar} onDashboardClick={handleDashboardClick} viewMode={viewMode} onViewModeChange={mode=>{setViewMode(mode);setSidebarOpen(false);}} searchQuery={searchQuery} onSearchChange={setSearchQuery} searchInputRef={searchInputRef}/>
+    <Header menuOpen={sidebarOpen} onMenuClick={toggleSidebar} onDashboardClick={handleDashboardClick} viewMode={viewMode} onViewModeChange={handleViewModeChange} searchQuery={searchQuery} onSearchChange={setSearchQuery} searchInputRef={searchInputRef}/>
     <main id="main-content" className="chore-main">
     {state.chores.length===0&&['today','calendar','list'].includes(viewMode)&&<section className="chore-welcome">
       <div className="chore-welcome-content">
@@ -239,8 +253,8 @@ export function App() {
         </div>
       </div>
     </section>}
-    {sidebarOpen&&<div className="family-overlay"><button className="family-backdrop" aria-label="Close family menu" onClick={()=>setSidebarOpen(false)}/><aside id="nesmi-family-panel" className="family-panel" aria-label="Family"><TeamMemberList onClose={()=>setSidebarOpen(false)} onDateSelect={handleMiniCalendarDateSelect} eventDates={eventDates} hiddenMembers={hiddenMembers} onToggleMemberVisibility={handleToggleMemberVisibility} onProfileOpen={m=>{setSidebarOpen(false);setProfileMember(m);}} onAvailabilityOpen={m=>{setSidebarOpen(false);setAvailabilityMember(m);}}/></aside></div>}
-    {state.chores.length>0&&viewMode==='calendar'&&<Calendar ref={calendarRef} onAddClick={handleAddClick} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers}/>}
+    {sidebarOpen&&<div className="family-overlay"><button className="family-backdrop" aria-label="Close family menu" onClick={()=>setSidebarOpen(false)}/><aside id="nesmi-family-panel" className="family-panel" aria-label="Family"><TeamMemberList onClose={()=>setSidebarOpen(false)} onDateSelect={handleMiniCalendarDateSelect} hiddenMembers={hiddenMembers} onToggleMemberVisibility={handleToggleMemberVisibility} onProfileOpen={m=>{setSidebarOpen(false);setProfileMember(m);}} onAvailabilityOpen={m=>{setSidebarOpen(false);setAvailabilityMember(m);}}/></aside></div>}
+    {state.chores.length>0&&viewMode==='calendar'&&<Calendar ref={calendarRef} initialDate={initialCalendarDate} onAddClick={handleAddClick} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers}/>}
     {state.chores.length>0&&(viewMode==='today'||viewMode==='list')&&<ListView key={viewMode} todayView={viewMode==='today'} onAddClick={()=>handleAddClick()} onEventClick={handleEventClick} searchQuery={searchQuery} hiddenMembers={hiddenMembers} onClearFilters={()=>{setSearchQuery('');setHiddenMembers(new Set());}}/>}
     {viewMode==='dashboard'&&(state.chores.length>0?<Dashboard embedded onClose={()=>setViewMode('today')}/>:<section className="chore-list-page"><div className="chore-empty"><h2>Small wins will show up here.</h2><p>Add your first chore to start seeing your household’s progress.</p><button className="chore-button primary" onClick={()=>handleAddClick()}>Add your first chore</button></div></section>)}
     {viewMode==='account'&&<AccountSettings embedded isOpen onClose={()=>setViewMode('today')}/>}

@@ -1,10 +1,13 @@
 import { memberAvatarStyle } from '../utils/colors';
-import { dateKey, parseDate } from '../utils/dates';
+import { dateKey, parseDate, shiftDate } from '../utils/dates';
+import { generateChoreInstances, getCalendarRange } from '../utils/recurrence';
 import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { MemberStats } from '../types';
-import { BADGES, getBadgeById } from '../data/badges';
+import { useLocalDay } from '../hooks/useLocalDay';
+import { BADGES } from '../data/badges';
 import { WorkloadChart } from './WorkloadChart';
+
+const RECENT_COMPLETION_LIMIT = 5;
 
 // Format relative time (e.g., "2 hours ago", "3 days ago")
 function formatRelativeTime(dateString: string): string {
@@ -30,6 +33,9 @@ interface DashboardProps {
 export function Dashboard({ onClose, embedded=false }: DashboardProps) {
   const { state } = useApp();
   const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'workload' | 'achievements'>('overview');
+  const today = useLocalDay();
+  const weekStart = shiftDate(today, -parseDate(today).getDay());
+  const weekEnd = shiftDate(weekStart, 6);
 
   // Sort completions by completedAt (most recent first)
   const sortedCompletions = useMemo(() => {
@@ -40,30 +46,36 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
 
   // Calculate stats
   const stats = useMemo(() => {
-    const today = dateKey();
-    const weekAgo = dateKey(new Date(Date.now() - 7 * 86400000));
+    const todayDate = parseDate(today);
     const monthAgo = dateKey(new Date(Date.now() - 30 * 86400000));
 
     // Get completions
     const completedToday = state.completions.filter(c => c.instanceDate === today).length;
-    const completedThisWeek = state.completions.filter(c => c.instanceDate >= weekAgo).length;
+    const completedThisWeek = state.completions.filter(c =>
+      c.instanceDate >= weekStart && c.instanceDate <= weekEnd
+    ).length;
     const completedThisMonth = state.completions.filter(c => c.instanceDate >= monthAgo).length;
 
-    // Get pending today
-    const pendingToday = state.chores.filter(c => {
-      if (c.date === today && !state.completions.some(comp => comp.choreId === c.id && comp.instanceDate === today)) {
-        return true;
-      }
-      return false;
-    }).length;
+    const pendingToday = generateChoreInstances(
+      state.chores,
+      state.teamMembers,
+      state.completions,
+      todayDate,
+      todayDate
+    ).filter(instance => !instance.isCompleted).length;
 
-    // Get overdue (past due, not completed)
-    const overdue = state.chores.filter(c => {
-      if (c.date < today && c.recurrence === 'none') {
-        return !state.completions.some(comp => comp.choreId === c.id && comp.instanceDate === c.date);
-      }
-      return false;
-    }).length;
+    // Match the Today list's recurrence window and keep older one-off chores.
+    const overdueOneOff = state.chores.filter(chore =>
+      chore.recurrence === 'none' && chore.date < today &&
+      !state.completions.some(completion => completion.choreId === chore.id && completion.instanceDate === chore.date)
+    ).length;
+    const overdueRecurring = generateChoreInstances(
+      state.chores.filter(chore => chore.recurrence !== 'none'),
+      state.teamMembers,
+      state.completions,
+      getCalendarRange().start,
+      parseDate(shiftDate(today, -1))
+    ).filter(instance => !instance.isCompleted).length;
 
     return {
       totalChores: state.chores.length,
@@ -71,77 +83,9 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
       completedThisWeek,
       completedThisMonth,
       pendingToday,
-      overdue,
+      overdue: overdueOneOff + overdueRecurring,
     };
-  }, [state.chores, state.completions]);
-
-  // Calculate member stats
-  const memberStats: MemberStats[] = useMemo(() => {
-    const weekAgo = dateKey(new Date(Date.now() - 7 * 86400000));
-    const monthAgo = dateKey(new Date(Date.now() - 30 * 86400000));
-
-    return state.teamMembers.map(member => {
-      const memberCompletions = state.completions.filter(c => c.completedBy === member.id);
-      const assignedChores = state.chores.filter(c => c.assigneeId === member.id);
-
-      // Calculate streak (consecutive days with completions)
-      const completionDates = [...new Set(memberCompletions.map(c => c.instanceDate))].sort().reverse();
-      let currentStreak = 0;
-      let longestStreak = 0;
-      let tempStreak = 0;
-      let prevDate: Date | null = null;
-
-      for (const dateStr of completionDates) {
-        const date = parseDate(dateStr);
-        if (prevDate === null) {
-          tempStreak = 1;
-        } else {
-          const diff = (prevDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24);
-          if (diff === 1) {
-            tempStreak++;
-          } else {
-            longestStreak = Math.max(longestStreak, tempStreak);
-            tempStreak = 1;
-          }
-        }
-        prevDate = date;
-      }
-      longestStreak = Math.max(longestStreak, tempStreak);
-
-      // Current streak (from today going back)
-      const today = new Date();
-      let checkDate = today;
-      currentStreak = 0;
-      for (let i = 0; i < 365; i++) {
-        const dateStr = checkDate.toISOString().split('T')[0];
-        if (completionDates.includes(dateStr)) {
-          currentStreak++;
-          checkDate = new Date(checkDate.getTime() - 24 * 60 * 60 * 1000);
-        } else {
-          break;
-        }
-      }
-
-      return {
-        memberId: member.id,
-        memberName: member.name,
-        memberColor: member.color,
-        memberAvatar: member.avatarUrl,
-        totalCompleted: memberCompletions.length,
-        completedThisWeek: memberCompletions.filter(c => c.instanceDate >= weekAgo).length,
-        completedThisMonth: memberCompletions.filter(c => c.instanceDate >= monthAgo).length,
-        currentStreak,
-        longestStreak,
-        completionRate: assignedChores.length > 0
-          ? Math.round((memberCompletions.length / Math.max(assignedChores.length, 1)) * 100)
-          : 0,
-        totalAssigned: assignedChores.length,
-        points: member.points || 0,
-        badges: member.badges || [],
-        workloadMinutes: assignedChores.reduce((sum, c) => sum + (c.estimatedMinutes || 0), 0),
-      };
-    }).sort((a, b) => b.totalCompleted - a.totalCompleted);
-  }, [state.teamMembers, state.completions, state.chores]);
+  }, [today, weekStart, weekEnd, state.chores, state.teamMembers, state.completions]);
 
   return (
     <div className={embedded?"chore-insights-page":"fixed inset-0 bg-overlay flex items-center justify-center z-50 p-4"}>
@@ -227,92 +171,11 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                 </div>
               </div>
 
-              {/* Leaderboard */}
-              <div className="mb-6">
-                <h3 className="fluent-title text-lg font-semibold text-content-primary mb-4">Leaderboard</h3>
-                <div className="space-y-2">
-                  {memberStats.map((member, index) => (
-                    <div
-                      key={member.memberId}
-                      className="nesmi-member-row flex items-center gap-4"
-                    >
-                      {/* Rank */}
-                      <div className="nesmi-member-rank">
-                        {index + 1}
-                      </div>
-
-                      {/* Member info */}
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        {member.memberAvatar ? (
-                          <img
-                            src={member.memberAvatar}
-                            alt={member.memberName}
-                            className="w-8 h-8 rounded-fluent-circle object-cover flex-shrink-0"
-                          />
-                        ) : (
-                          <div
-                            className="w-8 h-8 rounded-fluent-circle flex-shrink-0 flex items-center justify-center text-white text-sm font-bold"
-                            style={memberAvatarStyle(member.memberColor)}
-                          >
-                            {member.memberName.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <span className="font-medium text-content-primary truncate block">{member.memberName}</span>
-                          {/* Top badges */}
-                          {member.badges.length > 0 && (
-                            <div className="flex gap-1 mt-0.5">
-                              {member.badges.slice(0, 3).map(badgeId => {
-                                const badge = getBadgeById(badgeId);
-                                return badge ? (
-                                  <span key={badgeId} title={badge.name} className="text-xs">
-                                    {badge.icon}
-                                  </span>
-                                ) : null;
-                              })}
-                              {member.badges.length > 3 && (
-                                <span className="text-xs text-content-secondary">+{member.badges.length - 3}</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Stats */}
-                      <div className="flex items-center gap-4 text-sm">
-                        <div className="text-center">
-                          <div className="font-bold text-brand-primary">{member.points}</div>
-                          <div className="text-xs text-content-secondary">Points</div>
-                        </div>
-                        <div className="text-center hidden sm:block">
-                          <div className="font-bold text-content-primary">{member.totalCompleted}</div>
-                          <div className="text-xs text-content-secondary">Total</div>
-                        </div>
-                        <div className="text-center hidden md:block">
-                          <div className="font-bold text-content-primary">{member.completedThisWeek}</div>
-                          <div className="text-xs text-content-secondary">Week</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-medium text-content-primary">{member.currentStreak}</div>
-                          <div className="text-xs text-content-secondary">Streak</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {memberStats.length === 0 && (
-                    <p className="text-content-secondary text-center py-8">
-                      No team members yet. Add team members to see stats.
-                    </p>
-                  )}
-                </div>
-              </div>
-
               {/* Recent Activity */}
               <div>
                 <h3 className="fluent-title text-lg font-semibold text-content-primary mb-4">Recent Completions</h3>
                 <div className="space-y-2 nesmi-recent-completions">
-                  {sortedCompletions.map((completion) => {
+                  {sortedCompletions.slice(0, RECENT_COMPLETION_LIMIT).map((completion) => {
                     const chore = state.chores.find(c => c.id === completion.choreId);
                     const member = state.teamMembers.find(m => m.id === completion.completedBy);
                     return (
@@ -342,7 +205,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                     </p>
                   )}
 
-                  {state.completions.length > 5 && (
+                  {sortedCompletions.length > RECENT_COMPLETION_LIMIT && (
                     <button
                       onClick={() => setActiveTab('activity')}
                       className="w-full text-center text-sm text-brand-primary hover:text-brand-primary/80 py-2"
@@ -396,7 +259,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
                         <div className="flex items-center gap-3 mt-1 text-xs text-content-secondary">
                           <span>{formatRelativeTime(completion.completedAt)}</span>
                           <span>•</span>
-                          <span>{new Date(completion.instanceDate).toLocaleDateString()}</span>
+                          <span>{parseDate(completion.instanceDate).toLocaleDateString()}</span>
                           {pointsEarned > 0 && (
                             <>
                               <span>•</span>
@@ -496,6 +359,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
               <WorkloadChart
                 members={state.teamMembers}
                 chores={state.chores}
+                dateRange={{ start: weekStart, end: weekEnd }}
               />
             </div>
           ) : null}

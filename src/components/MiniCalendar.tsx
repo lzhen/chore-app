@@ -1,13 +1,16 @@
 import { useState, useMemo } from 'react';
+import type { Chore } from '../types';
+import { dateKey } from '../utils/dates';
+import { generateChoreInstances } from '../utils/recurrence';
 
 interface MiniCalendarProps {
   onDateSelect: (date: Date) => void;
-  eventDates?: Set<string>; // Set of date strings (YYYY-MM-DD) that have events
+  chores: Chore[];
 }
 
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
-export function MiniCalendar({ onDateSelect, eventDates = new Set() }: MiniCalendarProps) {
+export function MiniCalendar({ onDateSelect, chores }: MiniCalendarProps) {
   const [viewDate, setViewDate] = useState(new Date());
 
   // Get the days to display for the current month view
@@ -27,6 +30,7 @@ export function MiniCalendar({ onDateSelect, eventDates = new Set() }: MiniCalen
     // End on the Saturday after or on the last day
     const endDate = new Date(lastDay);
     endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
+    const eventDates = new Set(generateChoreInstances(chores, [], [], startDate, endDate).map(chore => chore.date));
 
     const days: { date: Date; isCurrentMonth: boolean; isToday: boolean; hasEvents: boolean }[] = [];
     const current = new Date(startDate);
@@ -34,7 +38,7 @@ export function MiniCalendar({ onDateSelect, eventDates = new Set() }: MiniCalen
     today.setHours(0, 0, 0, 0);
 
     while (current <= endDate) {
-      const dateStr = current.toISOString().split('T')[0];
+      const dateStr = dateKey(current);
       days.push({
         date: new Date(current),
         isCurrentMonth: current.getMonth() === month,
@@ -45,14 +49,10 @@ export function MiniCalendar({ onDateSelect, eventDates = new Set() }: MiniCalen
     }
 
     return days;
-  }, [viewDate, eventDates]);
+  }, [viewDate, chores]);
 
   const navigateMonth = (delta: number) => {
-    setViewDate(prev => {
-      const newDate = new Date(prev);
-      newDate.setMonth(newDate.getMonth() + delta);
-      return newDate;
-    });
+    setViewDate(previous => new Date(previous.getFullYear(), previous.getMonth() + delta, 1));
   };
 
   const goToToday = () => {

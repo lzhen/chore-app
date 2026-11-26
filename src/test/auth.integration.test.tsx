@@ -4,10 +4,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AuthForm } from '../components/AuthForm';
 import { EmailVerification } from '../components/EmailVerification';
 import { PasswordReset } from '../components/PasswordReset';
-import { AuthProvider } from '../context/AuthContext';
+import { AuthProvider, useAuth } from '../context/AuthContext';
+import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../utils/supabase';
 import {
   mockSupabaseAuth,
+  createMockSession,
   createMockUser,
   setUrlHash,
   clearUrlHash,
@@ -28,6 +30,31 @@ const renderAuthForm = () => {
     </AuthProvider>
   );
 };
+
+function VerificationFlow({ onContinue }: { onContinue: () => void }) {
+  const { emailVerification, clearEmailVerification } = useAuth();
+  if (!emailVerification) return null;
+  return <EmailVerification verification={emailVerification} onContinue={() => {
+    clearEmailVerification();
+    onContinue();
+  }} />;
+}
+
+function renderVerification(onContinue: () => void) {
+  return render(<AuthProvider><VerificationFlow onContinue={onContinue} /></AuthProvider>);
+}
+
+function mockAcceptedVerification(user = createMockUser()) {
+  const session = createMockSession(user) as Session;
+  setUrlHash('#' + new URLSearchParams({
+    type: 'signup',
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+    expires_in: '3600',
+    token_type: 'bearer',
+  }));
+  vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({ data: { session }, error: null });
+}
 
 describe('Integration Tests: Full Auth Flows', () => {
   beforeEach(() => {
@@ -261,9 +288,9 @@ describe('Integration Tests: Full Auth Flows', () => {
 
     it('completes successful email verification flow', async () => {
       const user = userEvent.setup();
-      setUrlHash('#access_token=valid-token&type=signup');
+      mockAcceptedVerification();
 
-      render(<EmailVerification onContinue={mockOnContinue} />);
+      renderVerification(mockOnContinue);
 
       // Initially shows verifying state
       expect(screen.getByText('Verifying your email...')).toBeInTheDocument();
@@ -276,30 +303,31 @@ describe('Integration Tests: Full Auth Flows', () => {
       expect(screen.getByText(/your email has been successfully verified/i)).toBeInTheDocument();
 
       // Click continue
-      await user.click(screen.getByRole('button', { name: /continue to sign in/i }));
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
       expect(mockOnContinue).toHaveBeenCalledTimes(1);
     });
 
     it('handles expired verification link', async () => {
       const user = userEvent.setup();
-      setUrlHash('#error=access_denied&error_description=Email+link+has+expired');
+      setUrlHash('#type=email&access_token=fixture&error_code=otp_expired&error_description=Link+is+100%25+expired+%2B+invalid');
 
-      render(<EmailVerification onContinue={mockOnContinue} />);
+      renderVerification(mockOnContinue);
 
       await waitFor(() => {
         expect(screen.getByText('Verification Failed')).toBeInTheDocument();
       }, { timeout: 1000 });
 
-      expect(screen.getByText('Email link has expired')).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toHaveTextContent('Link is 100% expired + invalid');
+      expect(screen.queryByText('Email Verified!')).not.toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: /back to sign in/i }));
       expect(mockOnContinue).toHaveBeenCalledTimes(1);
     });
 
     it('handles invalid verification token', async () => {
-      setUrlHash('#error=invalid_token&error_description=Invalid+or+expired+token');
+      setUrlHash('#type=email&error=invalid_token&error_description=Invalid+or+expired+token');
 
-      render(<EmailVerification onContinue={mockOnContinue} />);
+      renderVerification(mockOnContinue);
 
       await waitFor(() => {
         expect(screen.getByText('Verification Failed')).toBeInTheDocument();
@@ -432,17 +460,15 @@ describe('Integration Tests: Full Auth Flows', () => {
 
       // Phase 2: Email Verification (simulating clicking link in email)
       const mockOnVerificationContinue = vi.fn();
-      setUrlHash('#access_token=verification-token&type=signup');
+      mockAcceptedVerification(mockUser);
 
-      const { unmount: unmountVerification } = render(
-        <EmailVerification onContinue={mockOnVerificationContinue} />
-      );
+      const { unmount: unmountVerification } = renderVerification(mockOnVerificationContinue);
 
       await waitFor(() => {
         expect(screen.getByText('Email Verified!')).toBeInTheDocument();
       }, { timeout: 1000 });
 
-      await user.click(screen.getByRole('button', { name: /continue to sign in/i }));
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
       expect(mockOnVerificationContinue).toHaveBeenCalled();
 
       unmountVerification();

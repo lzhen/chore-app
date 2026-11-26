@@ -34,7 +34,7 @@ describe('ChoreModal starter drafts', () => {
     await user.click(screen.getByRole('button', {name: 'Add chore'}));
 
     expect(app.addChore).toHaveBeenCalledOnce();
-    expect(app.addChore).toHaveBeenCalledWith(expect.objectContaining({title: 'Clean the kitchen', date: dateKey(), assigneeId: 'alex', recurrence: 'weekly', estimatedMinutes: 20, categoryId: 'cleaning'}));
+    expect(app.addChore).toHaveBeenCalledWith(expect.objectContaining({title: 'Clean the kitchen', date: dateKey(), assigneeId: 'alex', recurrence: 'weekly', estimatedMinutes: 20, categoryId: 'cleaning'}), expect.any(String));
     expect(onClose).toHaveBeenCalledOnce();
   });
 
@@ -47,7 +47,7 @@ describe('ChoreModal starter drafts', () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it('retains the edited draft when saving fails', async () => {
+  it('retains the draft and reuses its ID when the user retries a failed save', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     app.addChore.mockRejectedValueOnce(new Error('Connection lost.'));
@@ -57,5 +57,12 @@ describe('ChoreModal starter drafts', () => {
     expect(screen.getByRole('textbox', {name: 'What needs doing?'})).toHaveValue('Take out trash');
     expect(screen.getByRole('spinbutton', {name: 'Estimated minutes · optional'})).toHaveValue(5);
     expect(onClose).not.toHaveBeenCalled();
+    const [firstDraft, firstId] = app.addChore.mock.calls[0];
+    expect(firstId).toEqual(expect.any(String));
+
+    await user.click(screen.getByRole('button', {name: 'Add chore'}));
+
+    expect(app.addChore).toHaveBeenNthCalledWith(2, firstDraft, firstId);
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });

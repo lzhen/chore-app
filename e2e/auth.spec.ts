@@ -207,6 +207,220 @@ test.describe('Login Flow', () => {
   });
 });
 
+test.describe('Sign-in recovery', () => {
+  test.use({ serviceWorkers: 'block' });
+
+  test('can return to sign in from an expired email link without a callback type', async ({ page }) => {
+    const externalRequests: string[] = [];
+    await page.route('**/*.supabase.co/**', route => {
+      externalRequests.push(route.request().method());
+      return route.abort();
+    });
+
+    await page.goto('/chore-app/#error=access_denied&error_code=otp_expired&error_description=This+email+link+is+100%25+expired');
+    await expect(page.getByRole('heading', { name: 'Verification Failed' })).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveText('This email link is 100% expired');
+    await expect(page.getByText('Email Verified!')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Back to Sign In' }).click();
+    await expect(page.getByText('Sign in to your account')).toBeVisible();
+    expect(new URL(page.url()).hash).toBe('');
+    expect(externalRequests).toEqual([]);
+  });
+
+  test('offers recovery when the signup link is missing its session', async ({ page }) => {
+    await page.goto('/chore-app/#type=signup');
+    await expect(page.getByRole('heading', { name: 'Verification Failed' })).toBeVisible();
+    await expect(page.getByText('Email Verified!')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Back to Sign In' }).click();
+    await expect(page.getByText('Sign in to your account')).toBeVisible();
+    expect(new URL(page.url()).hash).toBe('');
+  });
+
+  for (const rejected of [false, true]) {
+    test(rejected ? 'offers recovery for a rejected callback even with matching cached tokens' : 'confirms an accepted signup callback and continues into Nesmi', async ({ page }) => {
+      const user = {
+        id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        email: 'email-callback@example.test',
+        email_confirmed_at: '2026-01-01T00:00:00Z',
+        aud: 'authenticated',
+        role: 'authenticated',
+        app_metadata: {},
+        user_metadata: {},
+        created_at: '2026-01-01T00:00:00Z',
+      };
+      const token = 'eyJhbGciOiJIUzI1NiJ9.' + Buffer.from(JSON.stringify({
+        sub: user.id, exp: 2000000000, role: 'authenticated',
+      })).toString('base64url') + '.test-only';
+      const refreshToken = 'callback-refresh-fixture';
+      if (rejected) {
+        await page.addInitScript(session => {
+          localStorage.setItem('sb-rosofbnimiothwxsabyr-auth-token', JSON.stringify(session));
+        }, {
+          access_token: token, refresh_token: refreshToken, expires_at: 2000000000,
+          expires_in: 3600, token_type: 'bearer', user,
+        });
+      }
+
+      let callbackReads = 0;
+      await page.route('**/*.supabase.co/**', route => {
+        const request = route.request();
+        const pathname = new URL(request.url()).pathname;
+        if (request.method() === 'GET' && pathname === '/auth/v1/user') {
+          callbackReads += 1;
+          return rejected
+            ? route.fulfill({ status: 401, json: { code: 'bad_jwt', message: 'Rejected callback fixture' } })
+            : route.fulfill({ json: user });
+        }
+        if (request.method() === 'GET' && pathname.startsWith('/rest/v1/')) {
+          return route.fulfill({ json: [] });
+        }
+        return route.abort();
+      });
+
+      const callback = new URLSearchParams({
+        type: 'signup', access_token: token, refresh_token: refreshToken,
+        expires_in: '3600', token_type: 'bearer',
+      });
+      await page.goto('/chore-app/#' + callback);
+      if (rejected) {
+        await expect(page.getByRole('heading', { name: 'Verification Failed' })).toBeVisible();
+        await expect(page.getByText('Email Verified!')).toHaveCount(0);
+        await page.getByRole('button', { name: 'Back to Sign In' }).click();
+      } else {
+        await expect(page.getByRole('heading', { name: 'Email Verified!' })).toBeVisible();
+        expect(new URL(page.url()).hash).toBe('');
+        await page.getByRole('button', { name: 'Continue', exact: true }).click();
+      }
+      await expect(page.getByRole('navigation', { name: 'Primary navigation' })
+        .getByRole('button', { name: 'Today', exact: true })).toHaveAttribute('aria-current', 'page');
+      expect(new URL(page.url()).hash).toBe('');
+      expect(callbackReads).toBe(1);
+    });
+  }
+
+  test('can retry a failed startup read and restore an existing session', async ({ page }) => {
+    const user = {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      email: 'startup-retry@example.test',
+      aud: 'authenticated',
+      role: 'authenticated',
+      app_metadata: {},
+      user_metadata: {},
+      created_at: '2026-01-01T00:00:00Z',
+    };
+    const token = 'eyJhbGciOiJIUzI1NiJ9.' + Buffer.from(JSON.stringify({
+      sub: user.id, exp: 2000000000, role: 'authenticated',
+    })).toString('base64url') + '.test-only';
+    const storageKey = 'sb-rosofbnimiothwxsabyr-auth-token';
+    const session = {
+      access_token: token, refresh_token: 'mock-only', expires_at: 2000000000,
+      expires_in: 3600, token_type: 'bearer', user,
+    };
+
+    // Keep the app, storage and retry path live while simulating an unavailable session read.
+    await page.route(url => url.pathname.endsWith('/src/utils/supabase.ts'), async route => {
+      const response = await route.fetch();
+      const body = (await response.text()) + `
+        const readSession = supabase.auth.getSession.bind(supabase.auth);
+        supabase.auth.getSession = () => {
+          if (localStorage.getItem(${JSON.stringify(storageKey)})) return readSession();
+          return Promise.reject(new TypeError('Synthetic startup session read failure'));
+        };
+      `;
+      await route.fulfill({ status: response.status(), contentType: 'text/javascript', body });
+    });
+    const authRequests: string[] = [];
+    await page.route('**/*.supabase.co/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      if (pathname.startsWith('/auth/')) authRequests.push(pathname);
+      if (request.method() === 'GET' && pathname.startsWith('/rest/v1/')) {
+        return route.fulfill({ json: [] });
+      }
+      return route.abort('blockedbyclient');
+    });
+
+    await page.goto('/chore-app/');
+    await expect(page.getByRole('heading', { name: 'We couldn’t check your session' })).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveText('Check your connection and try again.');
+    await expect(page.getByText('Sign in to your account')).toHaveCount(0);
+    await page.evaluate(({ storageKey, session }) => {
+      localStorage.setItem(storageKey, JSON.stringify(session));
+    }, { storageKey, session });
+    await page.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(page.getByRole('navigation', { name: 'Primary navigation' })
+      .getByRole('button', { name: 'Today', exact: true })).toHaveAttribute('aria-current', 'page');
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    expect(authRequests).toEqual([]);
+  });
+
+  test('can retry sign-in after the SDK cannot save the synthetic session', async ({ page }) => {
+    const user = {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      email: 'sign-in-retry@example.test',
+      aud: 'authenticated',
+      role: 'authenticated',
+      app_metadata: {},
+      user_metadata: {},
+      created_at: '2026-01-01T00:00:00Z',
+    };
+    const token = 'eyJhbGciOiJIUzI1NiJ9.' + Buffer.from(JSON.stringify({
+      sub: user.id, exp: 2000000000, role: 'authenticated',
+    })).toString('base64url') + '.test-only';
+    const storageKey = 'sb-rosofbnimiothwxsabyr-auth-token';
+    await page.addInitScript(({ storageKey, token }) => {
+      const setItem = Storage.prototype.setItem;
+      let rejectOnce = true;
+      Storage.prototype.setItem = function (key, value) {
+        if (rejectOnce && this === window.localStorage && key === storageKey && value.includes(token)) {
+          rejectOnce = false;
+          throw new DOMException('Synthetic session storage rejection', 'QuotaExceededError');
+        }
+        setItem.call(this, key, value);
+      };
+    }, { storageKey, token });
+
+    const signInEmails: string[] = [];
+    await page.route('**/*.supabase.co/**', async route => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (request.method() === 'POST' && url.pathname === '/auth/v1/token' &&
+          url.searchParams.get('grant_type') === 'password') {
+        signInEmails.push(request.postDataJSON().email);
+        return route.fulfill({ json: {
+          access_token: token, refresh_token: 'mock-only', expires_in: 3600, token_type: 'bearer', user,
+        } });
+      }
+      if (request.method() === 'GET' && url.pathname === '/auth/v1/user') {
+        return route.fulfill({ json: user });
+      }
+      if (request.method() === 'GET' && url.pathname.startsWith('/rest/v1/')) {
+        return route.fulfill({ json: [] });
+      }
+      return route.abort('blockedbyclient');
+    });
+
+    await page.goto('/chore-app/');
+    const authPage = new AuthPage(page);
+    const submit = page.getByRole('button', { name: 'Sign In', exact: true });
+    await authPage.fillEmail(user.email);
+    await authPage.fillPassword('synthetic-password');
+    await submit.click();
+    await expect(page.getByRole('alert')).toHaveText('Could not confirm the request. Please try again.');
+    await expect(await authPage.getEmailInput()).toHaveValue(user.email);
+    await expect(await authPage.getPasswordInput()).toHaveValue('synthetic-password');
+    await expect(submit).toBeEnabled();
+    expect(signInEmails).toEqual([user.email]);
+    expect(await page.evaluate(key => localStorage.getItem(key), storageKey)).toBeNull();
+
+    await submit.click();
+    await expect(page.getByRole('navigation', { name: 'Primary navigation' })
+      .getByRole('button', { name: 'Today', exact: true })).toHaveAttribute('aria-current', 'page');
+    expect(signInEmails).toEqual([user.email, user.email]);
+    expect(await page.evaluate(key => localStorage.getItem(key) !== null, storageKey)).toBe(true);
+  });
+});
+
 test.describe('Password Reset Request Flow', () => {
   let authPage: AuthPage;
 
@@ -247,6 +461,70 @@ test.describe('Password Reset Request Flow', () => {
     await authPage.fillEmail('forgot@example.com');
 
     await expect(await authPage.getEmailInput()).toHaveValue('forgot@example.com');
+  });
+});
+
+test.describe('Password Recovery Exit', () => {
+  test.use({ serviceWorkers: 'block' });
+
+  test('offers a sign-out retry after updating the password during recovery', async ({ page }) => {
+    const user = {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      email: 'recovery@example.test',
+      aud: 'authenticated',
+      role: 'authenticated',
+      app_metadata: {},
+      user_metadata: {},
+      created_at: '2026-01-01T00:00:00Z',
+    };
+    const token = 'eyJhbGciOiJIUzI1NiJ9.' + Buffer.from(JSON.stringify({
+      sub: user.id, exp: 2000000000, role: 'authenticated',
+    })).toString('base64url') + '.test-only';
+    const storageKey = 'sb-rosofbnimiothwxsabyr-auth-token';
+    await page.addInitScript(({ storageKey, user, token }) => {
+      localStorage.setItem(storageKey, JSON.stringify({
+        access_token: token, refresh_token: 'mock-only', expires_at: 2000000000,
+        expires_in: 999999, token_type: 'bearer', user,
+      }));
+    }, { storageKey, user, token });
+
+    let updates = 0;
+    const logoutScopes: (string | null)[] = [];
+    await page.route('**/*.supabase.co/**', async route => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.pathname === '/auth/v1/user') {
+        if (request.method() === 'PUT') updates++;
+        return route.fulfill({ json: user });
+      }
+      if (url.pathname === '/auth/v1/logout' && request.method() === 'POST') {
+        logoutScopes.push(url.searchParams.get('scope'));
+        return logoutScopes.length === 1
+          ? route.fulfill({ status: 503, json: { message: 'Synthetic transport failure' } })
+          : route.fulfill({ status: 204 });
+      }
+      return route.abort('blockedbyclient');
+    });
+
+    await page.goto('/chore-app/#type=recovery');
+    await page.getByLabel('New Password', { exact: true }).fill('synthetic-password');
+    await page.getByLabel('Confirm Password', { exact: true }).fill('synthetic-password');
+    await page.getByRole('button', { name: 'Reset Password', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Password Updated!' })).toBeVisible();
+
+    const continueButton = page.getByRole('button', { name: 'Continue to Sign In', exact: true });
+    await continueButton.click();
+    await expect(page.getByRole('alert')).toHaveText('Could not sign out. Please try again.');
+    await expect(page.getByRole('heading', { name: 'Password Updated!' })).toBeVisible();
+    await expect(page).toHaveURL(/#type=recovery$/);
+    expect(await page.evaluate(key => localStorage.getItem(key) !== null, storageKey)).toBe(true);
+
+    await continueButton.click();
+    await new AuthPage(page).expectSignInPage();
+    await expect(page).toHaveURL(/\/chore-app\/$/);
+    expect(await page.evaluate(key => localStorage.getItem(key), storageKey)).toBeNull();
+    expect(logoutScopes).toEqual(['global', 'global']);
+    expect(updates).toBe(1);
   });
 });
 

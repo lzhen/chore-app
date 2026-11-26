@@ -146,53 +146,89 @@ export async function fetchChores(): Promise<Chore[]> {
   return (data || []).map(dbToChore);
 }
 
-export async function createChore(chore: Omit<Chore, 'id'>): Promise<Chore | null> {
-  const { data, error } = await supabase
+function choreWriteFields(chore: Omit<Chore, 'id'>) {
+  return {
+    title: chore.title,
+    description: chore.description || null,
+    date: chore.date,
+    due_time: chore.dueTime || null,
+    end_time: chore.endTime || null,
+    assignee_id: chore.assigneeId,
+    recurrence: chore.recurrence,
+    priority: chore.priority || 'medium',
+    category_id: chore.categoryId || null,
+    estimated_minutes: chore.estimatedMinutes || null,
+  };
+}
+
+function normalizeChoreTime(value?: string | null) {
+  return value?.replace(/^(\d{2}:\d{2}):00(?:\.0+)?$/, '$1') ?? null;
+}
+
+function choreMatchesWriteFields(chore: DbChore, fields: ReturnType<typeof choreWriteFields>) {
+  const persisted = {
+    ...chore,
+    due_time: normalizeChoreTime(chore.due_time),
+    end_time: normalizeChoreTime(chore.end_time),
+  };
+
+  return (Object.keys(fields) as (keyof typeof fields)[])
+    .every(field => persisted[field] === fields[field]);
+}
+
+export async function createChore(chore: Omit<Chore, 'id'>, id?: string) {
+  const fields = choreWriteFields(chore);
+  const { data, error, status } = await supabase
     .from('chores')
-    .insert({
-      title: chore.title,
-      description: chore.description || null,
-      date: chore.date,
-      due_time: chore.dueTime || null,
-      end_time: chore.endTime || null,
-      assignee_id: chore.assigneeId,
-      recurrence: chore.recurrence,
-      priority: chore.priority || 'medium',
-      category_id: chore.categoryId || null,
-      estimated_minutes: chore.estimatedMinutes || null,
-    })
+    .insert(id ? { id, ...fields } : fields)
     .select()
     .single();
 
-  if (error) {
-    throw new Error('Could not save chore. Please try again.');
+  if (!error && data) {
+    return { chore: dbToChore(data), matchesDraft: true };
   }
 
-  return dbToChore(data);
+  if (id && (!error || status === 0 || status === 408 || status >= 500 || error.code === '23505')) {
+    // The insert may have committed before its response was lost.
+    const { data: existing, error: lookupError } = await supabase
+      .from('chores')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle<DbChore>();
+
+    if (!lookupError && existing?.id === id) {
+      return { chore: dbToChore(existing), matchesDraft: choreMatchesWriteFields(existing, fields) };
+    }
+  }
+
+  throw new Error('Could not save chore. Please try again.');
 }
 
 export async function updateChore(chore: Chore): Promise<boolean> {
-  const { data, error } = await supabase
+  const fields = choreWriteFields(chore);
+  const { data, error, status } = await supabase
     .from('chores')
-    .update({
-      title: chore.title,
-      description: chore.description || null,
-      date: chore.date,
-      due_time: chore.dueTime || null,
-      end_time: chore.endTime || null,
-      assignee_id: chore.assigneeId,
-      recurrence: chore.recurrence,
-      priority: chore.priority || 'medium',
-      category_id: chore.categoryId || null,
-      estimated_minutes: chore.estimatedMinutes || null,
-    })
+    .update(fields)
     .eq('id', chore.id).select('id');
 
-  if (error || !data?.length) {
-    throw new Error('Could not update chore. Please try again.');
+  if (!error && data?.length) {
+    return true;
   }
 
-  return true;
+  if (error && (status === 0 || status === 408 || status >= 500)) {
+    // The update may have committed before the client received its response.
+    const { data: existing, error: lookupError } = await supabase
+      .from('chores')
+      .select('*')
+      .eq('id', chore.id)
+      .maybeSingle<DbChore>();
+
+    if (!lookupError && existing?.id === chore.id && choreMatchesWriteFields(existing, fields)) {
+      return true;
+    }
+  }
+
+  throw new Error('Could not update chore. Please try again.');
 }
 
 export async function deleteChore(id: string): Promise<boolean> {
@@ -225,27 +261,38 @@ export async function fetchTeamMembers(): Promise<TeamMember[]> {
   return (data || []).map(dbToMember);
 }
 
-export async function createTeamMember(member: Omit<TeamMember, 'id'>): Promise<TeamMember | null> {
-  // Start with essential fields that definitely exist
-  const insertData: Record<string, unknown> = {
+export async function createTeamMember(member: Omit<TeamMember, 'id'>, id?: string): Promise<TeamMember | null> {
+  const fields = {
     name: member.name,
     color: member.color,
   };
 
-  // Add optional fields if they have values (these may or may not exist in the DB)
-  // Only known columns are sent to the database.
   try {
-    const { data, error } = await supabase
+    const { data, error, status } = await supabase
       .from('team_members')
-      .insert(insertData)
+      .insert(id ? { id, ...fields } : fields)
       .select()
       .single();
 
-    if (error) {
-      throw new Error('Could not save team member. Please try again.');
+    if (!error && data) {
+      return dbToMember(data);
     }
 
-    return dbToMember(data);
+    if (id && (!error || status === 0 || status === 408 || status >= 500 || error.code === '23505')) {
+      // Recover an insert that may have committed before its response was lost.
+      const { data: existing, error: lookupError } = await supabase
+        .from('team_members')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle<DbTeamMember>();
+
+      if (!lookupError && existing?.id === id) {
+        if (existing.name === member.name) return dbToMember(existing);
+        throw new Error('An earlier save added a family member with a different name. Restore the earlier name and try again.');
+      }
+    }
+
+    throw new Error('Could not save team member. Please try again.');
   } catch (err) {
     throw err instanceof Error ? err : new Error('Could not save family member. Please try again.');
   }
@@ -382,7 +429,10 @@ export async function fetchCompletions(): Promise<ChoreCompletion[]> {
   return (data || []).map(dbToCompletion);
 }
 
-export async function createCompletion(completion: Omit<ChoreCompletion, 'id'>): Promise<ChoreCompletion | null> {
+export async function createCompletion(completion: Omit<ChoreCompletion, 'id'>): Promise<{
+  completion: ChoreCompletion;
+  created: boolean;
+}> {
   const { data, error } = await supabase
     .from('chore_completions')
     .insert({
@@ -395,20 +445,35 @@ export async function createCompletion(completion: Omit<ChoreCompletion, 'id'>):
     .select()
     .single();
 
-  if (error) {
-    throw new Error('Could not save completion. Please try again.');
+  if (!error && data) {
+    return { completion: dbToCompletion(data), created: true };
   }
 
-  return dbToCompletion(data);
+  if (error?.code === '23505') {
+    // A previous request may have saved the occurrence before losing its response.
+    const { data: existing, error: lookupError } = await supabase
+      .from('chore_completions')
+      .select('id, chore_id, instance_date, completed_by, completed_at, notes')
+      .eq('chore_id', completion.choreId)
+      .eq('instance_date', completion.instanceDate)
+      .maybeSingle();
+
+    if (!lookupError && existing) {
+      return { completion: dbToCompletion(existing), created: false };
+    }
+  }
+
+  throw new Error('Could not save completion. Please try again.');
 }
 
 export async function deleteCompletion(id: string): Promise<boolean> {
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('chore_completions')
     .delete()
     .eq('id', id).select('id');
 
-  if (error || !data?.length) {
+  // A retry can find no matching row when the first delete reached the server.
+  if (error) {
     throw new Error('Could not delete completion. Please try again.');
   }
 

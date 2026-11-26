@@ -1,4 +1,4 @@
-import { dateKey, shiftDate } from '../utils/dates';
+import { dateKey, parseDate, shiftDate } from '../utils/dates';
 import { CompletionDialog } from './CompletionDialog';
 import { useMemo, useRef, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import FullCalendar from '@fullcalendar/react';
@@ -6,14 +6,15 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import listPlugin from '@fullcalendar/list';
 import interactionPlugin from '@fullcalendar/interaction';
-import { EventClickArg, DateSelectArg, EventDropArg } from '@fullcalendar/core';
+import { EventClickArg, DateSelectArg, EventDropArg, DatesSetArg } from '@fullcalendar/core';
 import { EventResizeDoneArg } from '@fullcalendar/interaction';
 import { useApp } from '../context/AppContext';
-import { generateChoreInstances, getCalendarRange } from '../utils/recurrence';
+import { generateChoreInstances } from '../utils/recurrence';
 import { Chore, ChoreInstance } from '../types';
 import { EventPopover } from './EventPopover';
 
 interface CalendarProps {
+  initialDate?: Date;
   onAddClick: (defaultValues?: { date?: string; startTime?: string; endTime?: string; allDay?: boolean }) => void;
   onEventClick: (chore: Chore, instanceDate: string) => void;
   searchQuery?: string;
@@ -28,12 +29,19 @@ export interface CalendarRef {
   prev: () => void;
 }
 
+function minutesFromTime(time?: string): number {
+  if (!time || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time)) return NaN;
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
 export const Calendar = forwardRef<CalendarRef, CalendarProps>(
-  ({ onAddClick, onEventClick, searchQuery, hiddenMembers = new Set() }, ref) => {
+  ({ initialDate, onAddClick, onEventClick, searchQuery, hiddenMembers = new Set() }, ref) => {
     const { state, updateChore } = useApp();
     const [completionInstance,setCompletionInstance] = useState<ChoreInstance|null>(null);
     const [operationError,setOperationError] = useState('');
     const calendarRef = useRef<FullCalendar>(null);
+    const [visibleRange, setVisibleRange] = useState<{ start: string; end: string } | null>(null);
 
     // Popover state
     const [popover, setPopover] = useState<{
@@ -64,9 +72,21 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [popover.visible]);
 
-    // Generate calendar events
+    function handleDatesSet({ start, end }: DatesSetArg) {
+      const startDate = dateKey(start);
+      const endDate = dateKey(end);
+      setVisibleRange(previous =>
+        previous?.start === startDate && previous.end === endDate ? previous : { start: startDate, end: endDate },
+      );
+    }
+
     const instances = useMemo(() => {
-      const { start, end } = getCalendarRange();
+      if (!visibleRange) return [];
+
+      // Include the preceding day for timed events that extend past midnight.
+      const start = parseDate(shiftDate(visibleRange.start, -1));
+      // FullCalendar's end is exclusive, while occurrence generation is inclusive.
+      const end = parseDate(shiftDate(visibleRange.end, -1));
       return generateChoreInstances(
         state.chores,
         state.teamMembers,
@@ -74,7 +94,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
         start,
         end
       );
-    }, [state.chores, state.teamMembers, state.completions]);
+    }, [state.chores, state.teamMembers, state.completions, visibleRange]);
 
     // Apply search filter and visibility filter
     const filteredInstances = useMemo(() => {
@@ -126,6 +146,7 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
           start,
           end,
           allDay,
+          durationEditable: !allDay,
           backgroundColor: 'var(--surface-tertiary)',
           borderColor: 'var(--border-subtle)',
           textColor: 'var(--text-primary)',
@@ -182,63 +203,82 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
       const choreId = info.event.extendedProps.choreId;
       const isRecurring = info.event.extendedProps.isRecurring;
       const chore = state.chores.find(c => c.id === choreId);
+      const { start, allDay } = info.event;
 
-      if (!chore) {
+      if (!chore || !start) {
         info.revert();
         return;
       }
 
-      // For recurring events, we would need to ask user if they want to update all or just this instance
-      // For now, we update all occurrences
-      if (isRecurring && !confirm('Move the entire repeating series? This changes all occurrences.')) {info.revert();return;}
-      try {
-      if (isRecurring) {
-        const newDate = info.event.start;
-        if (newDate) {
-          const newDateStr = dateKey(newDate);
-          const newTime = info.event.allDay ? undefined : newDate.toTimeString().slice(0, 5);
-
-          await updateChore({
-            ...chore,
-            date: newDateStr,
-            dueTime: newTime,
-            endTime: undefined,
-          });
-        }
-      } else {
-        // Single event - update directly
-        const newDate = info.event.start;
-        if (newDate) {
-          const newDateStr = dateKey(newDate);
-          const newTime = info.event.allDay ? undefined : newDate.toTimeString().slice(0, 5);
-
-          await updateChore({
-            ...chore,
-            date: newDateStr,
-            dueTime: newTime,
-            endTime: undefined,
-          });
-        }
+      if (isRecurring && !confirm('Move the entire repeating series? This changes all occurrences.')) {
+        info.revert();
+        return;
       }
-      } catch(e) {info.revert();setOperationError(e instanceof Error?e.message:'Could not move chore.');}
+
+      try {
+        if (Number.isNaN(start.getTime())) throw new Error('Could not move chore.');
+        const dueTime = allDay ? undefined : start.toTimeString().slice(0, 5);
+        let endTime: string | undefined;
+
+        // FullCalendar also supplies a display-only end for timed chores.
+        if (!allDay && !info.oldEvent.allDay && chore.endTime) {
+          const duration = minutesFromTime(chore.endTime) - minutesFromTime(chore.dueTime);
+          if (!(duration > 0)) {
+            throw new Error('Set a valid start and end time before moving this chore.');
+          }
+          const endMinutes = start.getHours() * 60 + start.getMinutes() + duration;
+          if (endMinutes >= 24 * 60) {
+            throw new Error('End times must be on the same day.');
+          }
+          const hours = String(Math.floor(endMinutes / 60)).padStart(2, '0');
+          const minutes = String(endMinutes % 60).padStart(2, '0');
+          endTime = `${hours}:${minutes}`;
+        }
+
+        const destinationDate = dateKey(start);
+        const previousDate = info.oldEvent.extendedProps.instanceDate;
+        // A time-only move must keep the series start and its earlier occurrences.
+        const date = isRecurring && destinationDate === previousDate ? chore.date : destinationDate;
+        await updateChore({ ...chore, date, dueTime, endTime });
+      } catch (error) {
+        info.revert();
+        setOperationError(error instanceof Error ? error.message : 'Could not move chore.');
+      }
     };
 
     // Handle event resize
     const handleEventResize = async (info: EventResizeDoneArg) => {
-      const choreId = info.event.extendedProps.choreId;
+      const { allDay, start, end, extendedProps: { choreId } } = info.event;
       const chore = state.chores.find(c => c.id === choreId);
 
-      if (!chore || !info.event.start || !info.event.end) {
+      if (!chore?.dueTime || allDay || !start || !end) {
         info.revert();
         return;
       }
 
-      const startTime = info.event.start.toTimeString().slice(0, 5);
-      const endTime = info.event.end.toTimeString().slice(0, 5);
+      try {
+        if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) {
+          throw new Error('Could not save time.');
+        }
+        if (dateKey(start) !== dateKey(end)) {
+          throw new Error('End times must be on the same day.');
+        }
 
-      if (chore.recurrence!=='none'&&!confirm('Change the time for the entire repeating series?')) {info.revert();return;}
-      try {await updateChore({...chore,dueTime:startTime,endTime});}
-      catch(e){info.revert();setOperationError(e instanceof Error?e.message:'Could not save time.');}
+        const dueTime = start.toTimeString().slice(0, 5);
+        const endTime = end.toTimeString().slice(0, 5);
+        if (endTime <= dueTime) {
+          throw new Error('Choose an end time after the start time.');
+        }
+
+        if (chore.recurrence !== 'none' && !confirm('Change the time for the entire repeating series?')) {
+          info.revert();
+          return;
+        }
+        await updateChore({ ...chore, dueTime, endTime });
+      } catch (error) {
+        info.revert();
+        setOperationError(error instanceof Error ? error.message : 'Could not save time.');
+      }
     };
 
     // Popover actions
@@ -266,6 +306,8 @@ export const Calendar = forwardRef<CalendarRef, CalendarProps>(
               ref={calendarRef}
               plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
               initialView="dayGridMonth"
+              initialDate={initialDate}
+              datesSet={handleDatesSet}
               events={events}
               eventClick={handleEventClick}
               select={handleDateSelect}

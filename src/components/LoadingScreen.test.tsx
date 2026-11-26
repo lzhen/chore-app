@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import {afterEach,expect,it,vi} from 'vitest';
 import {App} from './App';
 import {LoadingScreen} from './LoadingScreen';
-const auth=vi.hoisted(()=>({user:null as {id:string}|null,loading:true,isEmailVerification:false,isPasswordReset:false}));
+const auth=vi.hoisted(()=>({user:null as {id:string}|null,loading:true,emailVerification:null,isPasswordReset:false}));
 const app=vi.hoisted(()=>({state:{chores:[],teamMembers:[],categories:[],completions:[],loading:false,error:null as string|null},reload:vi.fn()}));
 vi.mock('../context/AuthContext',()=>({useAuth:()=>auth}));
 vi.mock('../context/AppContext',()=>({useApp:()=>app}));

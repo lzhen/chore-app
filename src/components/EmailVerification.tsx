@@ -1,37 +1,14 @@
-import { useState, useEffect } from 'react';
+import type { EmailVerificationStatus } from '../utils/emailVerification';
 import { Logo } from './Logo';
 import { ThemeSelector } from './ThemeSelector';
 
-type VerificationStatus = 'verifying' | 'success' | 'error';
-
 interface EmailVerificationProps {
+  verification: EmailVerificationStatus;
   onContinue: () => void;
 }
 
-export function EmailVerification({ onContinue }: EmailVerificationProps) {
-  const [status, setStatus] = useState<VerificationStatus>('verifying');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    const checkVerification = async () => {
-      const hash = window.location.hash;
-
-      if (hash.includes('access_token')) {
-        setStatus('success');
-        window.history.replaceState(null, '', window.location.pathname);
-      } else if (hash.includes('error')) {
-        const params = new URLSearchParams(hash.substring(1));
-        const errorDescription = params.get('error_description') || 'Verification failed';
-        setErrorMessage(decodeURIComponent(errorDescription.replace(/\+/g, ' ')));
-        setStatus('error');
-      } else {
-        setStatus('success');
-      }
-    };
-
-    const timer = setTimeout(checkVerification, 500);
-    return () => clearTimeout(timer);
-  }, []);
+export function EmailVerification({ verification, onContinue }: EmailVerificationProps) {
+  const { status } = verification;
 
   return (
     <>
@@ -82,13 +59,13 @@ export function EmailVerification({ onContinue }: EmailVerificationProps) {
                 Email Verified!
               </h2>
               <p className="text-content-secondary text-sm mb-6">
-                Your email has been successfully verified. You can now sign in to your account.
+                Your email has been successfully verified.
               </p>
               <button
                 onClick={onContinue}
                 className="fluent-button w-full py-2.5"
               >
-                Continue to Sign In
+                Continue
               </button>
             </>
           )}
@@ -116,13 +93,11 @@ export function EmailVerification({ onContinue }: EmailVerificationProps) {
                 Verification Failed
               </h2>
               <p className="text-content-secondary text-sm mb-2">
-                We couldn't verify your email address.
+                We couldn't use this email link. Open a newer link or return to sign in.
               </p>
-              {errorMessage && (
-                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-fluent-sm text-red-500 text-sm mb-6">
-                  {errorMessage}
-                </div>
-              )}
+              <div role="alert" className="p-3 bg-red-500/10 border border-red-500/30 rounded-fluent-sm text-red-500 text-sm mb-6">
+                {verification.message}
+              </div>
               <button
                 onClick={onContinue}
                 className="fluent-button w-full py-2.5"

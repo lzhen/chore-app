@@ -10,11 +10,27 @@ interface AccountSettingsProps {
 
 export function AccountSettings({ isOpen, onClose, embedded=false }: AccountSettingsProps) {
   const { user, signOut, deleteAccount } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutFailed, setSignOutFailed] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    setSignOutFailed(false);
+    try {
+      const { error } = await signOut();
+      setSignOutFailed(Boolean(error));
+    } catch {
+      setSignOutFailed(true);
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -51,11 +67,14 @@ export function AccountSettings({ isOpen, onClose, embedded=false }: AccountSett
         </div>
 
         <button
-          onClick={signOut}
+          type="button"
+          onClick={handleSignOut}
+          disabled={signingOut}
           className="chore-button secondary mt-6"
         >
-          Sign Out
+          {signingOut ? 'Signing out…' : 'Sign Out'}
         </button>
+        {signOutFailed && <p className="mt-3 text-sm text-red-500" role="alert">We could not sign you out. Please try again.</p>}
 
         <div className="mt-6 border-t border-border pt-5">
           <h3 className="font-medium text-red-500">Delete account</h3>

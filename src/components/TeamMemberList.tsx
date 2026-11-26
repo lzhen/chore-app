@@ -8,14 +8,13 @@ import { MiniCalendar } from './MiniCalendar';
 interface TeamMemberListProps {
   onClose?: () => void;
   onDateSelect?: (date: Date) => void;
-  eventDates?: Set<string>;
   hiddenMembers?: Set<string>;
   onToggleMemberVisibility?: (memberId: string) => void;
   onProfileOpen?: (member: TeamMember) => void;
   onAvailabilityOpen?: (member: TeamMember) => void;
 }
 
-export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMembers = new Set(), onToggleMemberVisibility, onProfileOpen, onAvailabilityOpen }: TeamMemberListProps) {
+export function TeamMemberList({ onClose, onDateSelect, hiddenMembers = new Set(), onToggleMemberVisibility, onProfileOpen, onAvailabilityOpen }: TeamMemberListProps) {
   const { state, addMember, removeMember, isMemberAvailable } = useApp();
   const [newName, setNewName] = useState('');
 
@@ -62,7 +61,7 @@ export function TeamMemberList({ onClose, onDateSelect, eventDates, hiddenMember
           <div className="mb-4">
             <MiniCalendar
               onDateSelect={onDateSelect}
-              eventDates={eventDates}
+              chores={state.chores}
             />
           </div>
         )}

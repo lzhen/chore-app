@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { v4 as uuid } from 'uuid';
 import { useApp } from '../context/AppContext';
 import { Chore, RecurrenceType, Priority } from '../types';
 import { dateKey } from '../utils/dates';
@@ -31,6 +32,7 @@ function ChoreEditor({onClose,editChore,defaultDate,defaultValues,instanceDate}:
  const [busy,setBusy]=useState(false);const [error,setError]=useState('');const [dirty,setDirty]=useState(false);const [confirmDelete,setConfirmDelete]=useState(false);const [confirmDiscard,setConfirmDiscard]=useState(false);
  const [fieldErrors,setFieldErrors]=useState<Record<string,string>>({});
  const formRef=useRef<HTMLFormElement>(null);
+ const createId=useRef<string>();
  const clearField=(id:string)=>setFieldErrors(previous=>{const next={...previous};delete next[id];return next;});
  const discardReturn=useRef<HTMLElement|null>(null);
  const errorRef=useRef<HTMLParagraphElement>(null);
@@ -46,9 +48,22 @@ function ChoreEditor({onClose,editChore,defaultDate,defaultValues,instanceDate}:
  setFieldErrors(next);
  const first=Object.keys(next)[0];if(first){requestAnimationFrame(()=>{const field=document.getElementById(first==='chore-end'?'chore-end-hour':first);const details=field?.closest('details');if(details)details.open=true;field?.focus();field?.scrollIntoView({block:'nearest'});});return;}
 
- setBusy(true);try{const values={title:title.trim(),date,assigneeId:member||null,dueTime:start||undefined,endTime:end||undefined,allDay:!start,description:description.trim()||undefined,recurrence:repeat,priority,categoryId:category||undefined,estimatedMinutes:estimate?Number(estimate):undefined};if(editChore)await updateChore({...editChore,...values});else await addChore(values);onClose();}catch(e){setError(e instanceof Error?e.message:'Could not save this chore. Please try again.');}finally{setBusy(false);}}
+ setBusy(true);
+ try {
+   const values={title:title.trim(),date,assigneeId:member||null,dueTime:start||undefined,endTime:end||undefined,allDay:!start,description:description.trim()||undefined,recurrence:repeat,priority,categoryId:category||undefined,estimatedMinutes:estimate?Number(estimate):undefined};
+   if(editChore) await updateChore({...editChore,...values});
+   else {
+     createId.current ??= uuid();
+     await addChore(values,createId.current);
+   }
+   onClose();
+ } catch(e) {
+   setError(e instanceof Error?e.message:'Could not save this chore. Please try again.');
+ } finally {
+   setBusy(false);
+ }}
  async function remove(){if(!editChore||busy)return;setBusy(true);try{await deleteChore(editChore.id);onClose();}catch(e){setError(e instanceof Error?e.message:'Could not delete. Please try again.');}finally{setBusy(false);}}
- const input=(label:string,id:string,value:string,change:(s:string)=>void,type='text',required=false)=><label className="chore-label" htmlFor={id}>{label}<input className="chore-input" id={id} aria-label={label} autoComplete={id==='chore-title'?'off':undefined} value={value} type={type} required={required} aria-invalid={!!fieldErrors[id]} aria-describedby={fieldErrors[id]?id+'-error':undefined} onChange={e=>{change(e.target.value);clearField(id);}}/><FieldError id={id+'-error'} message={fieldErrors[id]}/></label>;
+ const input=(label:string,id:string,value:string,change:(s:string)=>void,type='text',required=false)=><label className="chore-label" htmlFor={id}>{label}<input className="chore-input" id={id} aria-label={label} autoComplete={id==='chore-title'?'off':undefined} value={value} type={type} required={required} disabled={busy} aria-invalid={!!fieldErrors[id]} aria-describedby={fieldErrors[id]?id+'-error':undefined} onChange={e=>{change(e.target.value);clearField(id);}}/><FieldError id={id+'-error'} message={fieldErrors[id]}/></label>;
  return <><Dialog suspended={confirmDiscard} title={editChore?'Edit chore':'Add a chore'} onClose={close} busy={busy} footer={<><button type="button" className="chore-button secondary" disabled={busy} onClick={close}>Cancel</button><button className="chore-button primary" type="submit" form="chore-edit-form" disabled={busy}>{busy?'Saving…':editChore?'Save changes':'Add chore'}</button></>}>
  <form ref={formRef} noValidate autoComplete="off" id="chore-edit-form" onSubmit={save} onChange={()=>setDirty(true)}>
  {editChore?.recurrence!=='none'&&editChore&&<p className="chore-notice">You are editing the repeating series, starting {editChore.date}. Changes apply to all occurrences{instanceDate&&instanceDate!==editChore.date?`, not just ${instanceDate}`:''}.</p>}
@@ -60,7 +75,7 @@ function ChoreEditor({onClose,editChore,defaultDate,defaultValues,instanceDate}:
  <div className="chore-time-row"><TimePicker id="chore-start" label="Start time" value={start} disabled={busy} onChange={v=>{setStart(v);clearField('chore-end');setDirty(true);}}/><TimePicker error={fieldErrors['chore-end']} id="chore-end" label="End time" value={end} disabled={busy} onChange={v=>{setEnd(v);clearField('chore-end');setDirty(true);}}/></div><p className="chore-muted">Leave times blank for an all-day chore. End times must be on the same day.</p>
  <label className="chore-label" htmlFor="chore-repeat">Repeat<ChoicePicker id="chore-repeat" className="chore-input" label="Repeat" value={repeat} disabled={busy} onChange={value=>{setRepeat(value as RecurrenceType);setDirty(true);}} options={[{id:'none',label:'Does not repeat'},{id:'daily',label:'Every day'},{id:'weekly',label:'Every week'},{id:'monthly',label:'Every month'}]}/></label>
  <label className="chore-label" htmlFor="chore-priority">Priority<ChoicePicker id="chore-priority" className="chore-input" label="Priority" value={priority} disabled={busy} onChange={value=>{setPriority(value as Priority);setDirty(true);}} options={[{id:'low',label:'Low'},{id:'medium',label:'Normal'},{id:'high',label:'High'}]}/></label>
- <label className="chore-label" htmlFor="chore-notes">Notes · optional<textarea id="chore-notes" className="chore-input" rows={3} value={description} onChange={e=>setDescription(e.target.value)}/></label>
+ <label className="chore-label" htmlFor="chore-notes">Notes · optional<textarea id="chore-notes" className="chore-input" rows={3} value={description} disabled={busy} onChange={e=>setDescription(e.target.value)}/></label>
  {state.categories.length>0&&<label className="chore-label" htmlFor="chore-category">Category<ChoicePicker id="chore-category" className="chore-input" label="Category" value={category} disabled={busy} onChange={value=>{setCategory(value);setDirty(true);}} options={[{id:'',label:'No category'},...state.categories.map(c=>({id:c.id,label:c.name}))]}/></label>}
  {input('Estimated minutes · optional','chore-estimate',estimate,setEstimate,'number')}
  </details>
