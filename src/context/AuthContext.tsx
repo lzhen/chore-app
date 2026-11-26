@@ -12,7 +12,7 @@ interface AuthContextType {
   clearPasswordReset: () => void;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signOut: () => Promise<void>;
+  signOut: () => Promise<{ error: Error | null }>;
   deleteAccount: () => Promise<{ error: Error | null }>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
 }
@@ -72,9 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-  };
+  const signOut = () => supabase.auth.signOut();
 
   const deleteAccount = async () => {
     const { error } = await supabase.functions.invoke('delete-account', {

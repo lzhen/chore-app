@@ -242,4 +242,29 @@ describe('shared product surfaces',()=>{
   expect(screen.queryByRole('button',{name:'Delete permanently'})).not.toBeInTheDocument();
   expect(auth.signOut).not.toHaveBeenCalled();expect(auth.deleteAccount).not.toHaveBeenCalled();
  });
+
+ it.each(['returned', 'rejected'])('keeps Account signed in and permits retry after a %s sign-out error', async failure => {
+  let fail!: () => void;
+  auth.signOut.mockReset().mockImplementationOnce(() => new Promise((resolve, reject) => {
+   const error = new Error('Synthetic sign-out failure');
+   fail = () => failure === 'returned' ? resolve({ error }) : reject(error);
+  })).mockResolvedValueOnce({ error: null });
+  render(<AccountSettings embedded isOpen onClose={vi.fn()} />);
+  const user = userEvent.setup();
+  const signOut = screen.getByRole('button', { name: 'Sign Out' });
+
+  await user.click(signOut);
+  expect(signOut).toBeDisabled();
+  await user.click(signOut);
+  expect(auth.signOut).toHaveBeenCalledTimes(1);
+  await act(async () => fail());
+  expect(screen.getByRole('alert')).toHaveTextContent('We could not sign you out. Please try again.');
+  expect(screen.getByText('sample@example.test')).toBeInTheDocument();
+  expect(signOut).toBeEnabled();
+
+  await user.click(signOut);
+  expect(auth.signOut).toHaveBeenCalledTimes(2);
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(auth.deleteAccount).not.toHaveBeenCalled();
+ });
 });

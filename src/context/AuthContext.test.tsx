@@ -1,4 +1,5 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { AuthError } from '@supabase/supabase-js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { supabase } from '../utils/supabase';
@@ -115,6 +116,15 @@ describe('AuthContext', () => {
     });
 
     expect(supabase.auth.signOut).toHaveBeenCalled();
+  });
+
+  it('returns the sign-out error from the authentication service', async () => {
+    const error = new AuthError('Synthetic sign-out failure', 503);
+    vi.mocked(supabase.auth.signOut).mockResolvedValue({ error });
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await expect(result.current.signOut()).resolves.toEqual({ error });
   });
 
   it('calls resetPassword with email', async () => {
