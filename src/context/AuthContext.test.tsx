@@ -344,12 +344,11 @@ describe('AuthContext', () => {
   it('confirms an accepted callback when Supabase refreshes the startup session before the sign-in event', async () => {
     window.location.hash = callbackHash;
     const rotatedSession = { ...verifiedSession, access_token: 'new-access', refresh_token: 'new-refresh' };
-    const read = vi.mocked(supabase.auth.getSession);
-    read.mockImplementationOnce(async () => {
-      const listener = vi.mocked(supabase.auth.onAuthStateChange).mock.calls[0][0];
-      await listener('TOKEN_REFRESHED', rotatedSession);
-      return { data: { session: rotatedSession }, error: null };
+    vi.mocked(supabase.auth.initialize).mockImplementationOnce(async () => {
+      window.location.hash = '';
+      return { error: null };
     });
+    vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({ data: { session: rotatedSession }, error: null });
 
     const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
     await waitFor(() => expect(result.current.emailVerification?.status).toBe('success'));

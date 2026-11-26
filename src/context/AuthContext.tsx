@@ -61,7 +61,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let readingSession = false;
     let callbackInitializationAccepted = false;
     let signedInWithCallback = false;
-    let refreshedSession: Session | null = null;
 
     const matchesCallback = (session: Session | null): boolean => {
       const callback = emailCallback.current;
@@ -71,7 +70,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const finishEmailVerification = (verified: boolean) => {
       emailCallback.current = null;
-      refreshedSession = null;
       if (verified) {
         window.history.replaceState(null, '', window.location.pathname);
         setEmailVerification({ status: 'success' });
@@ -108,11 +106,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) throw error;
         if (!active) return;
         if (emailCallback.current) {
-          // A refresh can rotate both tokens before the SDK emits its startup SIGNED_IN.
-          const refreshedDuringStartup = !!(data.session?.user && refreshedSession &&
-            data.session.access_token === refreshedSession.access_token &&
-            data.session.refresh_token === refreshedSession.refresh_token);
-          finishEmailVerification(matchesCallback(data.session) || refreshedDuringStartup);
+          // The SDK clears the fragment after accepting the implicit callback.
+          // Its session read can refresh and rotate both tokens before returning.
+          const acceptedAndCleared = callbackInitializationAccepted && !!data.session?.user && !window.location.hash;
+          finishEmailVerification(matchesCallback(data.session) || acceptedAndCleared);
         }
         if (version === sessionVersion) applySession(data.session);
       } catch {
@@ -132,7 +129,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // The SDK emits INITIAL_SESSION with a null session after a refresh
         // error too. Read initial state through getSession to get the error.
         if (!active || event === 'INITIAL_SESSION') return;
-        if (event === 'TOKEN_REFRESHED' && emailCallback.current) refreshedSession = session;
         if (event === 'SIGNED_IN' && matchesCallback(session)) {
           signedInWithCallback = true;
           if (callbackInitializationAccepted) finishEmailVerification(true);
