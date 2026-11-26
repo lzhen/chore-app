@@ -227,6 +227,77 @@ test.describe('Sign-in recovery', () => {
     expect(externalRequests).toEqual([]);
   });
 
+  test('offers recovery when the signup link is missing its session', async ({ page }) => {
+    await page.goto('/chore-app/#type=signup');
+    await expect(page.getByRole('heading', { name: 'Verification Failed' })).toBeVisible();
+    await expect(page.getByText('Email Verified!')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Back to Sign In' }).click();
+    await expect(page.getByText('Sign in to your account')).toBeVisible();
+    expect(new URL(page.url()).hash).toBe('');
+  });
+
+  for (const rejected of [false, true]) {
+    test(rejected ? 'offers recovery for a rejected callback even with matching cached tokens' : 'confirms an accepted signup callback and continues into Nesmi', async ({ page }) => {
+      const user = {
+        id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        email: 'email-callback@example.test',
+        email_confirmed_at: '2026-01-01T00:00:00Z',
+        aud: 'authenticated',
+        role: 'authenticated',
+        app_metadata: {},
+        user_metadata: {},
+        created_at: '2026-01-01T00:00:00Z',
+      };
+      const token = 'eyJhbGciOiJIUzI1NiJ9.' + Buffer.from(JSON.stringify({
+        sub: user.id, exp: 2000000000, role: 'authenticated',
+      })).toString('base64url') + '.test-only';
+      const refreshToken = 'callback-refresh-fixture';
+      if (rejected) {
+        await page.addInitScript(session => {
+          localStorage.setItem('sb-rosofbnimiothwxsabyr-auth-token', JSON.stringify(session));
+        }, {
+          access_token: token, refresh_token: refreshToken, expires_at: 2000000000,
+          expires_in: 3600, token_type: 'bearer', user,
+        });
+      }
+
+      let callbackReads = 0;
+      await page.route('**/*.supabase.co/**', route => {
+        const request = route.request();
+        const pathname = new URL(request.url()).pathname;
+        if (request.method() === 'GET' && pathname === '/auth/v1/user') {
+          callbackReads += 1;
+          return rejected
+            ? route.fulfill({ status: 401, json: { code: 'bad_jwt', message: 'Rejected callback fixture' } })
+            : route.fulfill({ json: user });
+        }
+        if (request.method() === 'GET' && pathname.startsWith('/rest/v1/')) {
+          return route.fulfill({ json: [] });
+        }
+        return route.abort();
+      });
+
+      const callback = new URLSearchParams({
+        type: 'signup', access_token: token, refresh_token: refreshToken,
+        expires_in: '3600', token_type: 'bearer',
+      });
+      await page.goto('/chore-app/#' + callback);
+      if (rejected) {
+        await expect(page.getByRole('heading', { name: 'Verification Failed' })).toBeVisible();
+        await expect(page.getByText('Email Verified!')).toHaveCount(0);
+        await page.getByRole('button', { name: 'Back to Sign In' }).click();
+      } else {
+        await expect(page.getByRole('heading', { name: 'Email Verified!' })).toBeVisible();
+        expect(new URL(page.url()).hash).toBe('');
+        await page.getByRole('button', { name: 'Continue', exact: true }).click();
+      }
+      await expect(page.getByRole('navigation', { name: 'Primary navigation' })
+        .getByRole('button', { name: 'Today', exact: true })).toHaveAttribute('aria-current', 'page');
+      expect(new URL(page.url()).hash).toBe('');
+      expect(callbackReads).toBe(1);
+    });
+  }
+
   test('can retry a failed startup read and restore an existing session', async ({ page }) => {
     const user = {
       id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',

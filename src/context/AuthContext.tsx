@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '../utils/supabase';
+import { supabase, takeStartupEmailVerification } from '../utils/supabase';
+import { emailVerificationFailure, type EmailVerificationCallback, type EmailVerificationStatus } from '../utils/emailVerification';
 
 interface AuthContextType {
   user: User | null;
@@ -8,7 +9,7 @@ interface AuthContextType {
   loading: boolean;
   sessionLoadFailed: boolean;
   retrySession: () => void;
-  isEmailVerification: boolean;
+  emailVerification: EmailVerificationStatus | null;
   isPasswordReset: boolean;
   clearEmailVerification: () => void;
   clearPasswordReset: () => void;
@@ -30,7 +31,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loading = checkingSession || committedUserId !== userId;
   const [sessionLoadFailed, setSessionLoadFailed] = useState(false);
   const restoreSession = useRef<(() => void) | null>(null);
-  const [isEmailVerification, setIsEmailVerification] = useState(false);
+  const [emailVerification, setEmailVerification] = useState<EmailVerificationStatus | null>(null);
+  const emailCallback = useRef<EmailVerificationCallback | null>();
   const [isPasswordReset, setIsPasswordReset] = useState(false);
 
   // Let the keyed household provider mount for the new identity before it starts loading data.
@@ -39,17 +41,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [userId]);
 
   useEffect(() => {
-    const callback = new URLSearchParams(window.location.hash.slice(1));
-    const type = callback.get('type');
-    if (type === 'recovery') {
+    if (new URLSearchParams(window.location.hash.slice(1)).get('type') === 'recovery') {
       setIsPasswordReset(true);
-    } else if (type === 'signup' || type === 'email' || callback.get('access_token') || callback.get('error_code') === 'otp_expired') {
-      setIsEmailVerification(true);
+    }
+
+    if (emailCallback.current === undefined) {
+      const callback = takeStartupEmailVerification();
+      if (callback && 'errorMessage' in callback) {
+        setEmailVerification({ status: 'error', message: callback.errorMessage });
+        emailCallback.current = null;
+      } else {
+        emailCallback.current = callback;
+        if (callback) setEmailVerification({ status: 'verifying' });
+      }
     }
 
     let active = true;
     let sessionVersion = 0;
     let readingSession = false;
+    let callbackInitializationAccepted = false;
+    let signedInWithCallback = false;
+    let refreshedSession: Session | null = null;
+
+    const matchesCallback = (session: Session | null): boolean => {
+      const callback = emailCallback.current;
+      return !!callback && 'accessToken' in callback && !!session?.user &&
+        session.access_token === callback.accessToken && session.refresh_token === callback.refreshToken;
+    };
+
+    const finishEmailVerification = (verified: boolean) => {
+      emailCallback.current = null;
+      refreshedSession = null;
+      if (verified) {
+        window.history.replaceState(null, '', window.location.pathname);
+        setEmailVerification({ status: 'success' });
+      } else {
+        setEmailVerification({ status: 'error', message: emailVerificationFailure });
+      }
+    };
 
     const applySession = (session: Session | null) => {
       setSession(session);
@@ -65,9 +94,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSessionLoadFailed(false);
       setCheckingSession(true);
       try {
+        if (emailCallback.current) {
+          // The SDK may retain an existing session when URL initialization fails.
+          const { error } = await supabase.auth.initialize();
+          if (!active) return;
+          callbackInitializationAccepted = !error;
+          if (emailCallback.current && (error || signedInWithCallback)) {
+            finishEmailVerification(callbackInitializationAccepted);
+          }
+        }
+
         const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
-        if (active && version === sessionVersion) applySession(data.session);
+        if (!active) return;
+        if (emailCallback.current) {
+          // A refresh can rotate both tokens before the SDK emits its startup SIGNED_IN.
+          const refreshedDuringStartup = !!(data.session?.user && refreshedSession &&
+            data.session.access_token === refreshedSession.access_token &&
+            data.session.refresh_token === refreshedSession.refresh_token);
+          finishEmailVerification(matchesCallback(data.session) || refreshedDuringStartup);
+        }
+        if (version === sessionVersion) applySession(data.session);
       } catch {
         if (active && version === sessionVersion) {
           setSessionLoadFailed(true);
@@ -85,6 +132,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // The SDK emits INITIAL_SESSION with a null session after a refresh
         // error too. Read initial state through getSession to get the error.
         if (!active || event === 'INITIAL_SESSION') return;
+        if (event === 'TOKEN_REFRESHED' && emailCallback.current) refreshedSession = session;
+        if (event === 'SIGNED_IN' && matchesCallback(session)) {
+          signedInWithCallback = true;
+          if (callbackInitializationAccepted) finishEmailVerification(true);
+        }
         sessionVersion += 1;
         applySession(session);
       }
@@ -102,7 +154,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const clearEmailVerification = () => {
-    setIsEmailVerification(false);
+    emailCallback.current = null;
+    setEmailVerification(null);
     window.history.replaceState(null, '', window.location.pathname);
   };
 
@@ -151,7 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, sessionLoadFailed, retrySession, isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset, signUp, signIn, signOut, deleteAccount, resetPassword }}>
+    <AuthContext.Provider value={{ user, session, loading, sessionLoadFailed, retrySession, emailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset, signUp, signIn, signOut, deleteAccount, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

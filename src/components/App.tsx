@@ -30,7 +30,7 @@ export function App() {
   const { state, reload } = useApp();
   const {
     user, loading: authLoading, sessionLoadFailed, retrySession,
-    isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset,
+    emailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset,
   } = useAuth();
   const calendarRef = useRef<CalendarRef>(null);
 
@@ -199,6 +199,10 @@ export function App() {
     }
   };
 
+  if (emailVerification?.status === 'error') {
+    return <EmailVerification verification={emailVerification} onContinue={clearEmailVerification} />;
+  }
+
   // Show loading while checking auth
   if (authLoading) return <LoadingScreen phase="session" />;
 
@@ -211,8 +215,8 @@ export function App() {
   }
 
   // Show email verification page
-  if (isEmailVerification) {
-    return <EmailVerification onContinue={clearEmailVerification} />;
+  if (emailVerification) {
+    return <EmailVerification verification={emailVerification} onContinue={clearEmailVerification} />;
   }
 
   // Show password reset page

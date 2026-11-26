@@ -19,6 +19,7 @@ Object.defineProperty(window, 'matchMedia', {
 // Mock window.location
 const mockLocation = {
   hash: '',
+  search: '',
   pathname: '/chore-app/',
   origin: 'http://localhost:5173',
   href: 'http://localhost:5173/chore-app/',
@@ -39,26 +40,32 @@ Object.defineProperty(window, 'history', {
 });
 
 // Mock Supabase client
-vi.mock('../utils/supabase', () => ({
-  supabase: {
-    auth: {
-      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
-      onAuthStateChange: vi.fn().mockReturnValue({
-        data: { subscription: { unsubscribe: vi.fn() } },
-      }),
-      signUp: vi.fn(),
-      signInWithPassword: vi.fn(),
-      signOut: vi.fn(),
-      resetPasswordForEmail: vi.fn(),
-      updateUser: vi.fn(),
+vi.mock('../utils/supabase', async () => {
+  const { parseEmailVerificationCallback } = await import('../utils/emailVerification');
+  return {
+    takeStartupEmailVerification: () => parseEmailVerificationCallback(window.location.hash, window.location.search),
+    supabase: {
+      auth: {
+        initialize: vi.fn().mockResolvedValue({ error: null }),
+        getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+        onAuthStateChange: vi.fn().mockReturnValue({
+          data: { subscription: { unsubscribe: vi.fn() } },
+        }),
+        signUp: vi.fn(),
+        signInWithPassword: vi.fn(),
+        signOut: vi.fn(),
+        resetPasswordForEmail: vi.fn(),
+        updateUser: vi.fn(),
+      },
     },
-  },
-}));
+  };
+});
 
 // Reset mocks between tests
 beforeEach(() => {
   vi.clearAllMocks();
   window.location.hash = '';
+  mockLocation.search = '';
 });
 
 // Layout observer is supplied by the browser; jsdom has no rendering engine.

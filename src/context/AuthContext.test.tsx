@@ -225,18 +225,135 @@ describe('AuthContext', () => {
     );
   });
 
-  it('detects email verification from URL hash', async () => {
-    window.location.hash = '#access_token=abc&type=signup';
+  it.each(['#type=signup', '#type=email', '#access_token=abc&type=signup'])(
+    'shows recovery for an incomplete verification callback (%s)', async (hash) => {
+      window.location.hash = hash;
 
-    const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
+      const { result } = renderHook(() => useAuth(), {
+        wrapper: AuthProvider,
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(result.current.emailVerification?.status).toBe('error');
+      expect(supabase.auth.initialize).not.toHaveBeenCalled();
     });
 
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+  const callbackHash = '#type=signup&access_token=callback-access&refresh_token=callback-refresh&expires_in=3600&token_type=bearer';
+  const verifiedSession = {
+    access_token: 'callback-access',
+    refresh_token: 'callback-refresh',
+    user: { id: 'verified-user' },
+  } as Session;
+
+  it('confirms the matching session after the SDK removes the callback hash', async () => {
+    window.location.hash = callbackHash;
+    vi.mocked(supabase.auth.initialize).mockImplementationOnce(async () => {
+      window.location.hash = '';
+      return { error: null };
+    });
+    vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({ data: { session: verifiedSession }, error: null });
+
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    expect(result.current.emailVerification?.status).toBe('verifying');
+    await waitFor(() => expect(result.current.emailVerification?.status).toBe('success'));
+    expect(result.current.session).toBe(verifiedSession);
+    expect(window.history.replaceState).toHaveBeenCalledWith(null, '', window.location.pathname);
+  });
+
+  it('requires a session that matches the callback instead of accepting an existing session', async () => {
+    window.location.hash = callbackHash;
+    const cachedSession = { ...verifiedSession, access_token: 'cached-access' };
+    vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({ data: { session: cachedSession }, error: null });
+
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.emailVerification?.status).toBe('error'));
+    expect(result.current.session).toBe(cachedSession);
+    expect(supabase.auth.signOut).not.toHaveBeenCalled();
+  });
+
+  it('shows recovery when callback initialization failed even if the cached tokens match', async () => {
+    window.location.hash = callbackHash;
+    vi.mocked(supabase.auth.initialize).mockResolvedValueOnce({ error: new AuthError('Callback was rejected', 401) });
+    vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({ data: { session: verifiedSession }, error: null });
+
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.emailVerification?.status).toBe('error');
+    expect(result.current.session).toBe(verifiedSession);
+    expect(supabase.auth.signOut).not.toHaveBeenCalled();
+  });
+
+  it('keeps the callback pending if the session read fails and confirms it on retry', async () => {
+    window.location.hash = callbackHash;
+    vi.mocked(supabase.auth.getSession)
+      .mockRejectedValueOnce(new TypeError('Synthetic session read failure'))
+      .mockResolvedValueOnce({ data: { session: verifiedSession }, error: null });
+
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.sessionLoadFailed).toBe(true));
+    expect(result.current.emailVerification?.status).toBe('verifying');
+
+    act(() => result.current.retrySession());
+    await waitFor(() => expect(result.current.emailVerification?.status).toBe('success'));
+    expect(result.current.sessionLoadFailed).toBe(false);
+  });
+
+  it.each(['fragment', 'query'])('rejects a conflicting callback type in the %s', async (source) => {
+    window.location.hash = callbackHash;
+    if (source === 'fragment') window.location.hash += '&type=recovery';
+    else window.location.search = '?type=recovery';
+    vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({ data: { session: verifiedSession }, error: null });
+
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.emailVerification?.status).toBe('error');
+    expect(supabase.auth.initialize).not.toHaveBeenCalled();
+  });
+
+  it('does not show email verification for an ordinary signed-in callback', async () => {
+    window.location.hash = callbackHash.replace('type=signup', 'type=magiclink');
+    vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({ data: { session: verifiedSession }, error: null });
+
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.emailVerification).toBeNull();
+    expect(result.current.session).toBe(verifiedSession);
+  });
+
+  it('confirms an accepted matching sign-in event even if reading the session then fails', async () => {
+    window.location.hash = callbackHash;
+    let rejectRead!: (error: Error) => void;
+    const read = vi.mocked(supabase.auth.getSession);
+    read.mockReturnValueOnce(new Promise((_, reject) => { rejectRead = reject; }));
+
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(read).toHaveBeenCalled());
+    const listener = vi.mocked(supabase.auth.onAuthStateChange).mock.calls[0][0];
+    await act(async () => {
+      await listener('SIGNED_IN', verifiedSession);
+      rejectRead(new TypeError('Synthetic session read failure'));
+    });
+    expect(result.current.emailVerification?.status).toBe('success');
+    expect(result.current.sessionLoadFailed).toBe(false);
+    expect(result.current.session).toBe(verifiedSession);
+  });
+
+  it('confirms an accepted callback when Supabase refreshes the startup session before the sign-in event', async () => {
+    window.location.hash = callbackHash;
+    const rotatedSession = { ...verifiedSession, access_token: 'new-access', refresh_token: 'new-refresh' };
+    const read = vi.mocked(supabase.auth.getSession);
+    read.mockImplementationOnce(async () => {
+      const listener = vi.mocked(supabase.auth.onAuthStateChange).mock.calls[0][0];
+      await listener('TOKEN_REFRESHED', rotatedSession);
+      return { data: { session: rotatedSession }, error: null };
     });
 
-    expect(result.current.isEmailVerification).toBe(true);
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.emailVerification?.status).toBe('success'));
+    expect(result.current.session).toBe(rotatedSession);
   });
 
   it('detects password reset from URL hash', async () => {
@@ -262,7 +379,7 @@ describe('AuthContext', () => {
     const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
 
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.isEmailVerification).toBe(email);
+    expect(result.current.emailVerification !== null).toBe(email);
     expect(result.current.isPasswordReset).toBe(recovery);
     expect(result.current.session).toBeNull();
   });
@@ -278,13 +395,13 @@ describe('AuthContext', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.isEmailVerification).toBe(true);
+    expect(result.current.emailVerification?.status).toBe('error');
 
     act(() => {
       result.current.clearEmailVerification();
     });
 
-    expect(result.current.isEmailVerification).toBe(false);
+    expect(result.current.emailVerification).toBeNull();
     expect(window.history.replaceState).toHaveBeenCalled();
   });
 
