@@ -58,9 +58,19 @@ describe('EmailVerification', () => {
       expect(screen.getByText('Verification Failed')).toBeInTheDocument();
     }, { timeout: 1000 });
 
-    expect(screen.getByText(/we couldn't verify your email address/i)).toBeInTheDocument();
+    expect(screen.getByText(/we couldn't use this email link/i)).toBeInTheDocument();
     expect(screen.getByText('Email link has expired')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /back to sign in/i })).toBeInTheDocument();
+  });
+
+  it('shows callback errors before token success and decodes the description only once', async () => {
+    window.location.hash = '#access_token=fixture&error_code=otp_expired&error_description=Link+is+100%25+expired+%2B+invalid';
+
+    render(<EmailVerification onContinue={mockOnContinue} />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Link is 100% expired + invalid');
+    expect(screen.queryByText('Email Verified!')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back to Sign In' })).toBeInTheDocument();
   });
 
   it('calls onContinue when clicking continue button on success', async () => {

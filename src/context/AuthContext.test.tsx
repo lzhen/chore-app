@@ -253,6 +253,20 @@ describe('AuthContext', () => {
     expect(result.current.isPasswordReset).toBe(true);
   });
 
+  it.each([
+    ['#error=access_denied&error_code=otp_expired', true, false],
+    ['#type=recovery&error_code=otp_expired', false, true],
+    ['#message=type=signup%26access_token=fake', false, false],
+  ])('recognizes only the expected callback parameters in %s', async (hash, email, recovery) => {
+    window.location.hash = hash;
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.isEmailVerification).toBe(email);
+    expect(result.current.isPasswordReset).toBe(recovery);
+    expect(result.current.session).toBeNull();
+  });
+
   it('clears email verification state', async () => {
     window.location.hash = '#access_token=abc&type=signup';
 

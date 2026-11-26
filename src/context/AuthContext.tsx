@@ -39,10 +39,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [userId]);
 
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash.includes('type=recovery')) {
+    const callback = new URLSearchParams(window.location.hash.slice(1));
+    const type = callback.get('type');
+    if (type === 'recovery') {
       setIsPasswordReset(true);
-    } else if (hash.includes('type=signup') || hash.includes('type=email') || hash.includes('access_token')) {
+    } else if (type === 'signup' || type === 'email' || callback.get('access_token') || callback.get('error_code') === 'otp_expired') {
       setIsEmailVerification(true);
     }
 

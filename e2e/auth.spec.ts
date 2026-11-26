@@ -210,6 +210,23 @@ test.describe('Login Flow', () => {
 test.describe('Sign-in recovery', () => {
   test.use({ serviceWorkers: 'block' });
 
+  test('can return to sign in from an expired email link without a callback type', async ({ page }) => {
+    const externalRequests: string[] = [];
+    await page.route('**/*.supabase.co/**', route => {
+      externalRequests.push(route.request().method());
+      return route.abort();
+    });
+
+    await page.goto('/chore-app/#error=access_denied&error_code=otp_expired&error_description=This+email+link+is+100%25+expired');
+    await expect(page.getByRole('heading', { name: 'Verification Failed' })).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveText('This email link is 100% expired');
+    await expect(page.getByText('Email Verified!')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Back to Sign In' }).click();
+    await expect(page.getByText('Sign in to your account')).toBeVisible();
+    expect(new URL(page.url()).hash).toBe('');
+    expect(externalRequests).toEqual([]);
+  });
+
   test('can retry a failed startup read and restore an existing session', async ({ page }) => {
     const user = {
       id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',

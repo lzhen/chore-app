@@ -13,23 +13,22 @@ export function EmailVerification({ onContinue }: EmailVerificationProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const checkVerification = async () => {
-      const hash = window.location.hash;
-
-      if (hash.includes('access_token')) {
-        setStatus('success');
-        window.history.replaceState(null, '', window.location.pathname);
-      } else if (hash.includes('error')) {
-        const params = new URLSearchParams(hash.substring(1));
-        const errorDescription = params.get('error_description') || 'Verification failed';
-        setErrorMessage(decodeURIComponent(errorDescription.replace(/\+/g, ' ')));
+    const timer = setTimeout(() => {
+      const callback = new URLSearchParams(window.location.hash.slice(1));
+      const errorCode = callback.get('error_code');
+      const description = callback.get('error_description')?.trim();
+      if (callback.get('error') || errorCode || description) {
+        const fallback = errorCode === 'otp_expired' ? 'This email link is invalid or has expired.' : 'This email link could not be completed.';
+        setErrorMessage(description || fallback);
         setStatus('error');
-      } else {
-        setStatus('success');
+        return;
       }
-    };
 
-    const timer = setTimeout(checkVerification, 500);
+      if (callback.get('access_token')) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+      setStatus('success');
+    }, 500);
     return () => clearTimeout(timer);
   }, []);
 
@@ -116,10 +115,10 @@ export function EmailVerification({ onContinue }: EmailVerificationProps) {
                 Verification Failed
               </h2>
               <p className="text-content-secondary text-sm mb-2">
-                We couldn't verify your email address.
+                We couldn't use this email link. Open a newer link or return to sign in.
               </p>
               {errorMessage && (
-                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-fluent-sm text-red-500 text-sm mb-6">
+                <div role="alert" className="p-3 bg-red-500/10 border border-red-500/30 rounded-fluent-sm text-red-500 text-sm mb-6">
                   {errorMessage}
                 </div>
               )}
