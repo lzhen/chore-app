@@ -1,55 +1,32 @@
 import { memberAvatarStyle } from '../utils/colors';
 import { useMemo } from 'react';
 import { TeamMember, Chore } from '../types';
+import { parseDate } from '../utils/dates';
+import { generateChoreInstances } from '../utils/recurrence';
 
 interface WorkloadChartProps {
   members: TeamMember[];
   chores: Chore[];
-  dateRange?: { start: string; end: string };
+  dateRange: { start: string; end: string };
 }
 
-export function WorkloadChart({ members, chores, dateRange }: WorkloadChartProps) {
+export function WorkloadChart({ members, chores, dateRange: { start, end } }: WorkloadChartProps) {
   const workloadData = useMemo(() => {
-    const today = new Date();
-    const start = dateRange?.start || today.toISOString().split('T')[0];
-    const weekEnd = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-    const end = dateRange?.end || weekEnd.toISOString().split('T')[0];
+    // Assigned workload includes completed occurrences.
+    const occurrences = generateChoreInstances(chores, members, [], parseDate(start), parseDate(end));
+    const estimates = new Map(chores.map(chore => [chore.id, chore.estimatedMinutes]));
+    const assignedByMember = new Map<string, { minutes: number; count: number }>();
+    for (const { choreId, assigneeId } of occurrences) {
+      if (!assigneeId) continue;
+      const assigned = assignedByMember.get(assigneeId) ?? { minutes: 0, count: 0 };
+      assigned.minutes += estimates.get(choreId) || 30; // Default 30 min if not set
+      assigned.count++;
+      assignedByMember.set(assigneeId, assigned);
+    }
 
     return members.map(member => {
-      // Get chores assigned to this member in the date range
-      const assignedChores = chores.filter(c => {
-        if (c.assigneeId !== member.id) return false;
-        // Check if chore falls in date range
-        if (c.recurrence === 'none') {
-          return c.date >= start && c.date <= end;
-        }
-        // For recurring chores, count them if they started before the end date
-        return c.date <= end;
-      });
-
-      // Calculate total minutes
-      let assignedMinutes = 0;
-      assignedChores.forEach(chore => {
-        const minutes = chore.estimatedMinutes || 30; // Default 30 min if not set
-        if (chore.recurrence === 'none') {
-          assignedMinutes += minutes;
-        } else if (chore.recurrence === 'daily') {
-          // Count days in range
-          const choreStart = new Date(Math.max(new Date(chore.date).getTime(), new Date(start).getTime()));
-          const rangeEnd = new Date(end);
-          const days = Math.ceil((rangeEnd.getTime() - choreStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-          assignedMinutes += minutes * Math.max(0, days);
-        } else if (chore.recurrence === 'weekly') {
-          // Count weeks in range
-          const choreStart = new Date(Math.max(new Date(chore.date).getTime(), new Date(start).getTime()));
-          const rangeEnd = new Date(end);
-          const weeks = Math.ceil((rangeEnd.getTime() - choreStart.getTime()) / (1000 * 60 * 60 * 24 * 7)) + 1;
-          assignedMinutes += minutes * Math.max(0, weeks);
-        } else if (chore.recurrence === 'monthly') {
-          assignedMinutes += minutes; // Just count once for monthly in a week view
-        }
-      });
-
+      const assigned = assignedByMember.get(member.id);
+      const assignedMinutes = assigned?.minutes ?? 0;
       const capacityMinutes = member.weeklyCapacityMinutes || 480; // Default 8 hours
       const utilizationPercent = capacityMinutes > 0 ? Math.round((assignedMinutes / capacityMinutes) * 100) : 0;
 
@@ -58,10 +35,10 @@ export function WorkloadChart({ members, chores, dateRange }: WorkloadChartProps
         assignedMinutes,
         capacityMinutes,
         utilizationPercent,
-        choreCount: assignedChores.length,
+        choreCount: assigned?.count ?? 0,
       };
     }).sort((a, b) => b.utilizationPercent - a.utilizationPercent);
-  }, [members, chores, dateRange]);
+  }, [members, chores, start, end]);
 
   const maxMinutes = Math.max(...workloadData.map(d => Math.max(d.assignedMinutes, d.capacityMinutes)), 1);
 
@@ -126,7 +103,7 @@ export function WorkloadChart({ members, chores, dateRange }: WorkloadChartProps
                   </div>
                 )}
                 <span className="text-sm font-medium text-content-primary">{member.name}</span>
-                <span className="text-xs text-content-secondary">({choreCount} chores)</span>
+                <span className="text-xs text-content-secondary">({choreCount} {choreCount === 1 ? 'chore' : 'chores'})</span>
               </div>
               <div className="text-right">
                 <span className="text-sm font-bold text-content-primary">

@@ -138,6 +138,73 @@ describe('shared product surfaces',()=>{
 
   expect(within(screen.getByText('This Week').parentElement!).getByText('2')).toBeInTheDocument();
  });
+ it('shows each assigned occurrence and its estimate for the current local week in Workload',async()=>{
+  vi.stubEnv('TZ','America/Los_Angeles');
+  vi.useFakeTimers({toFake:['Date']});
+  vi.setSystemTime(new Date('2026-02-28T07:30:00Z'));
+  expect(dateKey()).toBe('2026-02-27');
+
+  const defaults={recurrence:'none',priority:'medium',assigneeId:'alex'} as const;
+  appState.teamMembers=[
+   {id:'alex',name:'Alex',color:'#448844',points:0,badges:[]},
+   {id:'robin',name:'Robin',color:'#444488',points:0,badges:[],weeklyCapacityMinutes:60},
+  ];
+  appState.chores=[
+   {...defaults,id:'daily',title:'Feed pets',date:'2026-02-01',recurrence:'daily',estimatedMinutes:10},
+   {...defaults,id:'weekly',title:'Do laundry',date:'2026-02-14',recurrence:'weekly',estimatedMinutes:20},
+   {...defaults,id:'month-end',title:'Check filters',date:'2026-01-31',recurrence:'monthly',estimatedMinutes:25},
+   {...defaults,id:'other-monthly',title:'Check smoke alarms',date:'2026-01-14',recurrence:'monthly',estimatedMinutes:60},
+   {...defaults,id:'first-day',title:'Wash dishes',date:'2026-02-22'},
+   {...defaults,id:'prior-week',title:'Clean the oven',date:'2026-02-21',estimatedMinutes:60},
+   {...defaults,id:'next-week',title:'Buy groceries',date:'2026-03-01',recurrence:'weekly',estimatedMinutes:60},
+   {...defaults,id:'unassigned',title:'Clean the windows',date:'2026-02-28',assigneeId:null,estimatedMinutes:60},
+   {...defaults,id:'robin-chore',title:'Wash the car',date:'2026-02-26',assigneeId:'robin',estimatedMinutes:45},
+  ];
+  appState.completions=[{
+   id:'done-dishes',choreId:'first-day',instanceDate:'2026-02-22',
+   completedBy:'robin',completedAt:'2026-02-22T18:00:00Z',
+  }];
+
+  render(<Dashboard embedded onClose={vi.fn()}/>);
+  expect(within(screen.getByText('This Week').parentElement!).getByText('1')).toBeInTheDocument();
+  await userEvent.setup().click(screen.getByRole('button',{name:'Workload'}));
+
+  const alex=within(screen.getByText('Alex').parentElement!.parentElement!);
+  expect(alex.getByText('(2h 25m / 8h)')).toBeInTheDocument();
+  expect(alex.getByText('(10 chores)')).toBeInTheDocument();
+  expect(alex.getByText('30%')).toBeInTheDocument();
+  const robin=within(screen.getByText('Robin').parentElement!.parentElement!);
+  expect(robin.getByText('(45m / 1h)')).toBeInTheDocument();
+  expect(robin.getByText('75%')).toBeInTheDocument();
+ });
+ it('refreshes open Workload at the local week boundary across a daylight saving change',async()=>{
+  vi.stubEnv('TZ','America/Los_Angeles');
+  vi.useFakeTimers({toFake:['Date']});
+  vi.setSystemTime(new Date('2026-03-08T07:30:00Z'));
+  expect(dateKey()).toBe('2026-03-07');
+
+  const defaults={recurrence:'none',priority:'medium',assigneeId:'alex'} as const;
+  appState.teamMembers=[{id:'alex',name:'Alex',color:'#448844',points:0,badges:[]}];
+  appState.chores=[
+   {...defaults,id:'daily',title:'Feed pets',date:'2026-03-07',recurrence:'daily',estimatedMinutes:10},
+   {...defaults,id:'weekly',title:'Do laundry',date:'2026-03-08',recurrence:'weekly',estimatedMinutes:15},
+   {...defaults,id:'last-saturday',title:'Wash dishes',date:'2026-03-07',estimatedMinutes:20},
+   {...defaults,id:'next-saturday',title:'Buy groceries',date:'2026-03-14',estimatedMinutes:30},
+  ];
+  render(<Dashboard embedded onClose={vi.fn()}/>);
+  await userEvent.setup().click(screen.getByRole('button',{name:'Workload'}));
+
+  expect(screen.getByText('(30m / 8h)')).toBeInTheDocument();
+  expect(screen.getByText('(2 chores)')).toBeInTheDocument();
+
+  act(()=>{
+   vi.setSystemTime(new Date('2026-03-08T10:30:00Z'));
+   window.dispatchEvent(new Event('focus'));
+  });
+
+  expect(screen.getByText('(1h 55m / 8h)')).toBeInTheDocument();
+  expect(screen.getByText('(9 chores)')).toBeInTheDocument();
+ });
  it.each(['midnight', 'visibilitychange', 'focus', 'pageshow'])('refreshes open Insights at the local week boundary on %s', trigger=>{
   vi.stubEnv('TZ','America/Los_Angeles');
   vi.useFakeTimers({toFake:['Date','setTimeout','clearTimeout']});

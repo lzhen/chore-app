@@ -34,6 +34,8 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
   const { state } = useApp();
   const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'workload' | 'achievements'>('overview');
   const today = useLocalDay();
+  const weekStart = shiftDate(today, -parseDate(today).getDay());
+  const weekEnd = shiftDate(weekStart, 6);
 
   // Sort completions by completedAt (most recent first)
   const sortedCompletions = useMemo(() => {
@@ -45,8 +47,6 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
   // Calculate stats
   const stats = useMemo(() => {
     const todayDate = parseDate(today);
-    const weekStart = shiftDate(today, -todayDate.getDay());
-    const weekEnd = shiftDate(weekStart, 6);
     const monthAgo = dateKey(new Date(Date.now() - 30 * 86400000));
 
     // Get completions
@@ -85,7 +85,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
       pendingToday,
       overdue: overdueOneOff + overdueRecurring,
     };
-  }, [today, state.chores, state.teamMembers, state.completions]);
+  }, [today, weekStart, weekEnd, state.chores, state.teamMembers, state.completions]);
 
   return (
     <div className={embedded?"chore-insights-page":"fixed inset-0 bg-overlay flex items-center justify-center z-50 p-4"}>
@@ -359,6 +359,7 @@ export function Dashboard({ onClose, embedded=false }: DashboardProps) {
               <WorkloadChart
                 members={state.teamMembers}
                 chores={state.chores}
+                dateRange={{ start: weekStart, end: weekEnd }}
               />
             </div>
           ) : null}
