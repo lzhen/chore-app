@@ -1,5 +1,5 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { AuthError } from '@supabase/supabase-js';
+import { AuthError, type Session } from '@supabase/supabase-js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { supabase } from '../utils/supabase';
@@ -21,6 +21,52 @@ describe('AuthContext', () => {
 
     expect(result.current.user).toBeNull();
     expect(result.current.session).toBeNull();
+  });
+
+  it.each(['returned', 'rejected'])('retries a %s session restore error without signing out', async (failure) => {
+    const error = new AuthError('Synthetic session restore failure', 503);
+    const read = vi.mocked(supabase.auth.getSession);
+    if (failure === 'returned') read.mockResolvedValueOnce({ data: { session: null }, error });
+    else read.mockRejectedValueOnce(error);
+
+    const session = { user: { id: 'existing-user' } } as Session;
+    read.mockResolvedValueOnce({ data: { session }, error: null });
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.sessionLoadFailed).toBe(true));
+    expect(result.current.loading).toBe(false);
+    expect(supabase.auth.signOut).not.toHaveBeenCalled();
+
+    const listener = vi.mocked(supabase.auth.onAuthStateChange).mock.calls[0][0];
+    act(() => { void listener('INITIAL_SESSION', null); });
+    expect(result.current.sessionLoadFailed).toBe(true);
+
+    act(() => result.current.retrySession());
+    await waitFor(() => expect(result.current.session).toBe(session));
+    expect(result.current.user?.id).toBe('existing-user');
+    expect(result.current.loading).toBe(false);
+    expect(result.current.sessionLoadFailed).toBe(false);
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(supabase.auth.onAuthStateChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not apply a stale read after the authentication state changes', async () => {
+    const session = { user: { id: 'already-signed-out' } } as Session;
+    let finishRead!: (result: { data: { session: Session }; error: null }) => void;
+    vi.mocked(supabase.auth.getSession).mockReturnValueOnce(new Promise(resolve => {
+      finishRead = resolve;
+    }));
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    const listener = vi.mocked(supabase.auth.onAuthStateChange).mock.calls[0][0];
+    act(() => { void listener('SIGNED_OUT', null); });
+    expect(result.current.loading).toBe(false);
+
+    await act(async () => {
+      finishRead({ data: { session }, error: null });
+      await listener('INITIAL_SESSION', session);
+    });
+    expect(result.current.session).toBeNull();
+    expect(result.current.user).toBeNull();
+    expect(result.current.sessionLoadFailed).toBe(false);
   });
 
   it('throws error when used outside AuthProvider', () => {

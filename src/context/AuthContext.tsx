@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../utils/supabase';
 
@@ -6,6 +6,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  sessionLoadFailed: boolean;
+  retrySession: () => void;
   isEmailVerification: boolean;
   isPasswordReset: boolean;
   clearEmailVerification: () => void;
@@ -23,6 +25,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionLoadFailed, setSessionLoadFailed] = useState(false);
+  const restoreSession = useRef<(() => void) | null>(null);
   const [isEmailVerification, setIsEmailVerification] = useState(false);
   const [isPasswordReset, setIsPasswordReset] = useState(false);
 
@@ -34,23 +38,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsEmailVerification(true);
     }
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    let active = true;
+    let sessionVersion = 0;
+    let readingSession = false;
+
+    const applySession = (session: Session | null) => {
       setSession(session);
       setUser(session?.user ?? null);
+      setSessionLoadFailed(false);
       setLoading(false);
-    });
+    };
 
-    // Listen for auth changes
+    const readSession = async () => {
+      if (readingSession) return;
+      readingSession = true;
+      const version = sessionVersion;
+      setSessionLoadFailed(false);
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        if (active && version === sessionVersion) applySession(data.session);
+      } catch {
+        if (active && version === sessionVersion) {
+          setSessionLoadFailed(true);
+          setLoading(false);
+        }
+      } finally {
+        readingSession = false;
+      }
+    };
+    restoreSession.current = readSession;
+    void readSession();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      (event, session) => {
+        // The SDK emits INITIAL_SESSION with a null session after a refresh
+        // error too. Read initial state through getSession to get the error.
+        if (!active || event === 'INITIAL_SESSION') return;
+        sessionVersion += 1;
+        applySession(session);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      restoreSession.current = null;
+      subscription.unsubscribe();
+    };
   }, []);
+
+  const retrySession = () => {
+    restoreSession.current?.();
+  };
 
   const clearEmailVerification = () => {
     setIsEmailVerification(false);
@@ -102,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset, signUp, signIn, signOut, deleteAccount, resetPassword }}>
+    <AuthContext.Provider value={{ user, session, loading, sessionLoadFailed, retrySession, isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset, signUp, signIn, signOut, deleteAccount, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

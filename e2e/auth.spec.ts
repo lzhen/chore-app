@@ -210,6 +210,62 @@ test.describe('Login Flow', () => {
 test.describe('Sign-in recovery', () => {
   test.use({ serviceWorkers: 'block' });
 
+  test('can retry a failed startup read and restore an existing session', async ({ page }) => {
+    const user = {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      email: 'startup-retry@example.test',
+      aud: 'authenticated',
+      role: 'authenticated',
+      app_metadata: {},
+      user_metadata: {},
+      created_at: '2026-01-01T00:00:00Z',
+    };
+    const token = 'eyJhbGciOiJIUzI1NiJ9.' + Buffer.from(JSON.stringify({
+      sub: user.id, exp: 2000000000, role: 'authenticated',
+    })).toString('base64url') + '.test-only';
+    const storageKey = 'sb-rosofbnimiothwxsabyr-auth-token';
+    const session = {
+      access_token: token, refresh_token: 'mock-only', expires_at: 2000000000,
+      expires_in: 3600, token_type: 'bearer', user,
+    };
+
+    // Keep the app, storage and retry path live while simulating an unavailable session read.
+    await page.route(url => url.pathname.endsWith('/src/utils/supabase.ts'), async route => {
+      const response = await route.fetch();
+      const body = (await response.text()) + `
+        const readSession = supabase.auth.getSession.bind(supabase.auth);
+        supabase.auth.getSession = () => {
+          if (localStorage.getItem(${JSON.stringify(storageKey)})) return readSession();
+          return Promise.reject(new TypeError('Synthetic startup session read failure'));
+        };
+      `;
+      await route.fulfill({ status: response.status(), contentType: 'text/javascript', body });
+    });
+    const authRequests: string[] = [];
+    await page.route('**/*.supabase.co/**', route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      if (pathname.startsWith('/auth/')) authRequests.push(pathname);
+      if (request.method() === 'GET' && pathname.startsWith('/rest/v1/')) {
+        return route.fulfill({ json: [] });
+      }
+      return route.abort('blockedbyclient');
+    });
+
+    await page.goto('/chore-app/');
+    await expect(page.getByRole('heading', { name: 'We couldn’t check your session' })).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveText('Check your connection and try again.');
+    await expect(page.getByText('Sign in to your account')).toHaveCount(0);
+    await page.evaluate(({ storageKey, session }) => {
+      localStorage.setItem(storageKey, JSON.stringify(session));
+    }, { storageKey, session });
+    await page.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(page.getByRole('navigation', { name: 'Primary navigation' })
+      .getByRole('button', { name: 'Today', exact: true })).toHaveAttribute('aria-current', 'page');
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    expect(authRequests).toEqual([]);
+  });
+
   test('can retry sign-in after the SDK cannot save the synthetic session', async ({ page }) => {
     const user = {
       id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',

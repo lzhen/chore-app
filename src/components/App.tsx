@@ -28,7 +28,10 @@ const starterChores: {label:string;detail:string;draft:ChoreDefaultValues}[] = [
 
 export function App() {
   const { state, reload } = useApp();
-  const { user, loading: authLoading, isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset } = useAuth();
+  const {
+    user, loading: authLoading, sessionLoadFailed, retrySession,
+    isEmailVerification, isPasswordReset, clearEmailVerification, clearPasswordReset,
+  } = useAuth();
   const calendarRef = useRef<CalendarRef>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -198,6 +201,14 @@ export function App() {
 
   // Show loading while checking auth
   if (authLoading) return <LoadingScreen phase="session" />;
+
+  if (sessionLoadFailed) {
+    return <main className="chore-load-error">
+      <h1>We couldn’t check your session</h1>
+      <p role="alert">Check your connection and try again.</p>
+      <button type="button" className="chore-button primary" onClick={retrySession}>Retry</button>
+    </main>;
+  }
 
   // Show email verification page
   if (isEmailVerification) {
