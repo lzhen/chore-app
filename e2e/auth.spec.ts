@@ -207,6 +207,76 @@ test.describe('Login Flow', () => {
   });
 });
 
+test.describe('Sign-in recovery', () => {
+  test.use({ serviceWorkers: 'block' });
+
+  test('can retry sign-in after the SDK cannot save the synthetic session', async ({ page }) => {
+    const user = {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      email: 'sign-in-retry@example.test',
+      aud: 'authenticated',
+      role: 'authenticated',
+      app_metadata: {},
+      user_metadata: {},
+      created_at: '2026-01-01T00:00:00Z',
+    };
+    const token = 'eyJhbGciOiJIUzI1NiJ9.' + Buffer.from(JSON.stringify({
+      sub: user.id, exp: 2000000000, role: 'authenticated',
+    })).toString('base64url') + '.test-only';
+    const storageKey = 'sb-rosofbnimiothwxsabyr-auth-token';
+    await page.addInitScript(({ storageKey, token }) => {
+      const setItem = Storage.prototype.setItem;
+      let rejectOnce = true;
+      Storage.prototype.setItem = function (key, value) {
+        if (rejectOnce && this === window.localStorage && key === storageKey && value.includes(token)) {
+          rejectOnce = false;
+          throw new DOMException('Synthetic session storage rejection', 'QuotaExceededError');
+        }
+        setItem.call(this, key, value);
+      };
+    }, { storageKey, token });
+
+    const signInEmails: string[] = [];
+    await page.route('**/*.supabase.co/**', async route => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (request.method() === 'POST' && url.pathname === '/auth/v1/token' &&
+          url.searchParams.get('grant_type') === 'password') {
+        signInEmails.push(request.postDataJSON().email);
+        return route.fulfill({ json: {
+          access_token: token, refresh_token: 'mock-only', expires_in: 3600, token_type: 'bearer', user,
+        } });
+      }
+      if (request.method() === 'GET' && url.pathname === '/auth/v1/user') {
+        return route.fulfill({ json: user });
+      }
+      if (request.method() === 'GET' && url.pathname.startsWith('/rest/v1/')) {
+        return route.fulfill({ json: [] });
+      }
+      return route.abort('blockedbyclient');
+    });
+
+    await page.goto('/chore-app/');
+    const authPage = new AuthPage(page);
+    const submit = page.getByRole('button', { name: 'Sign In', exact: true });
+    await authPage.fillEmail(user.email);
+    await authPage.fillPassword('synthetic-password');
+    await submit.click();
+    await expect(page.getByRole('alert')).toHaveText('Could not confirm the request. Please try again.');
+    await expect(await authPage.getEmailInput()).toHaveValue(user.email);
+    await expect(await authPage.getPasswordInput()).toHaveValue('synthetic-password');
+    await expect(submit).toBeEnabled();
+    expect(signInEmails).toEqual([user.email]);
+    expect(await page.evaluate(key => localStorage.getItem(key), storageKey)).toBeNull();
+
+    await submit.click();
+    await expect(page.getByRole('navigation', { name: 'Primary navigation' })
+      .getByRole('button', { name: 'Today', exact: true })).toHaveAttribute('aria-current', 'page');
+    expect(signInEmails).toEqual([user.email, user.email]);
+    expect(await page.evaluate(key => localStorage.getItem(key) !== null, storageKey)).toBe(true);
+  });
+});
+
 test.describe('Password Reset Request Flow', () => {
   let authPage: AuthPage;
 

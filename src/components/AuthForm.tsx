@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { ThemeSelector } from './ThemeSelector';
 import { Logo } from './Logo';
@@ -15,38 +15,40 @@ export function AuthForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const requestInFlight = useRef(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (requestInFlight.current) return;
+    requestInFlight.current = true;
     setError(null);
     setMessage(null);
     setLoading(true);
 
-    if (mode === 'forgotPassword') {
-      const { error } = await resetPassword(email.trim().toLowerCase());
-      if (error) {
-        setError(error.message);
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
+      if (mode === 'forgotPassword') {
+        const { error } = await resetPassword(normalizedEmail);
+        if (error) setError(error.message);
+        else setMessage('Check your email for a password reset link!');
+      } else if (mode === 'signUp') {
+        const { error } = await signUp(normalizedEmail, password);
+        if (error) setError(error.message);
+        else setMessage('Check your email for a confirmation link!');
       } else {
-        setMessage('Check your email for a password reset link!');
+        const { error } = await signIn(normalizedEmail, password);
+        if (error) setError(error.message);
       }
-    } else if (mode === 'signUp') {
-      const { error } = await signUp(email.trim().toLowerCase(), password);
-      if (error) {
-        setError(error.message);
-      } else {
-        setMessage('Check your email for a confirmation link!');
-      }
-    } else {
-      const { error } = await signIn(email.trim().toLowerCase(), password);
-      if (error) {
-        setError(error.message);
-      }
+    } catch {
+      setError('Could not confirm the request. Please try again.');
+    } finally {
+      requestInFlight.current = false;
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const switchMode = (newMode: AuthMode) => {
+    if (requestInFlight.current) return;
     setMode(newMode);
     setError(null);
     setMessage(null);
@@ -176,6 +178,7 @@ export function AuthForm() {
             <div className="mt-3 text-center">
               <button
                 onClick={() => switchMode('forgotPassword')}
+                disabled={loading}
                 className="text-content-secondary hover:text-brand text-sm transition-colors duration-fast"
               >
                 Forgot your password?
@@ -187,6 +190,7 @@ export function AuthForm() {
             {mode === 'forgotPassword' ? (
               <button
                 onClick={() => switchMode('signIn')}
+                disabled={loading}
                 className="text-brand hover:underline text-sm transition-colors duration-fast"
               >
                 Back to sign in
@@ -194,6 +198,7 @@ export function AuthForm() {
             ) : (
               <button
                 onClick={() => switchMode(mode === 'signUp' ? 'signIn' : 'signUp')}
+                disabled={loading}
                 className="text-brand hover:underline text-sm transition-colors duration-fast"
               >
                 {mode === 'signUp'

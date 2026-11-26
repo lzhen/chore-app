@@ -1,5 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { AuthApiError } from '@supabase/supabase-js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AuthForm } from './AuthForm';
 import { AuthProvider } from '../context/AuthContext';
@@ -251,5 +252,83 @@ describe('AuthForm', () => {
     await user.click(screen.getByText(/don't have an account\? sign up/i));
 
     expect(screen.queryByText('Invalid credentials')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    { mode: 'sign in', submit: 'Sign In', request: 'signInWithPassword' },
+    { mode: 'sign up', submit: 'Sign Up', request: 'signUp', switchTo: /don't have an account/i, success: /confirmation link/i },
+    { mode: 'reset link', submit: 'Send Reset Link', request: 'resetPasswordForEmail', switchTo: /forgot your password/i, success: /password reset link/i },
+  ] as const)('keeps a $mode draft retryable after a rejected request', async ({ mode, submit, request, ...details }) => {
+    const authRequest = vi.mocked(supabase.auth[request]);
+    authRequest
+      .mockRejectedValueOnce(new Error('Synthetic storage lock error'))
+      .mockResolvedValueOnce({ data: { user: null, session: null }, error: null });
+
+    const user = userEvent.setup();
+    renderAuthForm();
+    if (details.switchTo) {
+      await user.click(screen.getByRole('button', { name: details.switchTo }));
+    }
+    await user.type(screen.getByLabelText('Email'), 'Test@Example.com');
+    if (mode !== 'reset link') {
+      await user.type(screen.getByLabelText('Password'), 'synthetic-password');
+    }
+
+    await user.click(screen.getByRole('button', { name: submit }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not confirm the request. Please try again.');
+    expect(screen.getByLabelText('Email')).toHaveValue('Test@Example.com');
+    if (mode !== 'reset link') {
+      expect(screen.getByLabelText('Password')).toHaveValue('synthetic-password');
+    }
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: submit })).toBeEnabled();
+
+    await user.click(screen.getByRole('button', { name: submit }));
+    await waitFor(() => expect(screen.getByRole('button', { name: submit })).toBeEnabled());
+    expect(authRequest).toHaveBeenCalledTimes(2);
+    expect(authRequest.mock.calls[1]).toEqual(authRequest.mock.calls[0]);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    if (details.success) {
+      expect(screen.getByRole('status')).toHaveTextContent(details.success);
+    }
+  });
+
+  it('keeps one request in flight and the submitting mode active until it settles', async () => {
+    const signIn = vi.mocked(supabase.auth.signInWithPassword);
+    let finish!: () => void;
+    const pending = new Promise<Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>>(resolve => {
+      finish = () => resolve({
+        data: { user: null, session: null },
+        error: new AuthApiError('Try again shortly', 503, 'unexpected_failure'),
+      });
+    });
+    signIn.mockReturnValue(pending);
+
+    const user = userEvent.setup();
+    renderAuthForm();
+    await user.type(screen.getByLabelText('Email'), 'test@example.com');
+    await user.type(screen.getByLabelText('Password'), 'synthetic-password');
+    const form = screen.getByRole('button', { name: 'Sign In' }).closest('form')!;
+    const forgot = screen.getByRole('button', { name: 'Forgot your password?' });
+    const signUp = screen.getByRole('button', { name: /don't have an account/i });
+
+    act(() => {
+      fireEvent.submit(form);
+      fireEvent.submit(form);
+      fireEvent.click(forgot);
+    });
+
+    expect(signIn).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('heading', { name: 'Sign in to your account' })).toBeVisible();
+    expect(forgot).toBeDisabled();
+    expect(signUp).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Loading...' })).toBeDisabled();
+
+    await act(async () => { finish(); });
+    expect(screen.getByRole('button', { name: 'Sign In' })).toBeEnabled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Try again shortly');
+    await user.click(forgot);
+    expect(screen.getByRole('heading', { name: 'Reset your password' })).toBeVisible();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
