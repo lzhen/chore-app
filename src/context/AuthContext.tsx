@@ -24,11 +24,19 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [committedUserId, setCommittedUserId] = useState<string>();
+  const userId = user?.id;
+  const loading = checkingSession || committedUserId !== userId;
   const [sessionLoadFailed, setSessionLoadFailed] = useState(false);
   const restoreSession = useRef<(() => void) | null>(null);
   const [isEmailVerification, setIsEmailVerification] = useState(false);
   const [isPasswordReset, setIsPasswordReset] = useState(false);
+
+  // Let the keyed household provider mount for the new identity before it starts loading data.
+  useEffect(() => {
+    setCommittedUserId(userId);
+  }, [userId]);
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -46,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setSessionLoadFailed(false);
-      setLoading(false);
+      setCheckingSession(false);
     };
 
     const readSession = async () => {
@@ -54,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       readingSession = true;
       const version = sessionVersion;
       setSessionLoadFailed(false);
-      setLoading(true);
+      setCheckingSession(true);
       try {
         const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
@@ -62,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {
         if (active && version === sessionVersion) {
           setSessionLoadFailed(true);
-          setLoading(false);
+          setCheckingSession(false);
         }
       } finally {
         readingSession = false;

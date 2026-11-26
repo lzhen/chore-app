@@ -1,4 +1,5 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { StrictMode, useEffect } from 'react';
+import { render, renderHook, act, waitFor } from '@testing-library/react';
 import { AuthError, type Session } from '@supabase/supabase-js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AuthProvider, useAuth } from '../context/AuthContext';
@@ -67,6 +68,31 @@ describe('AuthContext', () => {
     expect(result.current.session).toBeNull();
     expect(result.current.user).toBeNull();
     expect(result.current.sessionLoadFailed).toBe(false);
+  });
+
+  it('starts household loading once when a restored identity mounts under StrictMode', () => {
+    const session = { user: { id: 'returning-user' } } as Session;
+    const pendingRead = new Promise<never>(() => {});
+    vi.mocked(supabase.auth.getSession).mockReturnValueOnce(pendingRead).mockReturnValueOnce(pendingRead);
+    const loadHousehold = vi.fn();
+
+    function Household() {
+      const { user, loading } = useAuth();
+      useEffect(() => {
+        if (user && !loading) loadHousehold();
+      }, [user, loading]);
+      return null;
+    }
+
+    function SessionHousehold() {
+      const { user } = useAuth();
+      return <Household key={user?.id ?? 'signed-out'} />;
+    }
+
+    render(<StrictMode><AuthProvider><SessionHousehold /></AuthProvider></StrictMode>);
+    const listener = vi.mocked(supabase.auth.onAuthStateChange).mock.lastCall![0];
+    act(() => { void listener('SIGNED_IN', session); });
+    expect(loadHousehold).toHaveBeenCalledTimes(1);
   });
 
   it('throws error when used outside AuthProvider', () => {
